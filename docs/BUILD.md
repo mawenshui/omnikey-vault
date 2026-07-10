@@ -14,7 +14,7 @@
 
 ```
 OmniKeyVault.sln                     # 解决方案入口
-Directory.Build.props                # 全局 MSBuild 属性(    <Version>1.2.0</Version>、TreatWarningsAsErrors=true、Roslyn 分析器注入)
+Directory.Build.props                # 全局 MSBuild 属性(    <Version>1.3.0</Version>、TreatWarningsAsErrors=true、Roslyn 分析器注入)
 
 src/
 ├── OmniKeyVault.Domain/             # 领域模型 — 纯值对象,无 I/O

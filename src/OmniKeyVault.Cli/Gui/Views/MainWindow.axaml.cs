@@ -1058,6 +1058,66 @@ public partial class MainWindow : Window
         RefreshProfileAndEntries();
     }
 
+    private async void OnWebDavPullClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (!_container.Vault.IsUnlocked)
+        {
+            ToastService.Show(ToastContainer, "请先解锁金库", ToastType.Warning);
+            return;
+        }
+        if (_container.WebDavSync == null || !SettingsStore.WebDavEnabled)
+        {
+            ToastService.Show(ToastContainer, "请先在设置中配置 WebDAV", ToastType.Warning);
+            return;
+        }
+        await PerformWebDavPullAsync();
+    }
+
+    private async void OnWebDavPushClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (!_container.Vault.IsUnlocked)
+        {
+            ToastService.Show(ToastContainer, "请先解锁金库", ToastType.Warning);
+            return;
+        }
+        if (_container.WebDavSync == null || !SettingsStore.WebDavEnabled)
+        {
+            ToastService.Show(ToastContainer, "请先在设置中配置 WebDAV", ToastType.Warning);
+            return;
+        }
+        await PerformWebDavPushAsync();
+    }
+
+    private void OnLocalSyncClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (!_container.Vault.IsUnlocked)
+        {
+            ToastService.Show(ToastContainer, "请先解锁金库", ToastType.Warning);
+            return;
+        }
+        // Local folder sync - just refresh the list from the vault file
+        SyncText.Text = "同步中…(本地文件夹)";
+        SyncDot.Fill = Res.Brush("InfoBrush");
+        ToastService.Show(ToastContainer, "重新加载金库文件…", ToastType.Info);
+        DispatcherTimer.RunOnce(() =>
+        {
+            try
+            {
+                ReloadAfterSync();
+                SyncText.Text = $"刚刚同步 · 来自 {_container.DeviceId}";
+                SyncDot.Fill = Res.Brush("SuccessBrush");
+                ToastService.Show(ToastContainer, "同步完成", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ToastService.Show(ToastContainer, "同步失败: " + ex.Message, ToastType.Error);
+                SyncText.Text = "同步失败";
+                SyncDot.Fill = Res.Brush("DangerBrush");
+            }
+        }, TimeSpan.FromSeconds(0.5));
+    }
+
+    /// <summary>Legacy sync method - performs full WebDAV sync cycle (deprecated).</summary>
     private async void OnSyncClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (!_container.Vault.IsUnlocked)
@@ -1074,15 +1134,7 @@ public partial class MainWindow : Window
         }
 
         // Fallback: local folder sync (original behavior)
-        SyncText.Text = "同步中…(手动触发)";
-        SyncDot.Fill = Res.Brush("InfoBrush");
-        ToastService.Show(ToastContainer, "同步中…(手动触发)", ToastType.Info);
-        DispatcherTimer.RunOnce(() =>
-        {
-            SyncText.Text = $"刚刚同步 · 来自 {_container.DeviceId}";
-            SyncDot.Fill = Res.Brush("SuccessBrush");
-            ToastService.Show(ToastContainer, "同步完成", ToastType.Success);
-        }, TimeSpan.FromSeconds(1.5));
+        OnLocalSyncClick(sender, e);
     }
 
     /// <summary>Performs a full WebDAV sync cycle: download → merge → upload.</summary>
@@ -1177,6 +1229,127 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             ToastService.Show(ToastContainer, "WebDAV 同步出错: " + ex.Message, ToastType.Error);
+            LastSyncText.Text = "错误";
+            SyncDot.Fill = Res.Brush("DangerBrush");
+        }
+    }
+
+    /// <summary>Performs WebDAV pull: download → merge.</summary>
+    private async System.Threading.Tasks.Task PerformWebDavPullAsync()
+    {
+        var vaultPath = _container.Vault.CurrentVaultPath;
+        if (string.IsNullOrEmpty(vaultPath))
+        {
+            ToastService.Show(ToastContainer, "金库路径未知", ToastType.Error);
+            return;
+        }
+        SyncText.Text = "从云端拉取中…";
+        SyncDot.Fill = Res.Brush("InfoBrush");
+        ToastService.Show(ToastContainer, "正在从 WebDAV 服务器拉取…", ToastType.Info);
+
+        try
+        {
+            var result = await System.Threading.Tasks.Task.Run(() =>
+                _container.WebDavSync!.PullAsync(vaultPath));
+
+            if (result.SyncResult != null)
+            {
+                switch (result.SyncResult.Outcome)
+                {
+                    case SyncOutcome.NoChange:
+                    case SyncOutcome.LocalAhead:
+                        ToastService.Show(ToastContainer, result.Message, ToastType.Info);
+                        LastSyncText.Text = "刚刚 · 无变化";
+                        break;
+                    case SyncOutcome.TookRemote:
+                        // Check if this was a UUID mismatch TakeRemote (requires re-unlock)
+                        if (result.Message.Contains("重新解锁"))
+                        {
+                            ToastService.Show(ToastContainer, result.Message, ToastType.Warning);
+                            LastSyncText.Text = "需重新解锁";
+                        }
+                        else
+                        {
+                            ToastService.Show(ToastContainer, result.Message, ToastType.Success);
+                            LastSyncText.Text = "刚刚 · 拉取";
+                            ReloadAfterSync();
+                        }
+                        break;
+                    case SyncOutcome.Merged:
+                        ToastService.Show(ToastContainer, result.Message, ToastType.Success);
+                        LastSyncText.Text = $"刚刚 · 合并 {result.SyncResult.EntriesMerged}";
+                        ReloadAfterSync();
+                        break;
+                    case SyncOutcome.FailedRemoteUnreadable:
+                        ToastService.Show(ToastContainer, "远端文件损坏: " + result.Message, ToastType.Error);
+                        LastSyncText.Text = "远端损坏";
+                        break;
+                    case SyncOutcome.FailedConflict:
+                        ToastService.Show(ToastContainer, "同步冲突: " + result.Message, ToastType.Error);
+                        LastSyncText.Text = "冲突";
+                        break;
+                    case SyncOutcome.RemoteVaultMismatch:
+                        ToastService.Show(ToastContainer, result.Message, ToastType.Error);
+                        LastSyncText.Text = "金库不匹配";
+                        break;
+                }
+
+                if (result.SyncResult.ConflictsDetected > 0)
+                {
+                    ToastService.Show(ToastContainer,
+                        $"{result.SyncResult.ConflictsDetected} 个冲突已按本地优先原则解决",
+                        ToastType.Warning);
+                }
+            }
+            else
+            {
+                ToastService.Show(ToastContainer, result.Message, ToastType.Error);
+                LastSyncText.Text = "拉取失败";
+            }
+            SyncDot.Fill = Res.Brush("SuccessBrush");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Show(ToastContainer, "WebDAV 拉取出错: " + ex.Message, ToastType.Error);
+            LastSyncText.Text = "错误";
+            SyncDot.Fill = Res.Brush("DangerBrush");
+        }
+    }
+
+    /// <summary>Performs WebDAV push: upload local vault.</summary>
+    private async System.Threading.Tasks.Task PerformWebDavPushAsync()
+    {
+        var vaultPath = _container.Vault.CurrentVaultPath;
+        if (string.IsNullOrEmpty(vaultPath))
+        {
+            ToastService.Show(ToastContainer, "金库路径未知", ToastType.Error);
+            return;
+        }
+        SyncText.Text = "推送到云端中…";
+        SyncDot.Fill = Res.Brush("InfoBrush");
+        ToastService.Show(ToastContainer, "正在推送到 WebDAV 服务器…", ToastType.Info);
+
+        try
+        {
+            var result = await System.Threading.Tasks.Task.Run(() =>
+                _container.WebDavSync!.PushAsync(vaultPath));
+
+            if (result.Uploaded)
+            {
+                ToastService.Show(ToastContainer, result.Message, ToastType.Success);
+                LastSyncText.Text = "刚刚 · 推送";
+                SyncDot.Fill = Res.Brush("SuccessBrush");
+            }
+            else
+            {
+                ToastService.Show(ToastContainer, result.Message, ToastType.Error);
+                LastSyncText.Text = "推送失败";
+                SyncDot.Fill = Res.Brush("DangerBrush");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Show(ToastContainer, "WebDAV 推送出错: " + ex.Message, ToastType.Error);
             LastSyncText.Text = "错误";
             SyncDot.Fill = Res.Brush("DangerBrush");
         }

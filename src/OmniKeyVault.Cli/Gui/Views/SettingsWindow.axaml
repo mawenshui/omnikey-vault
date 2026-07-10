@@ -134,24 +134,24 @@
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
 
                 <!-- ===== WebDAV 云同步 ===== -->
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="8">
                     <TextBlock Text="WebDAV 云同步" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
                                Foreground="{DynamicResource FgFaintBrush}" />
-                    <StackPanel Spacing="4">
+                    <StackPanel Spacing="6">
                         <TextBlock Text="服务器地址" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
                         <TextBox Classes="field" x:Name="WebDavUrlBox" Watermark="https://dav.example.com/okv/" />
                     </StackPanel>
-                    <Grid ColumnDefinitions="*,8,*" Margin="0,2,0,0">
-                        <StackPanel Grid.Column="0" Spacing="4">
+                    <Grid ColumnDefinitions="*,8,*" Margin="0,0,0,0">
+                        <StackPanel Grid.Column="0" Spacing="6">
                             <TextBlock Text="用户名" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
                             <TextBox Classes="field" x:Name="WebDavUserBox" Watermark="username" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Spacing="4">
+                        <StackPanel Grid.Column="2" Spacing="6">
                             <TextBlock Text="密码" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
                             <TextBox Classes="field" x:Name="WebDavPassBox" PasswordChar="•" Watermark="password" />
                         </StackPanel>
                     </Grid>
-                    <StackPanel Spacing="4" Margin="0,2,0,0">
+                    <StackPanel Spacing="6" Margin="0,0,0,0">
                         <TextBlock Text="远端文件路径" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
                         <TextBox Classes="field" x:Name="WebDavPathBox" Watermark="vault.okv" />
                     </StackPanel>
@@ -161,7 +161,7 @@
                     <CheckBox x:Name="WebDavAutoSyncBox" IsCheckedChanged="OnWebDavAutoSyncChanged" Margin="0,2,0,0">
                         <TextBlock Text="自动同步(解锁后拉取,保存后推送)" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
                     </CheckBox>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
                         <Button Classes="primary" Padding="14,6" Click="OnTestWebDavClick">
                             <TextBlock Text="🔗 测试连接" FontSize="12" />
                         </Button>
@@ -170,7 +170,7 @@
                         </Button>
                     </StackPanel>
                     <TextBlock x:Name="WebDavStatusText" FontSize="10" TextWrapping="Wrap"
-                               IsVisible="False" Margin="0,2,0,0" />
+                               IsVisible="False" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />

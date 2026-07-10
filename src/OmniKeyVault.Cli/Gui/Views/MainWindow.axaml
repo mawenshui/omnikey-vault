@@ -139,8 +139,14 @@
                 </Border>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <Button Classes="icon" Click="OnSyncClick" ToolTip.Tip="同步状态">
-                        <TextBlock Text="⟳" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    <Button Classes="icon" Click="OnWebDavPullClick" ToolTip.Tip="从云端拉取">
+                        <TextBlock Text="⬇" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
+                    <Button Classes="icon" Click="OnWebDavPushClick" ToolTip.Tip="推送到云端">
+                        <TextBlock Text="⬆" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
+                    <Button Classes="icon" Click="OnLocalSyncClick" ToolTip.Tip="本地文件夹同步">
+                        <TextBlock Text="🔄" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
                     </Button>
                     <Button Classes="icon" Click="OnAdvancedSearchClick" ToolTip.Tip="高级搜索 (tags: / platform: / field:KEY:VALUE)">
                         <TextBlock Text="🔍" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />

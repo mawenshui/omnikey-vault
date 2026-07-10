@@ -141,6 +141,82 @@ public sealed class WebDavSyncService
             return "WebDAV 提供者未初始化。";
         return await provider.TestConnectionAsync(ct);
     }
+
+    /// <summary>Pulls the remote vault from WebDAV and merges with local.
+    /// Use this when you want to fetch changes from the cloud.</summary>
+    public async Task<WebDavSyncResult> PullAsync(string vaultFilePath, CancellationToken ct = default)
+    {
+        var provider = _providerFactory();
+        if (provider == null || !provider.IsConfigured)
+            return new WebDavSyncResult(null, false, "WebDAV 未配置,请先在设置中填写服务器信息。");
+
+        var tempRemote = Path.Combine(Path.GetTempPath(), $"okv-webdav-pull-{Guid.NewGuid():N}.okv");
+        bool remoteExists;
+        try
+        {
+            remoteExists = await provider.DownloadAsync(tempRemote, ct);
+        }
+        catch (Exception ex)
+        {
+            return new WebDavSyncResult(null, false, $"下载远端文件失败: {ex.Message}");
+        }
+
+        try
+        {
+            if (!remoteExists)
+            {
+                return new WebDavSyncResult(null, false, "远端没有金库文件,无法拉取。");
+            }
+
+            // Merge remote with local
+            var syncResult = await _syncService.SyncAsync(vaultFilePath, tempRemote, ct);
+
+            // RemoteVaultMismatch: different vault instances, cannot merge.
+            if (syncResult.Outcome == SyncOutcome.RemoteVaultMismatch)
+            {
+                return new WebDavSyncResult(syncResult, false, syncResult.Message);
+            }
+
+            // NoChange or LocalAhead: local is newer, nothing to pull
+            if (syncResult.Outcome == SyncOutcome.NoChange || syncResult.Outcome == SyncOutcome.LocalAhead)
+            {
+                return new WebDavSyncResult(syncResult, true, "本地已是最新,无需拉取。");
+            }
+
+            // TookRemote or Merged: local has been updated with remote changes
+            var msg = syncResult.Outcome == SyncOutcome.TookRemote
+                ? "已从远端拉取更新。"
+                : $"已合并 {syncResult.EntriesMerged} 个条目。";
+            return new WebDavSyncResult(syncResult, true, msg);
+        }
+        catch (Exception ex)
+        {
+            return new WebDavSyncResult(null, false, $"拉取合并失败: {ex.Message}");
+        }
+        finally
+        {
+            try { if (File.Exists(tempRemote)) File.Delete(tempRemote); } catch { }
+        }
+    }
+
+    /// <summary>Pushes the local vault to WebDAV without pulling first.
+    /// Use this when you want to push your local changes to the cloud.</summary>
+    public async Task<WebDavSyncResult> PushAsync(string vaultFilePath, CancellationToken ct = default)
+    {
+        var provider = _providerFactory();
+        if (provider == null || !provider.IsConfigured)
+            return new WebDavSyncResult(null, false, "WebDAV 未配置,请先在设置中填写服务器信息。");
+
+        try
+        {
+            await provider.UploadAsync(vaultFilePath, ct);
+            return new WebDavSyncResult(null, true, "已推送到 WebDAV 服务器。");
+        }
+        catch (Exception ex)
+        {
+            return new WebDavSyncResult(null, false, $"推送失败: {ex.Message}");
+        }
+    }
 }
 
 /// <summary>Result of a WebDAV sync operation.</summary>

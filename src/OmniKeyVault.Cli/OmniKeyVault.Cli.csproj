@@ -8,11 +8,11 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.17763.0</SupportedOSPlatformVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.16" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.16" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.16" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.16" />
-    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />

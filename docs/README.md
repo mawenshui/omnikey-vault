@@ -2,6 +2,7 @@
 
 | 文档集版本 | 日期 | 状态 |
 |---|---|---|
+| 1.4 | 2026-07-10 | v1.4 发布:代码质量改进（SettingsStore 提取、demo 路由重构、SourceLink/CPM/Coverlet）+ CI/CD + OKV_TEST_MODE Release 防护 + 557/557 测试通过 |
 | 1.3 | 2026-07-10 | v1.3 发布:UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 557/557 测试通过 |
 | 1.2 | 2026-07-10 | v1.2 发布:WebDAV 云同步 + 跨设备同步修复 + 557/557 测试通过 |
 | 1.1 | 2026-07-07 | v1.1 优化进行中:Phase 1-2 已完成,Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地);467/467 测试通过 |
@@ -147,7 +148,8 @@ dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0
 | 0.3 | v0.2(实际 357/357) | 与 v0.2 代码完全同步,GUI 已落地 |
 | 0.4(从未发版) | v0.4(实际 430/430) | 在 v0.2 之上增量交付,GUI demo 入口新增 |
 | 1.0 | v1.0(实际 451/451) | v0.1-v0.4 全部已交付;1 万条目性能压测达标 |
-| 1.3(当前) | **v1.3(实际 557/557)** | **UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 新增 PullAsync/PushAsync 方法;详见 [使用手册.md](./使用手册.md)** |
+| 1.4(当前) | **v1.4(实际 557/557)** | **代码质量改进 + CI/CD + SourceLink/CPM/Coverlet + OKV_TEST_MODE Release 防护;详见 [使用手册.md](./使用手册.md)** |
+| 1.3 | v1.3(实际 557/557) | UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 新增 PullAsync/PushAsync 方法;详见 [使用手册.md](./使用手册.md) |
 | 1.2 | v1.2(实际 557/557) | WebDAV 云同步实现 + 跨设备同步 UUID 匹配修复 + 坚果云集成测试验证;详见 [使用手册.md](./使用手册.md) |
 | 1.1 | v1.1(实际 467/467) | Phase 1-2 已完成(紧急止血 + 安全合规);Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地,10 分析器测试);Phase 4-12 待开始;详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md) |
 
@@ -155,7 +157,21 @@ dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0
 
 ## 4. 历史与变更
 
-### 4.0 1.3(2026-07-10)— 当前
+### 4.0 1.4(2026-07-10)— 当前
+
+**v1.4 发布**:代码质量改进与工程化升级。解决 8 项代码审计发现的问题，提升项目可维护性和安全性。
+
+**主要变更**:
+- **About 对话框版本修复**:从硬编码 `v1.0.0` 改为运行时读取程序集版本号，为后续 GitHub 在线升级功能做准备。
+- **OKV_TEST_MODE Release 防护**:在 `CommandHandlers.cs` 和 `Benchmark/Program.cs` 中添加 `#if DEBUG` 保护，Release 构建中禁止使用弱化 KDF，防止安全降级攻击。
+- **CI/CD**:新增 `.github/workflows/ci.yml`，自动构建 + 测试 + 覆盖率收集 + tag 触发自动发布 Release。
+- **SettingsStore 提取**:将 `SettingsStore` 从 `SettingsWindow.axaml.cs:691`（View code-behind）提取到独立的 `src/OmniKeyVault.Cli/SettingsStore.cs`，解除持久化逻辑与视图层的耦合。
+- **SourceLink / 中央包管理 / 测试覆盖率**:`Directory.Build.props` 添加 SourceLink 支持；新建 `Directory.Packages.props` 统一管理所有 NuGet 包版本；测试项目添加 Coverlet 覆盖率收集。
+- **Demo 路由重构**:将 `App.axaml.cs` 中 16 个 `if-else` demo 路由重构为字典映射，代码行数从 100+ 行减少到 30 行。
+- **文档清理**:删除 3 份过时文档（`修改方案文档-v1.3.0.md`、`后续优化计划.md`、`plan-v1.1-optimization.md`）。
+- **测试总数**:557/557 通过（保持不变）。
+
+### 4.1 1.3(2026-07-10)
 
 **v1.3 发布**:UI 改进，将同步按钮拆分为"拉取云端"（⬇）、"推送到云端"（⬆）和"本地同步"（🔄）三个独立按钮，明确用户意图。优化 WebDAV 配置界面布局，解决堆叠遮挡问题。新增 WebDavSyncService.PullAsync 和 PushAsync 方法支持单独的拉取和推送操作。
 

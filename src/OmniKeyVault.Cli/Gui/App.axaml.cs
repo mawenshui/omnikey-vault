@@ -93,98 +93,47 @@ public partial class App : AvaloniaApplication
                 Log("ApplicationLifetime = IClassicDesktopStyleApplicationLifetime");
                 _shell = new GuiShell();
                 Log("GuiShell constructed");
-                var demoFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_DEV");
-                var recFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_RECOVERY");
-                var setFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_SETTINGS");
-                var creFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_CREATE");
-                var creFullFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_CREATEFULL");
-                var unlFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_UNLOCK");
-                var edFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_EDITOR");
-                var srchFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_SEARCH");
-                var histFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_HISTORY");
-                var profFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_PROFILE");
-                var syncFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_SYNC_CONFLICT");
-                var devTrustFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_DEVICE_TRUST");
-                var seedExpFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_SEED_EXPORT");
-                var seedImpFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_SEED_IMPORT");
-                var kpFlag = System.Environment.GetEnvironmentVariable("OKV_GUI_DEMO_KEEPASS_IMPORT");
-                Log($"env flags: DEV={demoFlag} REC={recFlag} SET={setFlag} CRE={creFlag} CREF={creFullFlag} UNL={unlFlag} ED={edFlag} SRCH={srchFlag} HIST={histFlag} PROF={profFlag} SYNC={syncFlag} TRUST={devTrustFlag} SEXP={seedExpFlag} SIMP={seedImpFlag} KP={kpFlag}");
-                if (demoFlag == "1")
+
+                // v1.4: Refactored 16 if-else demo routes into a dictionary.
+                // Each entry maps an env var name to a demo launcher action.
+                // The first env var set to "1" wins; if none match, ShowUnlock runs.
+                var demoRoutes = new (string envVar, string label, Action<GuiShell> launch)[]
                 {
-                    Log("routing → ShowDemoDevAsync");
-                    _ = _shell.ShowDemoDevAsync();
-                }
-                else if (recFlag == "1")
+                    ("OKV_GUI_DEMO_DEV",            "ShowDemoDevAsync",           s => _ = s.ShowDemoDevAsync()),
+                    ("OKV_GUI_DEMO_RECOVERY",       "ShowRecoveryDemo",           s => s.ShowRecoveryDemo()),
+                    ("OKV_GUI_DEMO_SETTINGS",       "ShowSettingsDemoAsync",      s => _ = s.ShowSettingsDemoAsync()),
+                    ("OKV_GUI_DEMO_CREATE",         "ShowCreateDemo",             s => s.ShowCreateDemo()),
+                    ("OKV_GUI_DEMO_CREATEFULL",     "ShowCreateFullDemoAsync",    s => _ = s.ShowCreateFullDemoAsync()),
+                    ("OKV_GUI_DEMO_UNLOCK",         "ShowUnlockDemoAsync",        s => _ = s.ShowUnlockDemoAsync()),
+                    ("OKV_GUI_DEMO_EDITOR",         "ShowEditorDemoAsync",        s => _ = s.ShowEditorDemoAsync()),
+                    ("OKV_GUI_DEMO_SEARCH",         "ShowSearchDemoAsync",        s => _ = s.ShowSearchDemoAsync()),
+                    ("OKV_GUI_DEMO_HISTORY",        "ShowHistoryDemoAsync",       s => _ = s.ShowHistoryDemoAsync()),
+                    ("OKV_GUI_DEMO_PROFILE",        "ShowProfileSwitcherDemoAsync", s => _ = s.ShowProfileSwitcherDemoAsync()),
+                    ("OKV_GUI_DEMO_SYNC_CONFLICT",  "ShowSyncConflictDemoAsync",  s => _ = s.ShowSyncConflictDemoAsync()),
+                    ("OKV_GUI_DEMO_DEVICE_TRUST",   "ShowDeviceTrustDemo",        s => s.ShowDeviceTrustDemo()),
+                    ("OKV_GUI_DEMO_SEED_EXPORT",    "ShowSeedExportDemoAsync",    s => _ = s.ShowSeedExportDemoAsync()),
+                    ("OKV_GUI_DEMO_SEED_IMPORT",    "ShowSeedImportDemoAsync",    s => _ = s.ShowSeedImportDemoAsync()),
+                    ("OKV_GUI_DEMO_KEEPASS_IMPORT", "ShowKeePassImportDemoAsync", s => _ = s.ShowKeePassImportDemoAsync()),
+                };
+
+                var activeFlags = string.Join(", ",
+                    demoRoutes.Where(r => System.Environment.GetEnvironmentVariable(r.envVar) == "1")
+                              .Select(r => r.envVar));
+                Log($"env flags active: {activeFlags}{(string.IsNullOrEmpty(activeFlags) ? "(none)" : "")}");
+
+                bool routed = false;
+                foreach (var route in demoRoutes)
                 {
-                    Log("routing → ShowRecoveryDemo");
-                    _shell.ShowRecoveryDemo();
+                    if (System.Environment.GetEnvironmentVariable(route.envVar) == "1")
+                    {
+                        Log($"routing → {route.label}");
+                        route.launch(_shell);
+                        routed = true;
+                        break;
+                    }
                 }
-                else if (setFlag == "1")
-                {
-                    Log("routing → ShowSettingsDemoAsync");
-                    _ = _shell.ShowSettingsDemoAsync();
-                }
-                else if (creFlag == "1")
-                {
-                    Log("routing → ShowCreateDemo");
-                    _shell.ShowCreateDemo();
-                }
-                else if (creFullFlag == "1")
-                {
-                    Log("routing → ShowCreateFullDemoAsync");
-                    _ = _shell.ShowCreateFullDemoAsync();
-                }
-                else if (unlFlag == "1")
-                {
-                    Log("routing → ShowUnlockDemoAsync");
-                    _ = _shell.ShowUnlockDemoAsync();
-                }
-                else if (edFlag == "1")
-                {
-                    Log("routing → ShowEditorDemoAsync");
-                    _ = _shell.ShowEditorDemoAsync();
-                }
-                else if (srchFlag == "1")
-                {
-                    Log("routing → ShowSearchDemoAsync");
-                    _ = _shell.ShowSearchDemoAsync();
-                }
-                else if (histFlag == "1")
-                {
-                    Log("routing → ShowHistoryDemoAsync");
-                    _ = _shell.ShowHistoryDemoAsync();
-                }
-                else if (profFlag == "1")
-                {
-                    Log("routing → ShowProfileSwitcherDemoAsync");
-                    _ = _shell.ShowProfileSwitcherDemoAsync();
-                }
-                else if (syncFlag == "1")
-                {
-                    Log("routing → ShowSyncConflictDemoAsync");
-                    _ = _shell.ShowSyncConflictDemoAsync();
-                }
-                else if (devTrustFlag == "1")
-                {
-                    Log("routing → ShowDeviceTrustDemo");
-                    _shell.ShowDeviceTrustDemo();
-                }
-                else if (seedExpFlag == "1")
-                {
-                    Log("routing → ShowSeedExportDemoAsync");
-                    _ = _shell.ShowSeedExportDemoAsync();
-                }
-                else if (seedImpFlag == "1")
-                {
-                    Log("routing → ShowSeedImportDemoAsync");
-                    _ = _shell.ShowSeedImportDemoAsync();
-                }
-                else if (kpFlag == "1")
-                {
-                    Log("routing → ShowKeePassImportDemoAsync");
-                    _ = _shell.ShowKeePassImportDemoAsync();
-                }
-                else
+
+                if (!routed)
                 {
                     Log("routing → ShowUnlock");
                     _shell.ShowUnlock();

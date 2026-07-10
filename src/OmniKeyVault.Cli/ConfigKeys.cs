@@ -1,5 +1,4 @@
 using OmniKeyVault.Domain;
-using OmniKeyVault.Cli.Gui.Views;
 
 namespace OmniKeyVault.Cli;
 

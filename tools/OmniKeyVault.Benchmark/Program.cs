@@ -27,9 +27,22 @@ public static class Program
     {
         var count = args.Length > 0 && int.TryParse(args[0], out var n) ? n : 10_000;
         // OKV_TEST_MODE = 1 切换到弱化 KDF(64 MiB),避免 1万条目场景跑 1 小时。
+        // 仅在 Debug 构建中允许设置；Release 构建中禁止修改此环境变量以防安全降级。
+#if DEBUG
         Environment.SetEnvironmentVariable("OKV_TEST_MODE", "1");
+#else
+        if (Environment.GetEnvironmentVariable("OKV_TEST_MODE") == "1")
+        {
+            Console.WriteLine("⚠ 警告: OKV_TEST_MODE=1 在 Release 构建中被检测到。");
+            Console.WriteLine("  这会弱化 Argon2id KDF 参数，仅适用于开发/测试环境。");
+            Console.WriteLine("  按 Ctrl+C 取消，或按 Enter 继续...");
+            Console.ReadLine();
+        }
+#endif
 
-        Console.WriteLine($"=== OmniKey Vault v1.0 Benchmark ===");
+        var ver = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetName().Version?.ToString(3) ?? "unknown";
+        Console.WriteLine($"=== OmniKey Vault v{ver} Benchmark ===");
         Console.WriteLine($"Entry count: {count}");
         Console.WriteLine($"Runtime:     {Environment.Version}");
         Console.WriteLine();

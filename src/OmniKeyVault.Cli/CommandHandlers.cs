@@ -1010,8 +1010,15 @@ public sealed class CommandHandlers
         }
     }
 
-    private static bool ShouldUseWeakArgonForTests()
-        => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OKV_TEST_MODE"));
+private static bool ShouldUseWeakArgonForTests()
+{
+#if DEBUG
+    return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OKV_TEST_MODE"));
+#else
+    // Release 构建中禁止使用弱化 KDF，防止安全降级攻击
+    return false;
+#endif
+}
 
     private static string Trunc(string s, int max) => s.Length <= max ? s : s.Substring(0, max - 1) + "\u2026";
 

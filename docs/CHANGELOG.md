@@ -4,6 +4,51 @@
 
 ---
 
+## [1.4.0] - 2026-07-10 — 代码质量改进与工程化升级
+
+### ✨ 新增
+- **CI/CD**: 新增 `.github/workflows/ci.yml`，自动构建 + 测试 + 覆盖率收集 + tag 触发自动发布。
+- **SourceLink**: `Directory.Build.props` 添加 SourceLink 支持，调试时可跳转到源码。
+- **中央包管理**: 新建 `Directory.Packages.props` 统一管理所有 NuGet 包版本，防止版本漂移。
+- **测试覆盖率**: 测试项目添加 Coverlet 覆盖率收集。
+
+### 🔧 变更
+- **About 对话框版本**: 从硬编码 `v1.0.0` 改为运行时读取程序集版本号。
+- **SettingsStore 提取**: 从 `SettingsWindow.axaml.cs:691` 提取到独立文件 `src/OmniKeyVault.Cli/SettingsStore.cs`。
+- **Demo 路由重构**: `App.axaml.cs` 中 16 个 if-else 重构为字典映射。
+- **OKV_TEST_MODE 防护**: `#if DEBUG` 保护，Release 构建禁止弱化 KDF。
+
+### 🗑️ 删除
+- 删除 3 份过时文档：`修改方案文档-v1.3.0.md`、`后续优化计划.md`、`plan-v1.1-optimization.md`。
+
+### ✅ 测试
+- 557/557 通过（548 单元/集成 + 9 WebDAV 集成）。
+
+---
+
+## [1.3.0] - 2026-07-10 — UI 改进与 WebDAV 布局优化
+
+### ✨ 新增
+- **同步按钮拆分**: ⬇ 拉取云端 / ⬆ 推送到云端 / 🔄 本地同步。
+- **WebDavSyncService.PullAsync()** 和 **PushAsync()** 方法。
+
+### 🔧 变更
+- WebDAV 配置界面间距调整，修复堆叠遮挡问题。
+
+---
+
+## [1.2.0] - 2026-07-10 — WebDAV 云同步
+
+### ✨ 新增
+- **WebDAV 云同步**: 支持 坚果云 / Nextcloud / Synology / Box 等服务。
+- **跨设备同步**: 向量时钟合并 + local-wins 冲突策略 + UUID 校验。
+- **WebDAV 集成测试**: 9 项 xUnit 集成测试。
+
+### ✅ 测试
+- 557/557 通过（548 单元/集成 + 9 WebDAV 集成）。
+
+---
+
 ## [1.1.0-alpha] - 2026-07-07 — v1.1 优化进行中
 
 ### 🎯 里程碑

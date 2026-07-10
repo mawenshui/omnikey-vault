@@ -72,8 +72,14 @@ public sealed class WebDavSyncService
                 return new WebDavSyncResult(null, false, $"本地合并失败: {ex.Message}");
             }
 
-            // 3. Upload the merged local vault back to remote
-            //    (skip if NoChange — remote is already the same)
+            // 3. Handle the sync outcome
+            // RemoteVaultMismatch: different vault instances, cannot merge.
+            if (syncResult.Outcome == SyncOutcome.RemoteVaultMismatch)
+            {
+                return new WebDavSyncResult(syncResult, false, syncResult.Message);
+            }
+
+            // NoChange or LocalAhead
             if (syncResult.Outcome == SyncOutcome.NoChange ||
                 syncResult.Outcome == SyncOutcome.LocalAhead)
             {
@@ -95,8 +101,17 @@ public sealed class WebDavSyncService
                 return new WebDavSyncResult(syncResult, true, "已是最新,无需同步。");
             }
 
-            // TookRemote or Merged: the local file has been updated.
-            // Upload it back so other devices can sync.
+            // TookRemote from UUID mismatch (empty local vault replaced by remote):
+            // the local file is now identical to the remote — no need to upload.
+            // The user needs to re-unlock with the remote vault's password.
+            if (syncResult.Outcome == SyncOutcome.TookRemote &&
+                syncResult.Message.Contains("重新解锁"))
+            {
+                return new WebDavSyncResult(syncResult, false, syncResult.Message);
+            }
+
+            // TookRemote (same vault, local was behind) or Merged:
+            // the local file has been updated. Upload it back so other devices can sync.
             try
             {
                 await provider.UploadAsync(vaultFilePath, ct);

@@ -70,8 +70,8 @@ public sealed class WebDavSyncProvider : IRemoteSyncProvider
         try
         {
             using var resp = await _client.GetAsync(FullUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (resp.StatusCode == HttpStatusCode.NotFound)
-                return false; // remote doesn't exist yet — first sync
+            if (resp.StatusCode == HttpStatusCode.NotFound || resp.StatusCode == HttpStatusCode.Conflict)
+                return false; // remote doesn't exist yet — first sync (404) or parent dir missing (409)
             resp.EnsureSuccessStatusCode();
 
             // Stream to temp file first, then atomic move (avoids partial downloads)
@@ -134,8 +134,9 @@ public sealed class WebDavSyncProvider : IRemoteSyncProvider
             using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
             // 207 Multi-Status = success for PROPFIND
             // 404 = path doesn't exist yet (still a valid connection)
-            if (resp.StatusCode == HttpStatusCode.NotFound)
-                return null; // connection works, just no file yet
+            // 409 Conflict = parent directory doesn't exist yet (still a valid connection)
+            if (resp.StatusCode == HttpStatusCode.NotFound || resp.StatusCode == HttpStatusCode.Conflict)
+                return null; // connection works, just no file/path yet
             if (resp.StatusCode == HttpStatusCode.MultiStatus)
                 return null;
             if (resp.IsSuccessStatusCode)
@@ -152,20 +153,27 @@ public sealed class WebDavSyncProvider : IRemoteSyncProvider
         }
     }
 
-    /// <summary>Creates parent directories on the WebDAV server via MKCOL.</summary>
+    /// <summary>Creates parent directories on the WebDAV server via MKCOL.
+    /// Handles both path segments in ServerUrl (e.g. /dav/my-folder/) and
+    /// in RemoteFilePath (e.g. sub/vault.okv).</summary>
     private async Task EnsureParentCollectionsAsync(CancellationToken ct)
     {
-        var base_ = _config.ServerUrl.TrimEnd('/');
-        var parts = _config.RemoteFilePath.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        // Parse the full URL to extract scheme + host and the path segments
+        var uri = new Uri(FullUrl);
+        var basePath = uri.AbsolutePath;
+        var segments = basePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        // Reconstruct the base URL (scheme + host)
+        var baseUrl = $"{uri.Scheme}://{uri.Host}";
+        if (!uri.IsDefaultPort) baseUrl += $":{uri.Port}";
         // Create all parent dirs except the last segment (the file itself)
-        var current = base_;
-        for (int i = 0; i < parts.Length - 1; i++)
+        var current = baseUrl;
+        for (int i = 0; i < segments.Length - 1; i++)
         {
-            current += "/" + parts[i];
+            current += "/" + segments[i];
             try
             {
                 using var resp = await _client.SendAsync(
-                    new HttpRequestMessage(new HttpMethod("MKCOL"), current), ct);
+                    new HttpRequestMessage(new HttpMethod("MKCOL"), current + "/"), ct);
                 // 201 Created = success, 405 Method Not Allowed = already exists
             }
             catch { /* best-effort */ }

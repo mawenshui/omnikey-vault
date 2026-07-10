@@ -779,6 +779,11 @@ public sealed class CommandHandlers
                         _err.WriteLine(r.Message);
                         return ExitCodes.SyncConflict;
                     }
+                    if (r.Outcome == SyncOutcome.RemoteVaultMismatch)
+                    {
+                        _err.WriteLine(r.Message);
+                        return ExitCodes.SyncConflict;
+                    }
                     _out.WriteLine($"Sync {r.Outcome}: {r.Message}");
                     return 0;
                 }

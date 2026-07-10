@@ -1,4 +1,4 @@
-﻿﻿using System.Security.Cryptography;
+﻿﻿﻿﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using OmniKeyVault.Contracts;
@@ -22,6 +22,11 @@ public enum SyncOutcome
     /// <summary>Sync failed because the remote file is corrupt or unreadable.
     /// Maps to CLI exit code 13 (FileCorrupt) per INTERNAL.md §3.</summary>
     FailedRemoteUnreadable,
+    /// <summary>Sync failed because the remote vault has a different UUID than the
+    /// local vault — they are different vault instances and cannot be merged.
+    /// The user should either re-open with the remote vault file or create an
+    /// empty local vault and re-sync to pull the remote.</summary>
+    RemoteVaultMismatch,
     /// <summary>Sync failed because of an unrecoverable conflict requiring manual
     /// resolution via the GUI wizard. Maps to CLI exit code 14 (SyncConflict)
     /// per INTERNAL.md §3.</summary>
@@ -198,6 +203,28 @@ public sealed class SyncService
         {
             return new SyncResult(SyncOutcome.FailedRemoteUnreadable, null, remoteManifest, 0, 0,
                 $"Failed to read remote vault: {ex.Message}");
+        }
+
+        // -- UUID check: if the remote vault is a different vault instance,
+        // we cannot merge (different KEKs). Handle gracefully. --
+        var localUuid = _vault.CurrentVault?.Metadata.Uuid ?? Guid.Empty;
+        if (remoteRecord.VaultUuid != localUuid)
+        {
+            // Check if the local vault is empty (fresh install scenario:
+            // user created a vault on this device, then tries to sync with
+            // a remote vault from another device).
+            bool localIsEmpty = _vault.Profiles.Values.All(p => p.Entries.Count == 0);
+            if (localIsEmpty)
+            {
+                // Safe to replace the empty local vault with the remote.
+                var takeResult = await TakeRemoteCoreAsync(vaultFilePath, remoteFilePath, remoteRecord, remoteManifest, ct);
+                return takeResult with { Message = "已从云端拉取金库。由于远端金库与本地不同，请锁定后使用远端金库的密码重新解锁。" };
+            }
+            // Local vault has user data — cannot silently replace.
+            return new SyncResult(SyncOutcome.RemoteVaultMismatch,
+                await GetOrCreateLocalManifestAsync(vaultFilePath, ct),
+                remoteManifest, 0, 0,
+                "远端金库与本地金库不匹配（不同金库实例）。如需使用远端金库，请先锁定当前金库，然后新建空白金库后重新同步，或直接打开远端金库文件。");
         }
 
         var localClock = _vault.CurrentVectorClock;
@@ -387,17 +414,23 @@ public sealed class SyncService
     public Manifest BuildLocalManifest(VaultRecord? record = null)
     {
         _lock.EnsureUnlocked();
-        var vc = _vault.CurrentVectorClock;
+        // When a remote record is provided (e.g. TakeRemote from a different vault),
+        // use its UUID and vector clock instead of the stale local vault state.
+        var vc = record?.VectorClock ?? _vault.CurrentVectorClock;
+        var uuid = record?.VaultUuid ?? _vault.CurrentVault?.Metadata.Uuid ?? Guid.Empty;
+        var profiles = record != null
+            ? record.Profiles.Select(p => p.Name).ToList()
+            : _vault.ListProfileNames().ToList();
         var pubKeys = new Dictionary<string, string>(StringComparer.Ordinal);
         var localPk = _vault.DevicePublicKey;
         if (localPk != null) pubKeys[_deviceId] = Convert.ToBase64String(localPk.Bytes);
         return new Manifest
         {
-            VaultUuid = _vault.CurrentVault?.Metadata.Uuid ?? Guid.Empty,
+            VaultUuid = uuid,
             DeviceId = _deviceId,
             LastModified = DateTimeOffset.UtcNow,
             LastModifiedBy = _deviceId,
-            Profiles = _vault.ListProfileNames().ToList(),
+            Profiles = profiles,
             VectorClock = vc,
             SchemaVersion = 1,
             OkvFormatVersion = "1.0",

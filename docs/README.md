@@ -2,6 +2,7 @@
 
 | 文档集版本 | 日期 | 状态 |
 |---|---|---|
+| 1.2 | 2026-07-10 | v1.2 发布:WebDAV 云同步 + 跨设备同步修复 + 557/557 测试通过 |
 | 1.1 | 2026-07-07 | v1.1 优化进行中:Phase 1-2 已完成,Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地);467/467 测试通过 |
 | 1.0 | 2026-06-25 | v1.0 候选:v0.1-v0.4 全部已交付,外部审计 + 签名 + MSIX + 视频教程为下一步 |
 
@@ -26,7 +27,7 @@ dotnet run --project src/OmniKeyVault.Cli
 dotnet run --project src/OmniKeyVault.Cli -- vault --help
 
 # 5. 跑测试
-dotnet test                                      # → 467/467 通过 (457 + 10 分析器)
+dotnet test                                      # → 557/557 通过 (548 单元/集成 + 9 WebDAV 集成)
 
 # 6. 跑性能压测(1万条目)
 dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0.1s, search 1.5ms, sync 0.0s
@@ -145,11 +146,25 @@ dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0
 | 0.3 | v0.2(实际 357/357) | 与 v0.2 代码完全同步,GUI 已落地 |
 | 0.4(从未发版) | v0.4(实际 430/430) | 在 v0.2 之上增量交付,GUI demo 入口新增 |
 | 1.0 | v1.0(实际 451/451) | v0.1-v0.4 全部已交付;1 万条目性能压测达标 |
-| **1.1(当前)** | **v1.1(实际 467/467)** | **Phase 1-2 已完成(紧急止血 + 安全合规);Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地,10 分析器测试);Phase 4-12 待开始;详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md)** |
+| 1.2(当前) | **v1.2(实际 557/557)** | **WebDAV 云同步实现 + 跨设备同步 UUID 匹配修复 + 坚果云集成测试验证;详见 [使用手册.md](./使用手册.md)** |
+| 1.1 | v1.1(实际 467/467) | Phase 1-2 已完成(紧急止血 + 安全合规);Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地,10 分析器测试);Phase 4-12 待开始;详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md) |
 
 ---
 
 ## 4. 历史与变更
+
+### 4.0 1.2(2026-07-10)— 当前
+
+**v1.2 发布**:WebDAV 云同步功能正式落地,支持坚果云 / Nextcloud / Synology 等主流 WebDAV 服务。修复跨设备同步合并失败问题（UUID 不匹配导致 KEK 解包失败）。
+
+**主要变更**:
+- **WebDAV 云同步**:实现 `WebDavSyncProvider`（GET/PUT/PROPFIND/MKCOL/DELETE），支持自动创建远端目录、409 Conflict 容错处理。
+- **跨设备同步修复**:新增 `SyncOutcome.RemoteVaultMismatch` 枚举值，同步前校验金库 UUID；空金库自动拉取远端，非空金库返回明确错误而非崩溃。
+- **WebDAV 同步 UI**:设置窗口新增 WebDAV 配置面板（服务器地址/用户名/密码/远端路径/自动同步开关/连接测试）。
+- **WebDAV 集成测试**:9 项 xUnit 集成测试覆盖连接/上传/下载/覆盖/真实金库往返/跨设备同步场景，全部通过。
+- **测试总数**:557/557 通过（548 单元/集成 + 9 WebDAV 集成）。
+- **文档**:新增 [使用手册.md](./使用手册.md)（17 章节完整中文文档），更新所有文档至 v1.2 状态。
+- **安装包**:自包含 Windows x64 安装包（42 MB），包含 install.ps1 安装脚本 + setup.bat 入口。
 
 ### 4.1 1.1(2026-07-07)— 当前
 

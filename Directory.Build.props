@@ -11,9 +11,9 @@
     <Company>OmniKey Vault</Company>
     <Product>OmniKey Vault</Product>
     <!-- P3 / Phase 3: bumped to 1.1.0 to reflect v1.1 optimization work (Roslyn analyzers land). -->
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
     <RepositoryUrl>https://github.com/omnikeyvault/omnikeyvault</RepositoryUrl>
   </PropertyGroup>
   <!--

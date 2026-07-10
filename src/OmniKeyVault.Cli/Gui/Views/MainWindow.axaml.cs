@@ -1112,9 +1112,18 @@ public partial class MainWindow : Window
                         LastSyncText.Text = "刚刚 · 无变化";
                         break;
                     case SyncOutcome.TookRemote:
-                        ToastService.Show(ToastContainer, result.Message, ToastType.Success);
-                        LastSyncText.Text = "刚刚 · 拉取";
-                        ReloadAfterSync();
+                        // Check if this was a UUID mismatch TakeRemote (requires re-unlock)
+                        if (result.Message.Contains("重新解锁"))
+                        {
+                            ToastService.Show(ToastContainer, result.Message, ToastType.Warning);
+                            LastSyncText.Text = "需重新解锁";
+                        }
+                        else
+                        {
+                            ToastService.Show(ToastContainer, result.Message, ToastType.Success);
+                            LastSyncText.Text = "刚刚 · 拉取";
+                            ReloadAfterSync();
+                        }
                         break;
                     case SyncOutcome.LocalAhead:
                         ToastService.Show(ToastContainer, result.Message, ToastType.Success);
@@ -1132,6 +1141,10 @@ public partial class MainWindow : Window
                     case SyncOutcome.FailedConflict:
                         ToastService.Show(ToastContainer, "同步冲突: " + result.Message, ToastType.Error);
                         LastSyncText.Text = "冲突";
+                        break;
+                    case SyncOutcome.RemoteVaultMismatch:
+                        ToastService.Show(ToastContainer, result.Message, ToastType.Error);
+                        LastSyncText.Text = "金库不匹配";
                         break;
                 }
 

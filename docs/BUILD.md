@@ -2,6 +2,7 @@
 
 | 文档版本 | 日期 | 作者 | 状态 |
 |---|---|---|---|
+| 1.2 | 2026-07-10 | Sisyphus | v1.2 发布:WebDAV 云同步 + 跨设备同步修复,557/557 tests |
 | 1.1 | 2026-07-07 | Sisyphus | v1.1 优化进行中:分析器项目落地,467/467 tests |
 | 1.0 | 2026-06-25 | Sisyphus | v1.0 RC:GUI 主形态 + Benchmark 工具(1万条目) |
 
@@ -13,7 +14,7 @@
 
 ```
 OmniKeyVault.sln                     # 解决方案入口
-Directory.Build.props                # 全局 MSBuild 属性(net8.0、版本 1.1.0、TreatWarningsAsErrors=true、Roslyn 分析器注入)
+Directory.Build.props                # 全局 MSBuild 属性(    <Version>1.2.0</Version>、TreatWarningsAsErrors=true、Roslyn 分析器注入)
 
 src/
 ├── OmniKeyVault.Domain/             # 领域模型 — 纯值对象,无 I/O

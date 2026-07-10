@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>OmniKeyVault.Cli</RootNamespace>
+    <AssemblyName>okv</AssemblyName>
+    <ApplicationIcon />
+    <!-- Avalonia 11.3 requires explicit Win32 support on .NET 8 for Skia / clipboard / dialog APIs -->
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.17763.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.16" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.16" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.16" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.16" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />
+    <ProjectReference Include="..\OmniKeyVault.Contracts\OmniKeyVault.Contracts.csproj" />
+    <ProjectReference Include="..\OmniKeyVault.Application\OmniKeyVault.Application.csproj" />
+    <ProjectReference Include="..\OmniKeyVault.Infrastructure\OmniKeyVault.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\templates\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>templates\%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+</Project>

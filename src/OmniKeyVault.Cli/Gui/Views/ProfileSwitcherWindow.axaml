@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.ProfileSwitcherWindow"
+        Title="切换配置文件"
+        Width="380" Height="380"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="Button.profile-row">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.profile-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderActiveBrush}" />
+        </Style>
+        <Style Selector="Button.profile-row.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="#146366f1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDimBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20">
+        <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="切换配置文件"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="18" FontWeight="Medium"
+                           Foreground="{DynamicResource FgBrush}" />
+                <Button Grid.Column="1" Classes="icon" Click="OnCloseClick">
+                    <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                </Button>
+            </Grid>
+
+            <StackPanel x:Name="ProfileList" Spacing="0" />
+
+            <Button Classes="ghost-sm" HorizontalAlignment="Stretch" Margin="0,8,0,0" Click="OnNewProfileClick">
+                <TextBlock Text="+ 新建配置文件" FontSize="12" />
+            </Button>
+        </StackPanel>
+    </Border>
+</Window>

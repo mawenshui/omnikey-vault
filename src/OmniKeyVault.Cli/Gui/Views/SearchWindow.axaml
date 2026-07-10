@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.SearchWindow"
+        Title="高级搜索"
+        Width="780" Height="620"
+        MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="Button.entry-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.entry-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="🔍 高级搜索"
+                               FontFamily="{DynamicResource FontDisplay}" FontSize="17" FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="ghost" Click="OnCloseClick">
+                        <TextBlock Text="关闭" />
+                    </Button>
+                </Grid>
+                <TextBlock Text="支持 tags: / platform: / field:KEY:VALUE / expired / 普通文本 · 用 AND / OR 组合"
+                           FontSize="11" Foreground="{DynamicResource FgDimBrush}" />
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Top" Padding="20,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Spacing="8">
+                <TextBox Classes="field" x:Name="QueryBox" KeyDown="OnQueryKeyDown" />
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Grid.Column="0" x:Name="ProfileText" FontFamily="{DynamicResource FontMono}" FontSize="11"
+                               Foreground="{DynamicResource FgDimBrush}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="ghost" Padding="10,4" Margin="0,0,6,0" Click="OnClearClick">
+                        <TextBlock Text="清空" FontSize="11" />
+                    </Button>
+                    <Button Grid.Column="2" Classes="primary" Padding="10,4" Click="OnSearchClick">
+                        <TextBlock Text="搜索" FontSize="11" />
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,8">
+            <TextBlock x:Name="StatusText" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgDimBrush}" />
+        </Border>
+
+        <ScrollViewer Margin="20,12">
+            <StackPanel x:Name="ResultsPanel" Spacing="2" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>

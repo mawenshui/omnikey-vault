@@ -1,0 +1,797 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using OmniKeyVault.Application;
+using OmniKeyVault.Contracts;
+using OmniKeyVault.Infrastructure;
+
+namespace OmniKeyVault.Cli.Gui.Views;
+
+/// <summary>
+/// Real settings dialog. Auto-lock minutes + clipboard clear seconds are
+/// persisted via the static <see cref="SettingsStore"/> and read on each
+/// timer tick by the owning MainWindow. Theme is fixed to dark in v0.1.
+/// </summary>
+public partial class SettingsWindow : Window
+{
+    private readonly CliContainer _container;
+    private bool _suppressEvents;
+
+    public SettingsWindow(CliContainer container)
+    {
+        InitializeComponent();
+        _container = container;
+        BuildDeviceInfoPanel();
+        AboutText.Text = "OmniKey Vault v1.0.0\n.NET 8 + Avalonia 11.3\n本地优先 · 端到端加密\n\n" +
+                         "文档:docs/MANUAL.md\n" +
+                         "源码:github.com/omnikeyvault\n" +
+                         "反馈:github.com/omnikeyvault/issues";
+
+        // Initialize ComboBoxes + checkboxes from current settings
+        _suppressEvents = true;
+        // Language
+        for (int i = 0; i < LanguageBox.Items.Count; i++)
+        {
+            if ((LanguageBox.Items[i] as ComboBoxItem)?.Tag?.ToString() == SettingsStore.Language)
+            { LanguageBox.SelectedIndex = i; break; }
+        }
+        if (LanguageBox.SelectedIndex < 0) LanguageBox.SelectedIndex = 0;
+        // Theme
+        for (int i = 0; i < ThemeBox.Items.Count; i++)
+        {
+            if ((ThemeBox.Items[i] as ComboBoxItem)?.Tag?.ToString() == SettingsStore.Theme.ToString())
+            { ThemeBox.SelectedIndex = i; break; }
+        }
+        if (ThemeBox.SelectedIndex < 0) ThemeBox.SelectedIndex = 0;
+        // Auto-lock + clipboard
+        AutoLockBox.SelectedIndex = SettingsStore.AutoLockMinutes switch
+        {
+            5 => 0, 10 => 1, 15 => 2, 30 => 3, 60 => 4, _ => 2,
+        };
+        ClipboardBox.SelectedIndex = SettingsStore.ClipboardClearSeconds switch
+        {
+            4 => 0, 8 => 1, 16 => 2, 30 => 3, _ => 1,
+        };
+        // Session-lock / suspend toggles
+        LockOnSessionLockBox.IsChecked = SettingsStore.LockOnSessionLock;
+        LockOnSuspendBox.IsChecked = SettingsStore.LockOnSuspend;
+        // Sync
+        SyncDirBox.Text = SettingsStore.SyncDirectory ?? "";
+        WatcherEnabledBox.IsChecked = SettingsStore.WatcherEnabled;
+        // WebDAV
+        WebDavUrlBox.Text = SettingsStore.WebDavServerUrl ?? "";
+        WebDavUserBox.Text = SettingsStore.WebDavUsername ?? "";
+        WebDavPassBox.Text = SettingsStore.WebDavPassword ?? "";
+        WebDavPathBox.Text = SettingsStore.WebDavRemoteFilePath ?? "vault.okv";
+        WebDavEnabledBox.IsChecked = SettingsStore.WebDavEnabled;
+        WebDavAutoSyncBox.IsChecked = SettingsStore.WebDavAutoSync;
+        _suppressEvents = false;
+
+        BuildProfilesPanel();
+    }
+
+    /// <summary>v0.2: render device info as a 2-column label/value grid so long
+    /// hostnames + vault paths wrap cleanly inside the panel instead of pushing
+    /// the layout into awkward stacked "label:value" lines. v0.2 gap-fill:
+    /// also lists other devices registered in <c>manifest.json</c>'s
+    /// <c>device_public_keys</c> map with a per-row "revoke" action.</summary>
+    private async void BuildDeviceInfoPanel()
+    {
+        DeviceInfoPanel.Children.Clear();
+        void Row(string label, string value, IBrush? valueBrush = null)
+        {
+            var g = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+            g.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontFamily = Res.Font("FontMono"),
+                FontSize = 11,
+                Foreground = Res.Brush("FgDimBrush"),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 0, 12, 0),
+            });
+            Grid.SetColumn(g.Children[0], 0);
+            g.Children.Add(new TextBlock
+            {
+                Text = value,
+                FontFamily = Res.Font("FontMono"),
+                FontSize = 11,
+                Foreground = valueBrush ?? Res.Brush("FgMutedBrush"),
+                TextWrapping = TextWrapping.Wrap,
+            });
+            Grid.SetColumn(g.Children[1], 1);
+            DeviceInfoPanel.Children.Add(g);
+        }
+        Row("当前设备", _container.DeviceId);
+        Row("金库路径", _container.Vault.CurrentVaultPath ?? "(未打开)");
+        Row("解锁状态", _container.Lock.IsUnlocked ? "已解锁" : "锁定",
+            valueBrush: _container.Lock.IsUnlocked ? Res.Brush("SuccessBrush") : Res.Brush("FgMutedBrush"));
+
+        // v0.2 S4-T8 / MANUAL §11.6: list devices known to this vault
+        // (read from manifest.json's device_public_keys).
+        DeviceInfoPanel.Children.Add(new Border
+        {
+            BorderBrush = Res.Brush("BorderBrush"),
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Margin = new Thickness(0, 6, 0, 6),
+        });
+        DeviceInfoPanel.Children.Add(new TextBlock
+        {
+            Text = "已注册设备(来自 manifest.json)",
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 10,
+            LetterSpacing = 1,
+            Foreground = Res.Brush("FgFaintBrush"),
+            Margin = new Thickness(0, 4, 0, 4),
+        });
+
+        IReadOnlyDictionary<string, string> knownDevices = new Dictionary<string, string>();
+        try
+        {
+            if (!string.IsNullOrEmpty(_container.Vault.CurrentVaultPath))
+            {
+                var manifestPath = OmniKeyVault.Application.SyncService.ManifestPathFor(_container.Vault.CurrentVaultPath);
+                if (System.IO.File.Exists(manifestPath))
+                {
+                    var manifest = await _container.Sync.GetOrCreateLocalManifestAsync(_container.Vault.CurrentVaultPath);
+                    knownDevices = manifest.DevicePublicKeys;
+                }
+            }
+        }
+        catch { /* best-effort */ }
+
+        if (knownDevices.Count == 0)
+        {
+            DeviceInfoPanel.Children.Add(new TextBlock
+            {
+                Text = "(尚无已注册设备)",
+                FontSize = 11,
+                Foreground = Res.Brush("FgDimBrush"),
+                FontStyle = Avalonia.Media.FontStyle.Italic,
+            });
+            return;
+        }
+
+        foreach (var (deviceId, pubKeyB64) in knownDevices)
+        {
+            var row = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            var fp = pubKeyB64.Length >= 12 ? pubKeyB64.Substring(0, 12) + "…" : pubKeyB64;
+            var isSelf = deviceId == _container.DeviceId;
+            var label = new TextBlock
+            {
+                Text = (isSelf ? "★ " : "  ") + deviceId + "  ·  " + fp,
+                FontFamily = Res.Font("FontMono"),
+                FontSize = 11,
+                Foreground = isSelf ? Res.Brush("AccentBrush") : Res.Brush("FgMutedBrush"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(label, 0);
+            row.Children.Add(label);
+            if (!isSelf)
+            {
+                var rev = new Button
+                {
+                    Classes = { "ghost" },
+                    Padding = new Thickness(8, 2),
+                    FontSize = 10,
+                    Content = new TextBlock { Text = "吊销" },
+                };
+                rev.Click += (_, _) => RevokeDevice(deviceId);
+                Grid.SetColumn(rev, 1);
+                row.Children.Add(rev);
+            }
+            DeviceInfoPanel.Children.Add(row);
+        }
+    }
+
+    /// <summary>Removes a device's public key from the manifest and re-saves
+    /// the vault. The other device's next sync attempt will be rejected
+    /// (SEC-T8-02: unknown signature → user prompt).</summary>
+    private async void RevokeDevice(string deviceId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_container.Vault.CurrentVaultPath)) return;
+            var manifestPath = OmniKeyVault.Application.SyncService.ManifestPathFor(_container.Vault.CurrentVaultPath);
+            if (!System.IO.File.Exists(manifestPath)) return;
+            var manifest = await _container.Sync.GetOrCreateLocalManifestAsync(_container.Vault.CurrentVaultPath);
+            var keys = new Dictionary<string, string>(manifest.DevicePublicKeys);
+            keys.Remove(deviceId);
+            var updated = manifest with { DevicePublicKeys = keys };
+            await _container.Manifests.WriteAsync(manifestPath, updated);
+            ShowStatus($"✓ 已吊销设备 {deviceId}", success: true);
+            BuildDeviceInfoPanel();
+        }
+        catch (Exception ex)
+        {
+            ShowStatus("✕ 吊销失败:" + ex.Message, success: false);
+        }
+    }
+
+    /// <summary>v0.2 (S3-T7): inline profile settings editor. Each profile
+    /// gets a row with its color dot, a "同步参与" toggle, "切换后自动锁"
+    /// toggle, and a "空闲锁" combo. Saves via ProfileService.UpdateSettingsAsync.</summary>
+    private void BuildProfilesPanel()
+    {
+        ProfilesPanel.Children.Clear();
+        foreach (var info in _container.Profiles.List())
+        {
+            var row = new Border
+            {
+                BorderBrush = Res.Brush("BorderBrightBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 6),
+                Background = Res.Brush("BgElevatedBrush"),
+            };
+            var sp = new StackPanel { Spacing = 6 };
+            // Header: dot + name + entry count
+            var header = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+            // info.Color is a string (e.g. "Green", "Yellow"); map to brush key
+            var brushKey = info.Color switch
+            {
+                "Green" => "ProfileProdBrush",
+                "Yellow" => "ProfileDevBrush",
+                "Blue" => "ProfileTestBrush",
+                "Red" => "DangerBrush",
+                "Purple" => "AccentBrush",
+                _ => "ProfileProdBrush",
+            };
+            header.Children.Add(new Ellipse
+            {
+                Width = 8, Height = 8,
+                Fill = Res.Brush(brushKey),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            Grid.SetColumn(header.Children[0], 0);
+            header.Children.Add(new TextBlock
+            {
+                Text = $"{info.Name} · {info.EntryCount} 个条目",
+                FontSize = 12,
+                Foreground = Res.Brush("FgBrush"),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            Grid.SetColumn(header.Children[1], 1);
+            sp.Children.Add(header);
+
+            // Sync participation toggle
+            var syncCheck = new CheckBox
+            {
+                IsChecked = info.ParticipateInSync,
+                Content = new TextBlock { Text = "参与同步", FontSize = 11, Foreground = Res.Brush("FgMutedBrush") },
+            };
+            syncCheck.IsCheckedChanged += async (_, _) =>
+            {
+                try
+                {
+                    var current = _container.Vault.GetProfile(info.Name);
+                    var s = current.Settings with
+                    {
+                        ParticipateInSync = syncCheck.IsChecked == true,
+                    };
+                    await System.Threading.Tasks.Task.Run(() =>
+                        _container.Profiles.UpdateSettingsAsync(info.Name, s));
+                    ShowStatus($"✓ {info.Name} 同步设置已更新", success: true);
+                }
+                catch (Exception ex) { ShowStatus("更新失败:" + ex.Message, success: false); }
+            };
+            sp.Children.Add(syncCheck);
+
+            // Note: ProfileInfo record doesn't expose AutoLockOnSwitch directly;
+            // we read it via the live Profile.Settings (best-effort).
+            bool autoLockOnSwitch = false;
+            try { autoLockOnSwitch = _container.Vault.GetProfile(info.Name).Settings.AutoLockOnSwitch; } catch { }
+            var autoLockCheck = new CheckBox
+            {
+                IsChecked = autoLockOnSwitch,
+                Content = new TextBlock { Text = "切换后自动锁定", FontSize = 11, Foreground = Res.Brush("FgMutedBrush") },
+            };
+            autoLockCheck.IsCheckedChanged += async (_, _) =>
+            {
+                try
+                {
+                    var current = _container.Vault.GetProfile(info.Name);
+                    var s = current.Settings with
+                    {
+                        AutoLockOnSwitch = autoLockCheck.IsChecked == true,
+                    };
+                    await System.Threading.Tasks.Task.Run(() =>
+                        _container.Profiles.UpdateSettingsAsync(info.Name, s));
+                    ShowStatus($"✓ {info.Name} 锁定策略已更新", success: true);
+                }
+                catch (Exception ex) { ShowStatus("更新失败:" + ex.Message, success: false); }
+            };
+            sp.Children.Add(autoLockCheck);
+
+            // Idle lock minutes display
+            var idleRow = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+            idleRow.Children.Add(new TextBlock
+            {
+                Text = $"空闲锁:{info.IdleLockMinutes} 分钟",
+                FontSize = 11,
+                Foreground = Res.Brush("FgMutedBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            Grid.SetColumn(idleRow.Children[0], 0);
+            sp.Children.Add(idleRow);
+
+            row.Child = sp;
+            ProfilesPanel.Children.Add(row);
+        }
+    }
+
+    private TextBlock? _statusBlock;
+    private void ShowStatus(string msg, bool success)
+    {
+        if (_statusBlock == null)
+        {
+            _statusBlock = new TextBlock
+            {
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            // Place it right after the profiles panel
+            ((StackPanel)ProfilesPanel.Parent!).Children.Add(_statusBlock);
+        }
+        _statusBlock.Text = msg;
+        _statusBlock.Foreground = success ? Res.Brush("SuccessBrush") : Res.Brush("DangerBrush");
+    }
+
+    private void OnAutoLockChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var minutes = AutoLockBox.SelectedIndex switch
+        {
+            0 => 5, 1 => 10, 2 => 15, 3 => 30, 4 => 60, _ => 15,
+        };
+        SettingsStore.AutoLockMinutes = minutes;
+    }
+
+    private void OnClipboardChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var seconds = ClipboardBox.SelectedIndex switch
+        {
+            0 => 4, 1 => 8, 2 => 16, 3 => 30, _ => 8,
+        };
+        SettingsStore.ClipboardClearSeconds = seconds;
+    }
+
+    private void OnLanguageChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var tag = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if (string.IsNullOrEmpty(tag)) return;
+        SettingsStore.Language = tag;
+        // v0.3 S6-T6: actually switch the active localizer. All subsequent
+        // UIStrings.Get(...) calls return the new locale's strings. The owning
+        // MainWindow picks up the change on its next refresh (entries list,
+        // detail panel, status bar); the user can also reopen the window for
+        // a full re-render of static XAML text.
+        if (UIStrings.SetLocale(tag))
+        {
+            ShowStatus(UIStrings.Fmt("settings.language_changed", tag), success: true);
+        }
+        else
+        {
+            ShowStatus($"⚠ Unknown locale: {tag}", success: false);
+        }
+    }
+
+    private void OnThemeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var tag = (ThemeBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        if (string.IsNullOrEmpty(tag)) return;
+        SettingsStore.Theme = tag switch
+        {
+            "Light" => SettingsStore.AppTheme.Light,
+            "Dark" => SettingsStore.AppTheme.Dark,
+            _ => SettingsStore.AppTheme.System,
+        };
+        // v1.1: both light and dark themes are wired via ThemeDictionaries + DynamicResource.
+        if (Avalonia.Application.Current is App app)
+        {
+            app.RequestedThemeVariant = SettingsStore.Theme switch
+            {
+                SettingsStore.AppTheme.Light => Avalonia.Styling.ThemeVariant.Light,
+                SettingsStore.AppTheme.Dark => Avalonia.Styling.ThemeVariant.Dark,
+                _ => Avalonia.Styling.ThemeVariant.Default,
+            };
+        }
+        ShowStatus($"✓ 主题已切换为 {tag}", success: true);
+    }
+
+    private void OnLockOnSessionLockChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.LockOnSessionLock = LockOnSessionLockBox.IsChecked == true;
+    }
+
+    private void OnLockOnSuspendChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.LockOnSuspend = LockOnSuspendBox.IsChecked == true;
+    }
+
+    private void OnWatcherEnabledChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.WatcherEnabled = WatcherEnabledBox.IsChecked == true;
+        ShowStatus($"✓ 文件监听已{(SettingsStore.WatcherEnabled ? "启用" : "停用")} · 下次解锁时生效", success: true);
+    }
+
+    private async void OnBrowseSyncDirClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider == null) return;
+            Avalonia.Platform.Storage.IStorageFolder? startFolder = null;
+            var current = (SyncDirBox.Text ?? "").Trim();
+            if (!string.IsNullOrEmpty(current) && System.IO.Directory.Exists(current))
+            {
+                try { startFolder = await top.StorageProvider.TryGetFolderFromPathAsync(new System.Uri(current)); } catch { }
+            }
+            var folders = await top.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "选择同步目录(云盘 / 共享文件夹)",
+                AllowMultiple = false,
+                SuggestedStartLocation = startFolder,
+            });
+            if (folders.Count > 0)
+            {
+                SyncDirBox.Text = folders[0].Path.LocalPath;
+                SettingsStore.SyncDirectory = SyncDirBox.Text;
+                ShowStatus("✓ 同步目录已设置", success: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus("✕ " + ex.Message, success: false);
+        }
+    }
+
+    private void OnWebDavEnabledChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.WebDavEnabled = WebDavEnabledBox.IsChecked == true;
+        ShowStatus($"✓ WebDAV 同步已{(SettingsStore.WebDavEnabled ? "启用" : "停用")} · 点击「保存配置」持久化", success: true);
+    }
+
+    private void OnWebDavAutoSyncChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.WebDavAutoSync = WebDavAutoSyncBox.IsChecked == true;
+    }
+
+    private async void OnTestWebDavClick(object? sender, RoutedEventArgs e)
+    {
+        // Save current form values to settings before testing
+        SaveWebDavFormToSettings();
+        var url = (WebDavUrlBox.Text ?? "").Trim();
+        if (string.IsNullOrEmpty(url))
+        {
+            WebDavStatusText.IsVisible = true;
+            WebDavStatusText.Text = "✕ 请先填写服务器地址";
+            WebDavStatusText.Foreground = Res.Brush("DangerBrush");
+            return;
+        }
+        WebDavStatusText.IsVisible = true;
+        WebDavStatusText.Text = "正在测试连接…";
+        WebDavStatusText.Foreground = Res.Brush("FgMutedBrush");
+        try
+        {
+            var config = new RemoteSyncConfig
+            {
+                ServerUrl = url,
+                Username = (WebDavUserBox.Text ?? "").Trim(),
+                Password = WebDavPassBox.Text ?? "",
+                RemoteFilePath = string.IsNullOrWhiteSpace(WebDavPathBox.Text) ? "vault.okv" : WebDavPathBox.Text.Trim(),
+                Enabled = true,
+            };
+            using var provider = new WebDavSyncProvider(config);
+            var error = await provider.TestConnectionAsync();
+            if (error == null)
+            {
+                WebDavStatusText.Text = "✓ 连接成功!服务器可访问。";
+                WebDavStatusText.Foreground = Res.Brush("SuccessBrush");
+            }
+            else
+            {
+                WebDavStatusText.Text = "✕ " + error;
+                WebDavStatusText.Foreground = Res.Brush("DangerBrush");
+            }
+        }
+        catch (Exception ex)
+        {
+            WebDavStatusText.Text = "✕ 测试失败:" + ex.Message;
+            WebDavStatusText.Foreground = Res.Brush("DangerBrush");
+        }
+    }
+
+    private void OnSaveWebDavClick(object? sender, RoutedEventArgs e)
+    {
+        SaveWebDavFormToSettings();
+        SettingsStore.Save();
+        WebDavStatusText.IsVisible = true;
+        WebDavStatusText.Text = "✓ WebDAV 配置已保存";
+        WebDavStatusText.Foreground = Res.Brush("SuccessBrush");
+    }
+
+    private void SaveWebDavFormToSettings()
+    {
+        SettingsStore.WebDavServerUrl = (WebDavUrlBox.Text ?? "").Trim();
+        SettingsStore.WebDavUsername = (WebDavUserBox.Text ?? "").Trim();
+        SettingsStore.WebDavPassword = WebDavPassBox.Text ?? "";
+        SettingsStore.WebDavRemoteFilePath = string.IsNullOrWhiteSpace(WebDavPathBox.Text)
+            ? "vault.okv" : WebDavPathBox.Text.Trim();
+        SettingsStore.WebDavEnabled = WebDavEnabledBox.IsChecked == true;
+        SettingsStore.WebDavAutoSync = WebDavAutoSyncBox.IsChecked == true;
+    }
+
+    private void OnChangePasswordClick(object? sender, RoutedEventArgs e)
+    {
+        if (!_container.Vault.IsUnlocked)
+        {
+            ShowInfo("请先解锁金库");
+            return;
+        }
+        ShowChangePasswordDialog();
+    }
+
+    /// <summary>v0.2: in-window change-password flow. Asks for current + new
+    /// password, then calls <c>VaultService.ChangePasswordAsync</c>.</summary>
+    private async void ShowChangePasswordDialog()
+    {
+        var dlg = new Window
+        {
+            Title = "修改主密码",
+            Width = 420, Height = 320,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res.Brush("BgCardBrush"),
+        };
+        var sp = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+        sp.Children.Add(new TextBlock
+        {
+            Text = "修改主密码",
+            FontSize = 16,
+            FontWeight = Avalonia.Media.FontWeight.SemiBold,
+            Foreground = Res.Brush("FgBrush"),
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = "修改后,所有现有的 .okv 备份和同步远端会立即失效,需要重新同步。",
+            FontSize = 11,
+            Foreground = Res.Brush("FgDimBrush"),
+            TextWrapping = TextWrapping.Wrap,
+        });
+        sp.Children.Add(new TextBlock { Text = "当前主密码", FontSize = 12, Foreground = Res.Brush("FgMutedBrush") });
+        var oldBox = new TextBox { Classes = { "field" }, PasswordChar = '●' };
+        sp.Children.Add(oldBox);
+        sp.Children.Add(new TextBlock { Text = "新主密码 (≥ 8 字符)", FontSize = 12, Foreground = Res.Brush("FgMutedBrush") });
+        var newBox = new TextBox { Classes = { "field" }, PasswordChar = '●' };
+        sp.Children.Add(newBox);
+        sp.Children.Add(new TextBlock { Text = "确认新密码", FontSize = 12, Foreground = Res.Brush("FgMutedBrush") });
+        var confirmBox = new TextBox { Classes = { "field" }, PasswordChar = '●' };
+        sp.Children.Add(confirmBox);
+        var status = new TextBlock { FontSize = 11, IsVisible = false, TextWrapping = TextWrapping.Wrap };
+        sp.Children.Add(status);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "取消", Padding = new Thickness(14, 6) };
+        cancel.Click += (_, _) => dlg.Close();
+        var ok = new Button { Content = "修改", Classes = { "primary" }, Padding = new Thickness(14, 6), IsEnabled = false };
+        ok.Click += async (_, _) =>
+        {
+            try
+            {
+                var oldPw = System.Text.Encoding.UTF8.GetBytes(oldBox.Text ?? "");
+                var newPw = System.Text.Encoding.UTF8.GetBytes(newBox.Text ?? "");
+                var confirmPw = System.Text.Encoding.UTF8.GetBytes(confirmBox.Text ?? "");
+                if (newPw.Length < 8)
+                {
+                    status.Text = "✕ 新密码至少 8 字符";
+                    status.Foreground = Res.Brush("DangerBrush");
+                    status.IsVisible = true;
+                    return;
+                }
+                if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(newPw, confirmPw))
+                {
+                    status.Text = "✕ 两次输入的新密码不一致";
+                    status.Foreground = Res.Brush("DangerBrush");
+                    status.IsVisible = true;
+                    return;
+                }
+                ok.IsEnabled = false;
+                cancel.IsEnabled = false;
+                status.Text = "正在重新派生密钥...";
+                status.Foreground = Res.Brush("InfoBrush");
+                status.IsVisible = true;
+                await _container.Vault.ChangePasswordAsync(oldPw, newPw);
+                status.Text = "✓ 主密码已修改。提示:请将 .okv 重新同步到所有其他设备。";
+                status.Foreground = Res.Brush("SuccessBrush");
+                await System.Threading.Tasks.Task.Delay(1500);
+                dlg.Close();
+            }
+            catch (Exception ex)
+            {
+                status.Text = "✕ " + ex.Message;
+                status.Foreground = Res.Brush("DangerBrush");
+                ok.IsEnabled = true;
+                cancel.IsEnabled = true;
+            }
+        };
+        // Enable OK only when all three fields have content
+        void UpdateOk() { ok.IsEnabled = !string.IsNullOrEmpty(oldBox.Text) && !string.IsNullOrEmpty(newBox.Text) && !string.IsNullOrEmpty(confirmBox.Text); }
+        oldBox.TextChanged += (_, _) => UpdateOk();
+        newBox.TextChanged += (_, _) => UpdateOk();
+        confirmBox.TextChanged += (_, _) => UpdateOk();
+        row.Children.Add(cancel);
+        row.Children.Add(ok);
+        sp.Children.Add(row);
+        dlg.Content = sp;
+        await dlg.ShowDialog(this);
+    }
+
+    private void OnViewRecoveryKeyClick(object? sender, RoutedEventArgs e) =>
+        ShowInfo("查看恢复密钥:请使用 CLI: okv vault info");
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    private void ShowInfo(string msg)
+    {
+        var dlg = new Window
+        {
+            Title = "提示",
+            Width = 380, Height = 140,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res.Brush("BgCardBrush"),
+        };
+        var panel = new Avalonia.Controls.StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 12 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = msg,
+            FontSize = 12,
+            Foreground = Res.Brush("FgMutedBrush"),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        });
+        var ok = new Button
+        {
+            Content = "好的",
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Background = Res.Brush("AccentBrush"),
+            Foreground = Res.Brush("AccentFgBrush"),
+            Padding = new Avalonia.Thickness(14, 6),
+            BorderThickness = new Avalonia.Thickness(0),
+            CornerRadius = new Avalonia.CornerRadius(4),
+        };
+        ok.Click += (_, _) => dlg.Close();
+        panel.Children.Add(ok);
+        dlg.Content = panel;
+        dlg.ShowDialog(this);
+    }
+}
+
+/// <summary>
+/// In-memory user settings. Phase 11: persisted to
+/// %APPDATA%/OmniKeyVault/settings.json on changes and loaded on startup.
+/// Default values match UI_UX_SPEC §5.5 (15 min auto-lock) and §5.1 (8 s clipboard).
+/// </summary>
+public static class SettingsStore
+{
+    public static int AutoLockMinutes { get; set; } = 15;
+    public static int ClipboardClearSeconds { get; set; } = 8;
+
+    // v0.2 S6-T6: language + theme. zh-CN is the default per MANUAL §15.4
+    // (and the explicit per-locale string table in §15.3); en-US lands in v0.3.
+    public static string Language { get; set; } = "zh-CN";
+
+    public enum AppTheme { System, Light, Dark }
+    public static AppTheme Theme { get; set; } = AppTheme.Light;
+
+    // v0.2 S4-T1: sync directory + watcher enable. When null/empty, the GUI
+    // starts the watcher on the vault file's parent directory so out-of-band
+    // replacements still trigger a toast.
+    public static string? SyncDirectory { get; set; }
+    public static bool WatcherEnabled { get; set; } = true;
+
+    // v0.2 S7-T1: when true, the OS system-events subscription triggers an
+    // immediate lock on SessionLock + Suspend per MANUAL §12.5.
+    public static bool LockOnSessionLock { get; set; } = true;
+    public static bool LockOnSuspend { get; set; } = true;
+
+    // v0.3 S6-T4: where encrypted attachment blobs are stored. When null/
+    // empty the Application/AttachmentService uses
+    // %APPDATA%/OmniKeyVault/attachments/ as the default.
+    public static string? AttachmentDirectory { get; set; }
+
+    // ---- WebDAV remote sync ----
+    public static string? WebDavServerUrl { get; set; }
+    public static string? WebDavUsername { get; set; }
+    public static string? WebDavPassword { get; set; }
+    public static string? WebDavRemoteFilePath { get; set; } = "vault.okv";
+    public static bool WebDavEnabled { get; set; }
+    public static bool WebDavAutoSync { get; set; }
+
+    // ---- Phase 11: JSON file persistence ----
+
+    private static readonly string SettingsPath = System.IO.Path.Combine(
+        System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData),
+        "OmniKeyVault", "settings.json");
+
+    private static bool _loaded;
+
+    /// <summary>Loads settings from %APPDATA%/OmniKeyVault/settings.json.
+    /// Called once on startup. If the file doesn't exist, defaults are kept.</summary>
+    public static void Load()
+    {
+        if (_loaded) return;
+        _loaded = true;
+        try
+        {
+            if (!System.IO.File.Exists(SettingsPath)) return;
+            var json = System.IO.File.ReadAllText(SettingsPath);
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("autoLockMinutes", out var alm)) AutoLockMinutes = alm.GetInt32();
+            if (root.TryGetProperty("clipboardClearSeconds", out var ccs)) ClipboardClearSeconds = ccs.GetInt32();
+            if (root.TryGetProperty("language", out var lang)) Language = lang.GetString()!;
+            if (root.TryGetProperty("theme", out var th) && Enum.TryParse<AppTheme>(th.GetString(), true, out var t)) Theme = t;
+            if (root.TryGetProperty("syncDirectory", out var sd)) SyncDirectory = sd.GetString();
+            if (root.TryGetProperty("watcherEnabled", out var we)) WatcherEnabled = we.GetBoolean();
+            if (root.TryGetProperty("lockOnSessionLock", out var lsl)) LockOnSessionLock = lsl.GetBoolean();
+            if (root.TryGetProperty("lockOnSuspend", out var ls)) LockOnSuspend = ls.GetBoolean();
+            if (root.TryGetProperty("attachmentDirectory", out var ad)) AttachmentDirectory = ad.GetString();
+            if (root.TryGetProperty("webDavServerUrl", out var wsu)) WebDavServerUrl = wsu.GetString();
+            if (root.TryGetProperty("webDavUsername", out var wun)) WebDavUsername = wun.GetString();
+            if (root.TryGetProperty("webDavPassword", out var wpw)) WebDavPassword = wpw.GetString();
+            if (root.TryGetProperty("webDavRemoteFilePath", out var wrp)) WebDavRemoteFilePath = wrp.GetString();
+            if (root.TryGetProperty("webDavEnabled", out var wen)) WebDavEnabled = wen.GetBoolean();
+            if (root.TryGetProperty("webDavAutoSync", out var was)) WebDavAutoSync = was.GetBoolean();
+        }
+        catch { /* best-effort: keep defaults on parse error */ }
+    }
+
+    /// <summary>Persists current settings to %APPDATA%/OmniKeyVault/settings.json.</summary>
+    public static void Save()
+    {
+        try
+        {
+            var dir = System.IO.Path.GetDirectoryName(SettingsPath);
+            if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                System.IO.Directory.CreateDirectory(dir);
+            var obj = new
+            {
+                autoLockMinutes = AutoLockMinutes,
+                clipboardClearSeconds = ClipboardClearSeconds,
+                language = Language,
+                theme = Theme.ToString(),
+                syncDirectory = SyncDirectory,
+                watcherEnabled = WatcherEnabled,
+                lockOnSessionLock = LockOnSessionLock,
+                lockOnSuspend = LockOnSuspend,
+                attachmentDirectory = AttachmentDirectory,
+                webDavServerUrl = WebDavServerUrl,
+                webDavUsername = WebDavUsername,
+                webDavPassword = WebDavPassword,
+                webDavRemoteFilePath = WebDavRemoteFilePath,
+                webDavEnabled = WebDavEnabled,
+                webDavAutoSync = WebDavAutoSync,
+            };
+            var json = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            System.IO.File.WriteAllText(SettingsPath, json);
+        }
+        catch { /* best-effort: don't crash on permission errors */ }
+    }
+}

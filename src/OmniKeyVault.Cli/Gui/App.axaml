@@ -1,0 +1,80 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="OmniKeyVault.Cli.Gui.App"
+             RequestedThemeVariant="Light">
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- ============================================================
+                 OmniKey Vault — Light theme design tokens (flattened)
+                 Resources defined directly (not in ThemeDictionaries) to
+                 ensure reliable resolution across all controls.
+                 ============================================================ -->
+
+            <!-- Shared resources -->
+            <FontFamily x:Key="FontDisplay">"Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif</FontFamily>
+            <FontFamily x:Key="FontUI">"Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif</FontFamily>
+            <FontFamily x:Key="FontMono">"Cascadia Code", "Consolas", "SF Mono", "Courier New", monospace</FontFamily>
+
+            <!-- Spacing scale (4px base) -->
+            <x:Double x:Key="Space1">4</x:Double>
+            <x:Double x:Key="Space2">8</x:Double>
+            <x:Double x:Key="Space3">12</x:Double>
+            <x:Double x:Key="Space4">16</x:Double>
+            <x:Double x:Key="Space5">24</x:Double>
+            <x:Double x:Key="Space6">32</x:Double>
+
+            <!-- Layout constants -->
+            <x:Double x:Key="TopbarHeight">56</x:Double>
+            <x:Double x:Key="StatusbarHeight">28</x:Double>
+            <x:Double x:Key="SidebarWidth">220</x:Double>
+            <x:Double x:Key="DetailPanelWidth">380</x:Double>
+
+            <!-- ================================================ -->
+            <!-- LIGHT THEME COLORS (directly in ResourceDictionary) -->
+            <!-- ================================================ -->
+
+            <!-- Backgrounds -->
+            <SolidColorBrush x:Key="BgBrush"           Color="#f5f7fa" />
+            <SolidColorBrush x:Key="BgElevatedBrush"   Color="#ffffff" />
+            <SolidColorBrush x:Key="BgSunkenBrush"     Color="#eef1f6" />
+            <SolidColorBrush x:Key="BgHoverBrush"      Color="#e8ecf2" />
+            <SolidColorBrush x:Key="BgCardBrush"       Color="#ffffff" />
+
+            <!-- Foregrounds — darkened for WCAG AA contrast on white/light backgrounds.
+                 Hierarchy: FgBrush (darkest) > FgMutedBrush > FgDimBrush > FgFaintBrush.
+                 All colors meet WCAG AA 4.5:1 contrast ratio on #ffffff and #f5f7fa. -->
+            <SolidColorBrush x:Key="FgBrush"           Color="#0f172a" />
+            <SolidColorBrush x:Key="FgMutedBrush"      Color="#334155" />
+            <SolidColorBrush x:Key="FgDimBrush"        Color="#475569" />
+            <SolidColorBrush x:Key="FgFaintBrush"      Color="#64748b" />
+
+            <!-- Accent (vibrant indigo) -->
+            <SolidColorBrush x:Key="AccentBrush"       Color="#6366f1" />
+            <SolidColorBrush x:Key="AccentBrightBrush" Color="#818cf8" />
+            <SolidColorBrush x:Key="AccentDimBrush"    Color="#4f46e5" />
+
+            <!-- Status colors -->
+            <SolidColorBrush x:Key="SuccessBrush"      Color="#10b981" />
+            <SolidColorBrush x:Key="WarningBrush"      Color="#f59e0b" />
+            <SolidColorBrush x:Key="DangerBrush"       Color="#ef4444" />
+            <SolidColorBrush x:Key="InfoBrush"         Color="#3b82f6" />
+
+            <!-- Borders (darkened for visibility on light bg) -->
+            <SolidColorBrush x:Key="BorderBrush"       Color="#d1d9e6" />
+            <SolidColorBrush x:Key="BorderBrightBrush" Color="#b0bccf" />
+            <SolidColorBrush x:Key="BorderActiveBrush" Color="#7886a0" />
+
+            <!-- Profile accent colors -->
+            <SolidColorBrush x:Key="ProfileProdBrush"  Color="#10b981" />
+            <SolidColorBrush x:Key="ProfileDevBrush"   Color="#f59e0b" />
+            <SolidColorBrush x:Key="ProfileTestBrush"  Color="#3b82f6" />
+
+            <!-- Button text on accent/danger (white) -->
+            <SolidColorBrush x:Key="AccentFgBrush"     Color="#ffffff" />
+            <SolidColorBrush x:Key="DangerFgBrush"     Color="#ffffff" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,72 @@
+{
+  "id": "azure_service_principal",
+  "platform_id": "azure",
+  "name": "Azure Service Principal",
+  "category": "cloud",
+  "icon": "azure",
+  "official_docs_url": "https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal",
+  "auth_header": "OAuth 2.0 client_credentials -> Authorization: Bearer <access_token>",
+  "default_base_url": "https://management.azure.com",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "azure",
+  "notes": "Prefer Managed Identity (when running on Azure) or Workload Identity Federation (when running on cloud K8s) over client secrets.",
+  "fields": [
+    {
+      "key": "tenant_id",
+      "label": "Tenant ID (Directory ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID format" },
+      "group": "primary",
+      "description": "Microsoft Entra ID tenant ID."
+    },
+    {
+      "key": "client_id",
+      "label": "Client ID (Application ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID format" },
+      "group": "primary"
+    },
+    {
+      "key": "client_secret",
+      "label": "Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Za-z0-9~._-]{20,60}$", "hint": "Shown only once at creation" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "Default 6 months expiry, max 24 months. Prefer certificate auth."
+    },
+    {
+      "key": "subscription_id",
+      "label": "Subscription ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID format" },
+      "group": "primary"
+    },
+    {
+      "key": "arm_endpoint",
+      "label": "ARM Endpoint",
+      "kind": "url",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^https://management\\.(azure\\.com|chinacloudapi\\.cn|usgovcloudapi\\.net|microsoftazure\\.de)/?$", "hint": "Default: https://management.azure.com. Sovereign clouds require override." },
+      "group": "advanced",
+      "description": "Azure Resource Manager endpoint. Sovereign clouds (Azure China / GovCloud / Germany) need a custom value."
+    }
+  ]
+}

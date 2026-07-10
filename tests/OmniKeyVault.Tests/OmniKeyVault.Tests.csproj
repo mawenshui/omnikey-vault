@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>OmniKeyVault.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="7.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Contracts\OmniKeyVault.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Application\OmniKeyVault.Application.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Infrastructure\OmniKeyVault.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Cli\OmniKeyVault.Cli.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\templates\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>templates\%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+</Project>

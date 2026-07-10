@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.HistoryWindow"
+        Title="条目历史"
+        Width="720" Height="540"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.profile-row">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,14">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" x:Name="HistoryTitle"
+                           FontFamily="{DynamicResource FontDisplay}" FontSize="17" FontWeight="Medium"
+                           Foreground="{DynamicResource FgBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="ghost" Click="OnCloseClick">
+                    <TextBlock Text="关闭" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <Grid ColumnDefinitions="280,*">
+            <Border Grid.Column="0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="历史快照" Padding="14,12,14,6"
+                               FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1"
+                               Foreground="{DynamicResource FgDimBrush}" />
+                    <ScrollViewer>
+                        <StackPanel x:Name="SnapshotList" Spacing="4" Margin="10,0,10,10" />
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <DockPanel Grid.Column="1">
+                <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,12">
+                    <TextBlock x:Name="PreviewTitle"
+                               FontFamily="{DynamicResource FontDisplay}" FontSize="14" FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}" />
+                </Border>
+                <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,12">
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="StatusText" IsVisible="False" FontSize="11" TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Button Grid.Column="1" x:Name="RestoreButton" Classes="primary" Click="OnRestoreClick" IsEnabled="False">
+                                <TextBlock Text="⏮ 还原到此版本" />
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <ScrollViewer Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="EmptyText" Text="(此条目暂无历史快照)" IsVisible="False"
+                                   Foreground="{DynamicResource FgDimBrush}" FontSize="12" />
+                        <StackPanel x:Name="PreviewBody" Spacing="0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

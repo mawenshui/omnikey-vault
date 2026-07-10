@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.SeedExportWindow"
+        Title="导出 Seed (.okv.dev)"
+        Width="540" Height="380"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <StackPanel Spacing="14">
+            <TextBlock Text="导出 Seed (.okv.dev)"
+                       FontFamily="{DynamicResource FontDisplay}"
+                       FontSize="20" FontWeight="Medium"
+                       Foreground="{DynamicResource FgBrush}" />
+            <TextBlock TextWrapping="Wrap" FontSize="11"
+                       Foreground="{DynamicResource FgDimBrush}"
+                       Text="Seed 文件未受主密码保护 — 仅包含 profile metadata + 字段结构,适合团队 / 跨设备 schema 同步。Secret 字段可被剥离。" />
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="源 Profile" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                <ComboBox x:Name="ProfileBox" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="导出路径" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <Button Grid.Column="1" Classes="ghost" Click="OnBrowseClick" Padding="8,3" FontSize="11">
+                        <TextBlock Text="📂 默认位置" />
+                    </Button>
+                </Grid>
+                <TextBox Classes="field" x:Name="PathBox" />
+            </StackPanel>
+
+            <CheckBox x:Name="StripSecretsBox" IsChecked="True">
+                <TextBlock Text="剥离 Secret 字段(推荐 — 共享安全)" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+            </CheckBox>
+
+            <TextBlock x:Name="HintText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource FgDimBrush}" />
+
+            <TextBlock x:Name="StatusText" FontSize="12" IsVisible="False" TextWrapping="Wrap" />
+
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                <Button Grid.Column="1" Classes="ghost" Click="OnCloseClick" Margin="0,0,8,0" Width="80">
+                    <TextBlock Text="取消" HorizontalAlignment="Center" />
+                </Button>
+                <Button Grid.Column="2" Classes="primary" Click="OnExportClick" Width="120">
+                    <TextBlock Text="导出" HorizontalAlignment="Center" />
+                </Button>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

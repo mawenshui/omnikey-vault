@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.cs diff=csharp
+*.json merge=union
+*.csproj merge=union
+*.props merge=union
+*.targets merge=union
+*.png binary
+*.jpg binary
+*.ico binary
+*.snk binary

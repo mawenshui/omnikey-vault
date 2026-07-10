@@ -1,0 +1,238 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.UnlockWindow"
+        Title="OmniKey Vault"
+        Width="900" Height="640"
+        MinWidth="640" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="{DynamicResource BgBrush}">
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrightBrush}" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="TextBox.field:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDimBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <!-- Ambient background (grid + glow) -->
+        <Canvas IsHitTestVisible="False">
+            <Rectangle Canvas.Left="0" Canvas.Top="0" Width="900" Height="640"
+                       Fill="{DynamicResource BgBrush}" />
+            <!-- amber radial glow center -->
+            <Ellipse Canvas.Left="150" Canvas.Top="20" Width="600" Height="600"
+                     Fill="#2d6366f1"
+                     IsHitTestVisible="False" />
+            <!-- subtle grid pattern -->
+            <Rectangle Canvas.Left="0" Canvas.Top="0" Width="900" Height="640"
+                       Fill="#0a6366f1"
+                       IsHitTestVisible="False" />
+        </Canvas>
+
+        <!-- Centered unlock card -->
+        <Border Width="440"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource BgCardBrush}"
+                BorderBrush="{DynamicResource BorderBrightBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="32,40,32,32"
+                BoxShadow="0 24 64 0 #20000000, 0 0 64 0 #146366f1">
+            <StackPanel Spacing="16">
+                <!-- Vault emblem (rendered as styled Border) -->
+                <Border Width="80" Height="80"
+                        HorizontalAlignment="Center"
+                        Background="Transparent"
+                        BorderBrush="{DynamicResource AccentBrush}"
+                        BorderThickness="1.5"
+                        CornerRadius="40">
+                    <Border Width="44" Height="44"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource AccentBrush}"
+                            Opacity="0.08"
+                            CornerRadius="22" />
+                </Border>
+
+                <!-- Eyebrow -->
+                <TextBlock Text="本地优先 · 端到端加密"
+                           HorizontalAlignment="Center"
+                           FontFamily="{DynamicResource FontMono}"
+                           FontSize="11"
+                           LetterSpacing="2"
+                           Foreground="{DynamicResource FgDimBrush}" />
+
+                <!-- Title -->
+                <TextBlock HorizontalAlignment="Center"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="38"
+                           FontWeight="Medium"
+                           Foreground="{DynamicResource FgBrush}">
+                    <Run Text="OmniKey " />
+                    <Run Text="Vault" FontStyle="Italic" Foreground="{DynamicResource AccentBrush}" />
+                </TextBlock>
+
+                <!-- Vault meta + manual browse fallback -->
+                <Border Background="{DynamicResource BgSunkenBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,10">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="保险库"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       x:Name="VaultIdText"
+                                       Text="(no vault found)"
+                                       HorizontalAlignment="Right"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource FgMutedBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="8,0,8,0"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="2"
+                                    x:Name="BrowseVaultButton"
+                                    Classes="ghost"
+                                    Padding="6,2"
+                                    FontSize="11"
+                                    Click="OnBrowseVaultClick"
+                                    ToolTip.Tip="浏览其他金库文件(.okv)">
+                                <TextBlock Text="📂 浏览" FontSize="11" />
+                            </Button>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" Text="上次访问"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                            <TextBlock Grid.Column="1"
+                                       x:Name="LastAccessText"
+                                       Text="—"
+                                       HorizontalAlignment="Right"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource FgMutedBrush}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Password form -->
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+                    <TextBlock Text="主密码"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="11" LetterSpacing="1"
+                               Foreground="{DynamicResource FgDimBrush}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 x:Name="PasswordBox"
+                                 Classes="field"
+                                 PasswordChar="●"
+                                 RevealPassword="False"
+                                 KeyDown="OnPasswordKeyDown" />
+                        <Button Grid.Column="1"
+                                x:Name="RevealButton"
+                                Classes="ghost"
+                                Margin="4,0,0,0"
+                                Padding="10,8"
+                                Click="OnRevealToggle">
+                            <TextBlock x:Name="RevealIcon" Text="👁" FontSize="14" />
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <Button x:Name="UnlockButton"
+                        Classes="primary"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,8,0,0"
+                        Click="OnUnlockClick">
+                    <TextBlock Text="解锁保险库" />
+                </Button>
+
+                <Button x:Name="RecoveryButton"
+                        Classes="ghost"
+                        HorizontalAlignment="Stretch"
+                        Click="OnRecoveryClick">
+                    <TextBlock Text="使用恢复密钥" />
+                </Button>
+
+                <Button x:Name="CreateVaultButton"
+                        HorizontalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0,4,0,0"
+                        Click="OnCreateVaultClick">
+                    <TextBlock Text="没有金库?创建一个 →"
+                               FontSize="12"
+                               Foreground="{DynamicResource AccentDimBrush}" />
+                </Button>
+
+                <CheckBox x:Name="RememberCheck"
+                          IsChecked="True"
+                          Margin="0,4,0,0">
+                    <TextBlock Text="保持解锁 15 分钟"
+                               FontSize="12"
+                               Foreground="{DynamicResource FgMutedBrush}" />
+                </CheckBox>
+
+                <!-- Footer -->
+                <TextBlock Text="无云端找回 · 零知识"
+                           HorizontalAlignment="Center"
+                           FontFamily="{DynamicResource FontMono}"
+                           FontSize="10" LetterSpacing="1.5"
+                           Foreground="{DynamicResource FgDimBrush}"
+                           Margin="0,12,0,0" />
+
+                <!-- Error text -->
+                <TextBlock x:Name="ErrorText"
+                           HorizontalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{DynamicResource DangerBrush}"
+                           TextWrapping="Wrap"
+                           IsVisible="False" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

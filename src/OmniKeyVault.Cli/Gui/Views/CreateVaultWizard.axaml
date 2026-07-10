@@ -1,0 +1,303 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.CreateVaultWizard"
+        Title="OmniKey Vault — 创建新金库"
+        Width="640" Height="640"
+        MinWidth="520" MinHeight="540"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource BgBrush}">
+    <Window.Styles>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="TextBox.field:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDimBrush}" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="20,12" />
+        </Style>
+        <Style Selector="Button.primary:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,10" />
+        </Style>
+        <Style Selector="Border.code-cell">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="MinWidth" Value="62" />
+        </Style>
+        <Style Selector="TextBlock.cell-text">
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="LetterSpacing" Value="1.2" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Stepper -->
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="8"
+                    Margin="0,20,0,0">
+            <Border x:Name="Dot1" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource AccentBrush}" />
+            <Border x:Name="Line1" Width="32" Height="1" Background="{DynamicResource BorderBrightBrush}" VerticalAlignment="Center" />
+            <Border x:Name="Dot2" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource BorderBrightBrush}" />
+            <Border x:Name="Line2" Width="32" Height="1" Background="{DynamicResource BorderBrightBrush}" VerticalAlignment="Center" />
+            <Border x:Name="Dot3" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource BorderBrightBrush}" />
+            <Border x:Name="Line3" Width="32" Height="1" Background="{DynamicResource BorderBrightBrush}" VerticalAlignment="Center" />
+            <Border x:Name="Dot4" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource BorderBrightBrush}" />
+        </StackPanel>
+
+        <!-- Step content (scrollable so it never overlaps) -->
+        <ScrollViewer Grid.Row="1"
+                      Margin="40,16,40,8"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+                <!-- Step 1: Welcome -->
+                <StackPanel x:Name="Step1Panel" Spacing="16" VerticalAlignment="Center" Margin="0,40,0,0">
+                    <Border Width="56" Height="56"
+                            HorizontalAlignment="Center"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1.5"
+                            CornerRadius="28">
+                        <TextBlock Text="🗝" FontSize="24"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                    </Border>
+                    <TextBlock Text="欢迎使用 OmniKey Vault"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="20" FontWeight="Medium"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               MaxWidth="400"
+                               FontSize="12"
+                               LineHeight="18"
+                               Foreground="{DynamicResource FgMutedBrush}">
+                        <Run Text="本工具本地优先、零知识。您的主密码" />
+                        <Run Text="不会" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
+                        <Run Text="上传任何服务器。" />
+                        <LineBreak /><LineBreak />
+                        <Run Text="下一步您将设置主密码并生成恢复密钥。请准备纸笔。" />
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Step 2: Master password + location -->
+                <StackPanel x:Name="Step2Panel" IsVisible="False" Spacing="8">
+                    <TextBlock Text="主密码"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17" FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock Text="至少 8 个字符。主密码丢失即无法恢复(除非使用恢复密钥)。"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgDimBrush}" />
+
+                    <TextBlock Text="输入主密码" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,4,0,0" />
+                    <TextBox Classes="field" x:Name="PasswordBox" PasswordChar="●" KeyDown="OnPasswordKeyDown" />
+
+                    <TextBlock Text="确认主密码" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <TextBox Classes="field" x:Name="ConfirmBox" PasswordChar="●" KeyDown="OnPasswordKeyDown" />
+
+                    <StackPanel Spacing="4" Margin="0,2,0,0">
+                        <Grid ColumnDefinitions="*,*,*,*">
+                            <Border Grid.Column="0" x:Name="Bar1" Height="3" CornerRadius="2" Background="{DynamicResource BorderBrush}" Margin="0,0,2,0" />
+                            <Border Grid.Column="1" x:Name="Bar2" Height="3" CornerRadius="2" Background="{DynamicResource BorderBrush}" Margin="2,0,2,0" />
+                            <Border Grid.Column="2" x:Name="Bar3" Height="3" CornerRadius="2" Background="{DynamicResource BorderBrush}" Margin="2,0,2,0" />
+                            <Border Grid.Column="3" x:Name="Bar4" Height="3" CornerRadius="2" Background="{DynamicResource BorderBrush}" Margin="2,0,0,0" />
+                        </Grid>
+                        <TextBlock x:Name="StrengthText" Text="强度:—"
+                                   FontFamily="{DynamicResource FontMono}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource FgDimBrush}" />
+                    </StackPanel>
+
+                    <TextBlock Text="金库文件夹" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,4,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Classes="field"
+                                 x:Name="FolderBox"
+                                 FontSize="12"
+                                 Watermark="点击右侧「选择…」浏览文件夹" />
+                        <Button Grid.Column="1"
+                                Classes="ghost"
+                                Margin="6,0,0,0"
+                                Padding="12,6"
+                                Click="OnBrowseFolderClick">
+                            <TextBlock Text="📁  选择…" FontSize="12" />
+                        </Button>
+                    </Grid>
+
+                    <TextBlock Text="金库名称" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,2,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Classes="field"
+                                 x:Name="FilenameBox"
+                                 FontSize="12"
+                                 Text="vault" />
+                        <Border Grid.Column="1"
+                                Margin="6,0,0,0"
+                                Padding="10,8"
+                                Background="{DynamicResource BgSunkenBrush}"
+                                BorderBrush="{DynamicResource BorderBrightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                VerticalAlignment="Center">
+                            <TextBlock Text=".okv"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                        </Border>
+                    </Grid>
+
+                    <Border Background="{DynamicResource BgCardBrush}"
+                            BorderBrush="{DynamicResource BorderBrightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,6"
+                            Margin="0,2,0,0">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="完整路径"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="9" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                            <TextBlock x:Name="FullPathText"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="Step2Error"
+                               FontSize="12"
+                               Foreground="{DynamicResource DangerBrush}"
+                               IsVisible="False"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Step 3: Recovery Key -->
+                <StackPanel x:Name="Step3Panel" IsVisible="False" Spacing="12">
+                    <TextBlock Text="恢复密钥"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17" FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock TextWrapping="Wrap"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgMutedBrush}">
+                        <Run Text="请将以下 32 组字符" />
+                        <Run Text="抄写到纸上或打印" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
+                        <Run Text="后离线保存。在忘记主密码时凭此恢复金库。" />
+                    </TextBlock>
+
+                    <Border Background="{DynamicResource BgCardBrush}"
+                            BorderBrush="{DynamicResource BorderBrightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel x:Name="RecoveryGrid" Spacing="4" />
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                        <Button Classes="ghost" Click="OnCopyRecoveryClick" Padding="10,6">
+                            <TextBlock x:Name="CopyRecoveryText" Text="⧉  复制" FontSize="11" />
+                        </Button>
+                        <Button Classes="ghost" Click="OnPrintRecoveryClick" Padding="10,6">
+                            <TextBlock Text="🖨  打印" FontSize="11" />
+                        </Button>
+                        <Button Classes="ghost" Click="OnSavePdfRecoveryClick" Padding="10,6">
+                            <TextBlock Text="📄  另存为 PDF" FontSize="11" />
+                        </Button>
+                    </StackPanel>
+
+                    <CheckBox x:Name="SavedCheck"
+                              HorizontalAlignment="Center"
+                              Margin="0,2,0,0"
+                              IsCheckedChanged="OnSavedCheckChanged">
+                        <TextBlock Text="我已离线保存恢复密钥"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                </StackPanel>
+
+                <!-- Step 4: Complete -->
+                <StackPanel x:Name="Step4Panel" IsVisible="False" Spacing="16" VerticalAlignment="Center" Margin="0,40,0,0">
+                    <Border Width="64" Height="64"
+                            HorizontalAlignment="Center"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="2"
+                            CornerRadius="32">
+                        <TextBlock x:Name="CompleteIcon" Text="⋯"
+                                   FontSize="28"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                    </Border>
+                    <TextBlock x:Name="CompleteText"
+                               Text="正在创建金库…"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17" FontWeight="Medium"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock x:Name="CompleteDetail"
+                               Text="派生 Argon2id 256 MiB…"
+                               FontSize="11"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource FgDimBrush}" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Bottom nav -->
+        <Grid Grid.Row="2" Margin="40,8,40,20" ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Column="0"
+                       x:Name="StepLabel"
+                       Text="第 1 步 / 共 4 步"
+                       VerticalAlignment="Center"
+                       FontFamily="{DynamicResource FontMono}"
+                       FontSize="10" LetterSpacing="1"
+                       Foreground="{DynamicResource FgDimBrush}" />
+            <Button Grid.Column="1"
+                    x:Name="BackButton"
+                    Classes="ghost"
+                    Content="← 上一步"
+                    Margin="0,0,6,0"
+                    IsVisible="False"
+                    Padding="14,8"
+                    Click="OnBackClick" />
+            <Button Grid.Column="2"
+                    x:Name="NextButton"
+                    Classes="primary"
+                    Content="下一步 →"
+                    Padding="20,8"
+                    Click="OnNextClick" />
+        </Grid>
+    </Grid>
+</Window>

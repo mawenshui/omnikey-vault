@@ -1,0 +1,100 @@
+{
+  "id": "slack",
+  "platform_id": "slack",
+  "name": "Slack",
+  "category": "communication",
+  "icon": "slack",
+  "official_docs_url": "https://docs.slack.dev/authentication/tokens",
+  "auth_header": "Authorization: Bearer <bot_token>",
+  "default_base_url": "https://slack.com/api",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "slack",
+  "notes": "Signing secret verifies X-Slack-Signature (HMAC-SHA256). Webhook URL is itself a credential.",
+  "fields": [
+    {
+      "key": "bot_token",
+      "label": "Bot User OAuth Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xoxb-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^xoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+$", "hint": "Must start with xoxb-" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "Default bot token, obtained after installing the app on a workspace."
+    },
+    {
+      "key": "user_token",
+      "label": "User OAuth Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xoxp-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^xoxp-[0-9]+-[0-9]+-[A-Za-z0-9]+$", "hint": "Must start with xoxp-" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "Token that acts on behalf of a user, requires OAuth flow."
+    },
+    {
+      "key": "app_token",
+      "label": "App-Level Token (Socket Mode)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xapp-\u2022\u2022\u2022\u2022-\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^xapp-[0-9]+-[A-Za-z0-9]+$", "hint": "Must start with xapp-" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced",
+      "description": "App-level token for Socket Mode."
+    },
+    {
+      "key": "signing_secret",
+      "label": "Signing Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Za-z0-9]{32,}$", "hint": "HMAC-SHA256 signing key" },
+      "group": "primary",
+      "description": "Verifies all incoming requests' X-Slack-Signature header."
+    },
+    {
+      "key": "webhook_url",
+      "label": "Incoming Webhook URL",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://hooks.slack.com/services/\u2022\u2022\u2022\u2022/\u2022\u2022\u2022\u2022/\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+$", "hint": "Incoming Webhook URL authenticates by URL itself" },
+      "group": "secondary",
+      "description": "The URL itself is the credential; disclosure == key disclosure."
+    },
+    {
+      "key": "client_id",
+      "label": "OAuth App Client ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^\\d{11,13}$", "hint": "11-13 digits" },
+      "group": "advanced"
+    },
+    {
+      "key": "client_secret",
+      "label": "OAuth App Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Fa-f0-9]{32}$", "hint": "32 hex chars" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced"
+    }
+  ]
+}

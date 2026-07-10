@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OmniKeyVault.Benchmark</RootNamespace>
+    <AssemblyName>okv-bench</AssemblyName>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <!-- Benchmarks are not part of the shipping product; no GUI / no Avalonia deps. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Contracts\OmniKeyVault.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Application\OmniKeyVault.Application.csproj" />
+    <ProjectReference Include="..\..\src\OmniKeyVault.Infrastructure\OmniKeyVault.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\templates\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>templates\%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+</Project>

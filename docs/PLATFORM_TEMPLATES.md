@@ -1,0 +1,2233 @@
+# OmniKey Vault — 平台模板参考文档
+
+| 文档版本 | 日期 | 作者 | 状态 |
+|---|---|---|---|
+| 1.0 | 2026-06-25 | Sisyphus | v1.0 RC:11 个 MVP 模板(5 v0.1 + 6 v0.2) + 轮换元数据 (openai / github) |
+
+> 关联文档:[MANUAL.md §4.3 平台模板](./MANUAL.md#43-平台模板platform-templates) · [OKV_FORMAT.md](./OKV_FORMAT.md) · [INTERNAL.md](./INTERNAL.md) · [ROADMAP.md](./ROADMAP.md)
+>
+> 本文档是 OmniKey Vault 平台模板的**权威规范**。模板文件为纯 JSON(明文,不含任何凭据),只描述字段结构、UI 元数据、校验规则。实现参考 [OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `Template` / `TemplateField` 领域模型。
+>
+> **调研来源**:全部字段、正则、前缀均来自 2025-2026 年官方文档,详见 [§10 引用索引](#10-引用索引)。
+
+---
+
+## 1. 概述
+
+### 1.1 文档目的
+
+1. 定义平台模板的统一格式规范(扩展 [OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `TemplateField` schema)。
+2. 给出 v0.1 MVP 5 个模板的完整 JSON 定义,可直接落地为 `templates/*.json`。
+3. 给出 v0.2 - v0.3 扩展模板的完整 JSON 或摘要。
+4. 列出 v1.0+ 待纳入的 70+ 平台索引,供社区贡献模板时参考。
+5. 标注每个凭据字段的官方来源、过期行为、是否可轮换,服务于 [MANUAL.md §4.3](./MANUAL.md#43-平台模板platform-templates) 与 [INTERNAL.md §5.4](./INTERNAL.md#54-template--平台模板)。
+
+### 1.2 模板的存在意义
+
+> 平台字段各异 — 有的需要 Key+Secret,有的需要 Account+Tenant+Region。模板 + 自定义字段,每个条目独立加密。
+> — [MANUAL.md §1.3](./MANUAL.md#13-解决什么问题)
+
+模板不是凭据,只是"建条目时的字段脚手架"。用户在 GUI 选择"OpenAI"模板后,系统自动填充字段占位(`api_key` / `organization_id` / `project_id`),用户只需填入值。模板本身是**纯 JSON 明文**,可由社区贡献、可随版本更新、可被用户自定义覆盖。
+
+### 1.3 覆盖范围
+
+| 类别 | 平台数 | v0.1 MVP | v0.2 | v0.3 | v0.4 | v1.0 | 远期 |
+|---|---|---|---|---|---|---|---|
+| 云厂商 | 7 | 1 (AWS) | +2 (Azure/GCP) | +1 (Aliyun) | — | +2 (Tencent/Huawei) | +1 (Volcengine) |
+| AI / LLM | 23 | 1 (OpenAI) | +1 (Anthropic) | +2 (Gemini/Azure OpenAI) | — | +3 (Hugging Face/DeepSeek/xAI) | +16 |
+| 代码托管 | 8 | 0 | +1 (GitHub) | +1 (GitLab) | — | +1 (Cloudflare) | +5 |
+| 支付 | 7 | 1 (Stripe) | — | — | — | +2 (Alipay/WeChat Pay) | +4 |
+| 数据库 / Auth | 8 | 1 (Supabase) | — | +2 (Firebase/Auth0) | — | +2 (MongoDB Atlas/Neon) | +3 |
+| 通讯 | 8 | 0 | +1 (Slack) | +1 (Twilio) | — | +2 (SendGrid/Mailgun) | +4 |
+| 监控 | 5 | 0 | +1 (Sentry) | — | — | +1 (Datadog) | +3 |
+| 生产力 / SaaS | 7+ | 0 | — | +1 (Vercel) | — | +2 (飞书/钉钉) | +4+ |
+| **合计** | **73+** | **5** | **+6** | **+8** | **0** | **+15** | **+40+** |
+
+> v0.1 MVP 5 个模板与 [MANUAL.md §16.1 v0.1](./MANUAL.md#161-v01-mvp已交付) 一致:GitHub / OpenAI / AWS / Stripe / Supabase。
+
+---
+
+## 2. 模板格式规范
+
+### 2.1 Template 顶层 schema
+
+扩展 [OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `Template` 记录:
+
+```jsonc
+{
+  "id": "openai",                              // 必填,snake_case,全局唯一,跨 Locale 不变(见 UI_UX_SPEC §9.2)
+  "platform_id": "openai",                     // 必填,通常与 id 相同;一个 platform 可有多模板(如 aws_iam_long_term / aws_sts_temporary)
+  "name": "OpenAI",                            // 必填,展示名(zh-CN 优先,见 UI_UX_SPEC §9.1)
+  "category": "ai_llm",                        // 必填,枚举:cloud / ai_llm / code_hosting / payment / database_auth / communication / monitoring / productivity / other
+  "icon": "openai",                            // 可选,图标资源名(映射到 assets/icons/<icon>.svg)
+  "official_docs_url": "https://platform.openai.com/docs/api-reference/introduction",  // 必填,官方文档 URL,用于"查看官方文档"按钮
+  "auth_header": "Authorization: Bearer <api_key>",  // 可选,展示用,描述如何使用主凭据
+  "default_base_url": "https://api.openai.com/v1",   // 可选,默认 API 端点
+  "mvp_included": true,                        // 必填,是否在 v0.1 MVP 5 模板集中
+  "introduced_in": "v0.1",                     // 必填,首次引入版本
+  "fields": [ /* TemplateField,见 §2.2 */ ],
+  "notes": "可选,实现注记或安全提示",
+  "expires_at_supported": true,                // 可选,条目级 expires_at 是否对该平台有意义(默认 true)
+  "rotation_supported": true,                  // 可选,是否支持 entry rotate CLI(见 CLI_SPEC §5.5)
+  "rotation_provider": "openai"                // 可选,rotate 集成的平台 provider 名(若支持)
+}
+```
+
+### 2.2 TemplateField schema
+
+扩展 [OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `TemplateField` 记录:
+
+```jsonc
+{
+  "key": "api_key",                            // 必填,snake_case,英文(豁免清单见 UI_UX_SPEC §9.2)
+  "label": "API Key",                          // 必填,UI 展示名(zh-CN 优先)
+  "kind": "secret",                            // 必填,FieldKind 枚举:text / secret / url / number / date / totp_uri / file_ref(见 OKV_FORMAT §3.5)
+  "sensitive": true,                           // 必填,UI 是否默认掩码(kind=secret 时强制 true)
+  "required": true,                            // 必填,是否必填
+  "default_mask": "sk-••••••••••••••••••••",  // 可选,默认掩码模板(详见 §2.4)
+  "placeholder": "sk-proj-...",                // 可选,输入框 placeholder
+  "validation": {                              // 可选,FieldValidation(见 OKV_FORMAT §3.5)
+    "regex": "^sk-proj-[A-Za-z0-9_-]{20,}$",
+    "hint": "应以 sk-proj- 开头(2025+ 项目作用域密钥)"
+  },
+  "expires_at_supported": false,               // 可选,此字段本身是否支持过期(Token 类字段为 true)
+  "rotatable": true,                           // 可选,此字段是否可被 entry rotate 轮换
+  "description": "可选,字段说明(zh-CN 优先)",
+  "examples": ["sk-proj-abc123..."],           // 可选,示例值(脱敏)
+  "group": "primary"                           // 可选,UI 分组(primary / secondary / advanced)
+}
+```
+
+### 2.3 FieldKind 与 sensitive 关系
+
+| `kind` | 含义 | `sensitive` 默认 | UI 行为 |
+|---|---|---|---|
+| `text` | 普通文本(用户名、Org ID、Region) | false | 直接显示 |
+| `secret` | 密钥 / Token / Secret | **强制 true** | 默认掩码,悬停 0.5s 显示明文(见 UI_UX_SPEC §5.2) |
+| `url` | URL(端点、回调地址) | false | 可点击跳转 |
+| `number` | 数字(App ID、Account ID) | false | 数字输入框 |
+| `date` | 日期(过期时间) | false | 日期选择器 |
+| `totp_uri` | TOTP URI(`otpauth://`) | true | 自动展开为 6 位 TOTP 显示器(见 PRD §5.8) |
+| `file_ref` | 附件引用(PEM 证书、私钥文件) | true | 显示文件名 + 大小 + Download/Replace(见 UI_UX_SPEC §4.4.2) |
+
+**不变量**:`kind=secret` 时 `sensitive` 必须为 `true`(由 Roslyn 分析器或模板加载器校验)。
+
+### 2.4 掩码规则
+
+- **默认掩码**:`default_mask` 字段提供,如 `"sk-••••••••"`。
+- **动态掩码**:若 `default_mask` 为空,UI 按以下规则生成:
+  - 长度 ≤ 8:全部 `••••••••`
+  - 长度 9-16:前 3 字符 + `•` + 后 2 字符
+  - 长度 > 16:前缀(直到第一个 `-` 或前 6 字符)+ `••••••••` + 后 4 字符
+- **悬停显示**:鼠标悬停 0.5s 显示明文,旁边红点提示"明文已暴露"(见 UI_UX_SPEC §5.2.2)。
+- **复制即清空**:复制后 8 秒自动清空剪贴板(见 PRD §5.11)。
+
+### 2.5 校验规则
+
+- **正则校验**:`validation.regex` 在保存前校验,失败时 UI 内联显示 `validation.hint`。
+- **必填校验**:`required=true` 的字段为空时禁止保存。
+- **软校验**:正则不匹配时**允许保存但显示警告**(用户可能存的是新格式或自定义值),仅在 `--strict-validation` 模式下拒绝保存。
+
+### 2.6 模板文件存储
+
+```
+%LOCALAPPDATA%\Programs\OmniKeyVault\templates\   # 内置模板(随应用发布)
+  ├── github.json
+  ├── openai.json
+  ├── aws_iam_long_term.json
+  ├── aws_sts_temporary.json
+  ├── stripe.json
+  └── supabase.json
+
+%APPDATA%\OmniKeyVault\templates\                 # 用户自定义模板(覆盖内置)
+  ├── my_internal_service.json
+  └── ...
+```
+
+- **加载优先级**:用户自定义 > 内置 > 同 `id` 时新版本覆盖旧版本。
+- **模板更新**:应用升级时,内置模板按 `introduced_in` 字段决定是否覆盖用户修改(用户修改优先)。
+- **社区贡献**:用户可从 GitHub 仓库 `templates/contrib/` 下载社区模板放入 `%APPDATA%\OmniKeyVault\templates\`。
+
+---
+
+## 3. v0.1 MVP 模板(5 个,完整 JSON)
+
+> 对应 [ROADMAP S2-T7](./ROADMAP.md#s2-t7-5-个平台模板-json--模板加载器)。
+
+### 3.1 GitHub
+
+**官方文档**:<https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens> · <https://github.blog/changelog/2025-03-18-fine-grained-pats-are-now-generally-available/>
+
+**关键事实**(2026 验证):
+- Fine-grained PAT 于 2025-03-18 GA,前缀 `github_pat_`,长度 82 字符(含下划线)。
+- Classic PAT 前缀 `ghp_`,长度 40 字符。组织可禁用 classic PAT。
+- OAuth App token 前缀 `gho_`、GitHub App user token `ghu_`(8h)、server token `ghs_`(1h)、refresh token `ghr_`。
+- Webhook 签名密钥用于验证 `X-Hub-Signature-256` 头(HMAC-SHA256)。
+
+```json
+{
+  "id": "github",
+  "platform_id": "github",
+  "name": "GitHub",
+  "category": "code_hosting",
+  "icon": "github",
+  "official_docs_url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+  "auth_header": "Authorization: Bearer <pat>",
+  "default_base_url": "https://api.github.com",
+  "mvp_included": true,
+  "introduced_in": "v0.1",
+  "fields": [
+    {
+      "key": "pat_fine_grained",
+      "label": "Fine-grained Personal Access Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "github_pat_••••••••",
+      "placeholder": "github_pat_82chars...",
+      "validation": {
+        "regex": "^github_pat_[A-Za-z0-9_]{82}$",
+        "hint": "Fine-grained PAT,以 github_pat_ 开头,共 92 字符(2025+ 推荐)"
+      },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "Fine-grained PAT,可限制到特定仓库与权限。2025-03-18 起 GA,推荐替代 classic PAT。"
+    },
+    {
+      "key": "pat_classic",
+      "label": "Classic Personal Access Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "ghp_••••••••",
+      "placeholder": "ghp_36chars...",
+      "validation": {
+        "regex": "^ghp_[A-Za-z0-9]{36}$",
+        "hint": "Classic PAT,以 ghp_ 开头,共 40 字符(传统,组织可禁用)"
+      },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "secondary",
+      "description": "Classic PAT,权限较粗。新代码建议使用 fine-grained PAT。"
+    },
+    {
+      "key": "username",
+      "label": "GitHub 用户名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "octocat",
+      "validation": {
+        "regex": "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,38}[a-zA-Z0-9])?$",
+        "hint": "GitHub 用户名,1-39 字符,字母数字与连字符"
+      },
+      "group": "primary",
+      "description": "用于 Basic Auth 配合 classic PAT,或标识账号归属。"
+    },
+    {
+      "key": "webhook_secret",
+      "label": "Webhook 签名密钥",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": {
+        "regex": "^[A-Za-z0-9+/=_-]{6,100}$",
+        "hint": "用于验证 X-Hub-Signature-256 头(HMAC-SHA256)"
+      },
+      "group": "secondary",
+      "description": "Webhook 接收端用此密钥验证请求来自 GitHub。"
+    },
+    {
+      "key": "oauth_app_client_id",
+      "label": "OAuth App Client ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "Iv1.16charhex...",
+      "validation": {
+        "regex": "^Iv1\\.[A-Za-z0-9]{16,}$",
+        "hint": "OAuth App Client ID,以 Iv1. 开头"
+      },
+      "group": "advanced",
+      "description": "OAuth App 集成场景。"
+    },
+    {
+      "key": "oauth_app_client_secret",
+      "label": "OAuth App Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": {
+        "regex": "^[A-Za-z0-9+/=_-]{32,}$",
+        "hint": "OAuth App Client Secret,创建时仅显示一次"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced"
+    },
+    {
+      "key": "backup_codes_2fa",
+      "label": "2FA 备用恢复码",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••-••••",
+      "placeholder": "10 行,每行 8 字符",
+      "validation": {
+        "regex": "^[0-9a-f]{4}-[0-9a-f]{4}(\\s+[0-9a-f]{4}-[0-9a-f]{4})*$",
+        "hint": "10 个一次性恢复码,每行格式 xxxx-xxxx"
+      },
+      "group": "secondary",
+      "description": "丢失 2FA 设备时的恢复码,一次性使用。"
+    }
+  ],
+  "notes": "推荐 fine-grained PAT。组织管理员可在 GitHub 设置中禁用 classic PAT。所有 PAT 均可设置过期时间(最长 1 年或永不过期)。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "github"
+}
+```
+
+### 3.2 OpenAI
+
+**官方文档**:<https://platform.openai.com/docs/api-reference/introduction> · <https://developers.openai.com/api/reference/resources/organization/subresources/projects/subresources/api_keys/>
+
+**关键事实**(2026 验证):
+- 项目作用域密钥 `sk-proj-...` 为当前默认(2024 末起)。
+- 传统用户级 `sk-...`(48 字符)仍可用但已弃用。
+- 服务账户密钥值同为 `sk-...`,但对象 ID 前缀 `svc_acct_...`。
+- Admin API 密钥 `sk-admin-...` 仅用于 Admin API,不可调用模型端点。
+- Organization ID `org-...`、Project ID `proj_...`、User ID `user-...`。
+
+```json
+{
+  "id": "openai",
+  "platform_id": "openai",
+  "name": "OpenAI",
+  "category": "ai_llm",
+  "icon": "openai",
+  "official_docs_url": "https://platform.openai.com/docs/api-reference/introduction",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://api.openai.com/v1",
+  "mvp_included": true,
+  "introduced_in": "v0.1",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key (项目作用域)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk-proj-••••••••",
+      "placeholder": "sk-proj-...",
+      "validation": {
+        "regex": "^sk-proj-[A-Za-z0-9_-]{20,}$",
+        "hint": "以 sk-proj- 开头(2025+ 默认,项目作用域)"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "项目作用域 API Key。在 platform.openai.com → API keys 创建。"
+    },
+    {
+      "key": "api_key_legacy",
+      "label": "API Key (传统用户级)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sk-••••••••",
+      "placeholder": "sk-...",
+      "validation": {
+        "regex": "^sk-[A-Za-z0-9]{40,}$",
+        "hint": "以 sk- 开头,共 48+ 字符(传统,已弃用)"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "传统用户级 Key,仍可用但建议迁移到 sk-proj-。"
+    },
+    {
+      "key": "admin_api_key",
+      "label": "Admin API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sk-admin-••••••••",
+      "validation": {
+        "regex": "^sk-admin-[A-Za-z0-9_-]{20,}$",
+        "hint": "以 sk-admin- 开头,仅用于 Admin API"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced",
+      "description": "仅用于 Admin API(组织/项目/用户/密钥管理),不可调用模型端点。"
+    },
+    {
+      "key": "organization_id",
+      "label": "Organization ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "org-••••••••",
+      "validation": {
+        "regex": "^org-[A-Za-z0-9]{20,}$",
+        "hint": "以 org- 开头"
+      },
+      "group": "primary",
+      "description": "通过 OpenAI-Organization 头传入。用户只有 1 个组织时可省略。"
+    },
+    {
+      "key": "project_id",
+      "label": "Project ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "proj_••••••••",
+      "validation": {
+        "regex": "^proj_[A-Za-z0-9]{20,}$",
+        "hint": "以 proj_ 开头"
+      },
+      "group": "primary",
+      "description": "通过 OpenAI-Project 头传入,绑定请求到特定项目用于用量归属。"
+    }
+  ],
+  "notes": "三族密钥共存:sk-proj-(项目,推荐)、sk-(传统用户或服务账户)、sk-admin-(Admin API)。环境变量 OPENAI_API_KEY / OPENAI_ADMIN_KEY。云端 K8s 可用 Workload Identity Federation 替代静态 Key。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "openai"
+}
+```
+
+### 3.3 AWS
+
+**官方文档**:<https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html> · <https://docs.aws.amazon.com/STS/latest/APIReference/API_GetSessionToken.html>
+
+**关键事实**(2026 验证):
+- 长期 IAM Key 前缀 `AKIA` + 16 字符(共 20);临时 STS Key 前缀 `ASIA`。
+- Secret Access Key 40 字符 base64-like。
+- Account ID 12 位数字。
+- ARN 格式:`arn:(aws|aws-cn|aws-us-gov):iam::12位account:user/Bob`。
+- STS 临时凭证:15min-36h(默认 12h),root 用户 15min-1h。
+
+> AWS 模板拆分为两个:`aws_iam_long_term`(主)与 `aws_sts_temporary`(次)。用户可任选其一创建条目。
+
+#### 3.3.1 aws_iam_long_term(主模板)
+
+```json
+{
+  "id": "aws_iam_long_term",
+  "platform_id": "aws",
+  "name": "AWS IAM 长期 AccessKey",
+  "category": "cloud",
+  "icon": "aws",
+  "official_docs_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html",
+  "auth_header": "AWS SigV4 签名(Authorization: AWS4-HMAC-SHA256 ...)",
+  "mvp_included": true,
+  "introduced_in": "v0.1",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AKIA••••••••",
+      "validation": {
+        "regex": "^AKIA[0-9A-Z]{16}$",
+        "hint": "以 AKIA 开头,共 20 字符(长期 IAM 密钥)"
+      },
+      "group": "primary",
+      "description": "公开标识符。注意:STS 临时密钥以 ASIA 开头,请使用 aws_sts_temporary 模板。"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••••••",
+      "validation": {
+        "regex": "^[A-Za-z0-9/+=]{40}$",
+        "hint": "40 字符 base64-like,创建时仅显示一次"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "签名密钥。无法后续查询,丢失需重新创建。每 IAM 用户最多 2 个 AccessKey。"
+    },
+    {
+      "key": "account_id",
+      "label": "Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "validation": {
+        "regex": "^\\d{12}$",
+        "hint": "12 位数字,无连字符"
+      },
+      "group": "primary",
+      "description": "AWS 账户 ID。"
+    },
+    {
+      "key": "region",
+      "label": "默认 Region",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "us-east-1",
+      "validation": {
+        "regex": "^(us|eu|ap|sa|ca|af|me|il)-(east|west|north|south|central|northeast|southeast|southwest)-[0-9]+$",
+        "hint": "如 us-east-1、eu-west-2、ap-northeast-1"
+      },
+      "group": "primary",
+      "description": "默认 Region。中国区使用 aws-cn 分区(GovCloud 用 aws-us-gov)。"
+    },
+    {
+      "key": "arn",
+      "label": "IAM 用户 ARN",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "arn:aws:iam::12位:user/••••",
+      "validation": {
+        "regex": "^arn:(aws|aws-cn|aws-us-gov):iam::\\d{12}:(user|role)/[\\w+=,.@/-]+$",
+        "hint": "格式 arn:partition:iam::account:user/name"
+      },
+      "group": "secondary",
+      "description": "IAM 用户或角色 ARN,用于标识密钥归属。"
+    },
+    {
+      "key": "iam_user_name",
+      "label": "IAM 用户名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": {
+        "regex": "^[\\w+=,.@-]{1,64}$",
+        "hint": "IAM 用户名"
+      },
+      "group": "secondary"
+    }
+  ],
+  "notes": "长期密钥无过期时间;推荐使用 STS 临时凭证(见 aws_sts_temporary 模板)。每 IAM 用户最多 2 个 AccessKey,支持主备轮换。MFA 可在 IAM 策略中强制要求。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "aws"
+}
+```
+
+#### 3.3.2 aws_sts_temporary(次模板,引入于 v0.2)
+
+```json
+{
+  "id": "aws_sts_temporary",
+  "platform_id": "aws",
+  "name": "AWS STS 临时凭证",
+  "category": "cloud",
+  "icon": "aws",
+  "official_docs_url": "https://docs.aws.amazon.com/STS/latest/APIReference/API_GetSessionToken.html",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID (临时)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "ASIA••••••••",
+      "validation": { "regex": "^ASIA[0-9A-Z]{16}$", "hint": "以 ASIA 开头(临时 STS 密钥)" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9/+=]{40}$", "hint": "40 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "session_token",
+      "label": "Session Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "IQoJ••••••••",
+      "validation": { "regex": "^[A-Za-z0-9/+=]{20,2000}$", "hint": "通过 x-amz-security-token 头传入" },
+      "group": "primary",
+      "description": "STS 会话 Token,必须随请求发送。最长约 2KB。"
+    },
+    {
+      "key": "expiration",
+      "label": "过期时间",
+      "kind": "date",
+      "sensitive": false,
+      "required": true,
+      "validation": { "regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$", "hint": "ISO-8601 UTC" },
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "凭证过期时间。范围:15min-36h(默认 12h);root 用户 15min-1h。"
+    },
+    {
+      "key": "role_arn",
+      "label": "Role ARN(如通过 AssumeRole)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^arn:(aws|aws-cn|aws-us-gov):iam::\\d{12}:role/[\\w+=,.@/-]+$", "hint": "假设角色的 ARN" },
+      "group": "secondary"
+    }
+  ],
+  "notes": "推荐使用临时凭证替代长期 AccessKey。通过 AssumeRole 或 GetSessionToken 获取。",
+  "expires_at_supported": true,
+  "rotation_supported": false
+}
+```
+
+### 3.4 Stripe
+
+**官方文档**:<https://docs.stripe.com/keys> · <https://docs.stripe.com/webhooks/signature>
+
+**关键事实**(2026 验证):
+- Secret Key `sk_live_...` / `sk_test_...`,可轮换。
+- Publishable Key `pk_live_...` / `pk_test_...`,客户端可见,非敏感。
+- Restricted Key `rk_live_...` / `rk_test_...`,细粒度权限,推荐替代 `sk_`。
+- Webhook Signing Secret `whsec_...`,每个 webhook 端点独立。
+- Connected Account ID `acct_...`。
+
+```json
+{
+  "id": "stripe",
+  "platform_id": "stripe",
+  "name": "Stripe",
+  "category": "payment",
+  "icon": "stripe",
+  "official_docs_url": "https://docs.stripe.com/keys",
+  "auth_header": "Authorization: Bearer <secret_key>",
+  "default_base_url": "https://api.stripe.com",
+  "mvp_included": true,
+  "introduced_in": "v0.1",
+  "fields": [
+    {
+      "key": "secret_key",
+      "label": "Secret Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk_live_••••••••",
+      "placeholder": "sk_live_... 或 sk_test_...",
+      "validation": {
+        "regex": "^sk_(live|test)_[A-Za-z0-9]{24,}$",
+        "hint": "以 sk_live_ 或 sk_test_ 开头"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "服务器端密钥,完全 API 访问权限。新代码建议使用 Restricted Key。"
+    },
+    {
+      "key": "restricted_key",
+      "label": "Restricted Key (RAK)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "rk_live_••••••••",
+      "validation": {
+        "regex": "^rk_(live|test)_[A-Za-z0-9]{24,}$",
+        "hint": "以 rk_live_ 或 rk_test_ 开头,细粒度权限"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "细粒度权限 Key,可限制到特定资源操作。推荐替代 sk_。"
+    },
+    {
+      "key": "publishable_key",
+      "label": "Publishable Key",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "pk_live_••••••••",
+      "validation": {
+        "regex": "^pk_(live|test)_[A-Za-z0-9]{24,}$",
+        "hint": "以 pk_live_ 或 pk_test_ 开头,客户端可见"
+      },
+      "group": "primary",
+      "description": "客户端密钥,可嵌入前端。非敏感。"
+    },
+    {
+      "key": "webhook_secret",
+      "label": "Webhook Signing Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "whsec_••••••••",
+      "validation": {
+        "regex": "^whsec_[A-Za-z0-9]{32,}$",
+        "hint": "以 whsec_ 开头,每个 webhook 端点独立"
+      },
+      "group": "secondary",
+      "description": "用于验证 Stripe-Signature 头。每个 webhook 端点独立一个。"
+    },
+    {
+      "key": "account_id",
+      "label": "Connected Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "acct_••••••••",
+      "validation": {
+        "regex": "^acct_[A-Za-z0-9]{16,}$",
+        "hint": "以 acct_ 开头"
+      },
+      "group": "secondary",
+      "description": "Connect 平台的子账户 ID。"
+    }
+  ],
+  "notes": "新代码建议使用 Restricted Key (rk_) 替代 sk_ 以缩小权限范围。Webhook secret 每个端点独立,不可跨端点复用。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "stripe"
+}
+```
+
+### 3.5 Supabase
+
+**官方文档**:<https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys> · <https://supabase.com/changelog/29260-upcoming-changes-to-supabase-api-keys>
+
+**关键事实**(2026 验证):
+- 新发布密钥 `sb_publishable_...`(替代 anon_key)、新秘密密钥 `sb_secret_...`(替代 service_role_key),2025-05-01 后新建项目默认。
+- 旧 anon_key / service_role_key 为 JWT 格式,仍可用但建议迁移。
+- Personal Access Token `sbp_...`(管理 API / CLI)。
+- Database URL 为 PostgreSQL 连接串。
+
+```json
+{
+  "id": "supabase",
+  "platform_id": "supabase",
+  "name": "Supabase",
+  "category": "database_auth",
+  "icon": "supabase",
+  "official_docs_url": "https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys",
+  "auth_header": "Authorization: Bearer <secret_key>",
+  "default_base_url": "https://<project_ref>.supabase.co",
+  "mvp_included": true,
+  "introduced_in": "v0.1",
+  "fields": [
+    {
+      "key": "project_url",
+      "label": "Project URL",
+      "kind": "url",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "https://xyzcompany.supabase.co",
+      "validation": {
+        "regex": "^https://[a-z0-9-]+\\.supabase\\.co$",
+        "hint": "格式 https://<project_ref>.supabase.co"
+      },
+      "group": "primary",
+      "description": "项目唯一 URL,project_ref 为子域。"
+    },
+    {
+      "key": "secret_key",
+      "label": "Secret Key (新)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sb_secret_••••••••",
+      "validation": {
+        "regex": "^sb_secret_[A-Za-z0-9]{22}_[A-Za-z0-9]{8}$",
+        "hint": "以 sb_secret_ 开头(2025+ 新格式,替代 service_role_key)"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "服务器端密钥,绕过 RLS。替代旧 service_role_key。"
+    },
+    {
+      "key": "publishable_key",
+      "label": "Publishable Key (新)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "sb_publishable_••••••••",
+      "validation": {
+        "regex": "^sb_publishable_[A-Za-z0-9]{22}_[A-Za-z0-9]{8}$",
+        "hint": "以 sb_publishable_ 开头(2025+ 新格式,替代 anon_key)"
+      },
+      "group": "primary",
+      "description": "客户端密钥,受 RLS 保护。替代旧 anon_key。"
+    },
+    {
+      "key": "service_role_key_legacy",
+      "label": "Service Role Key (传统 JWT)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "eyJ••••",
+      "validation": {
+        "regex": "^eyJ[A-Za-z0-9_\\-]{100,}\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+$",
+        "hint": "JWT 格式,role=service_role,绕过 RLS"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "传统 JWT 密钥,建议迁移到 sb_secret_。"
+    },
+    {
+      "key": "anon_key_legacy",
+      "label": "Anon Key (传统 JWT)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "eyJ••••",
+      "validation": {
+        "regex": "^eyJ[A-Za-z0-9_\\-]{100,}\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+$",
+        "hint": "JWT 格式,role=anon"
+      },
+      "group": "secondary",
+      "description": "传统 JWT 密钥,建议迁移到 sb_publishable_。"
+    },
+    {
+      "key": "database_url",
+      "label": "Database Connection String",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "postgresql://user:•••@host:5432/db",
+      "validation": {
+        "regex": "^postgres(ql)?://[A-Za-z0-9_\\-:%.]+:[^@]+@[a-z0-9.-]+(:\\d+)?/[A-Za-z0-9_-]+(\\?.*)?$",
+        "hint": "PostgreSQL 连接串"
+      },
+      "group": "secondary",
+      "description": "直连 PostgreSQL 的连接串,含密码。"
+    },
+    {
+      "key": "personal_access_token",
+      "label": "Personal Access Token (管理 API)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sbp_••••••••",
+      "validation": {
+        "regex": "^sbp_[A-Za-z0-9]{40,}$",
+        "hint": "以 sbp_ 开头,用于管理 API / CLI"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced"
+    },
+    {
+      "key": "jwt_secret",
+      "label": "JWT Secret (传统 HS256)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": {
+        "regex": "^[A-Za-z0-9_\\-]{32,}$",
+        "hint": "项目级 JWT 签名密钥(传统 HS256)"
+      },
+      "group": "advanced",
+      "description": "用于自签 JWT。2025-05-01 后新建项目使用 RSA 非对称签名。"
+    }
+  ],
+  "notes": "2025-05-01 后新建项目使用 RSA 非对称签名,旧项目可迁移。新格式 sb_publishable_ / sb_secret_ 替代 JWT 格式 anon_key / service_role_key。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "supabase"
+}
+```
+
+## 4. v0.2 扩展模板(6 个)
+
+> 对应 [ROADMAP §4](./ROADMAP.md#4-v02--4-周) 与 PRD §14 v0.2。
+
+### 4.1 Anthropic (Claude)
+
+**官方文档**:<https://platform.claude.com/docs/en/api/overview>
+
+**关键事实**(2026 验证):
+- API Key 前缀 `sk-ant-api03-...`。
+- Admin API Key 前缀 `sk-ant-admin...`,仅用于 Admin API。
+- Service Account ID `svac_...`(身份,非直接密钥)。
+- Workspace ID `wrkspc_...`、Organization ID 通过 `/v1/organizations/me` 获取。
+- 认证头:`x-api-key: <api_key>`(非 Bearer)。
+
+```json
+{
+  "id": "anthropic",
+  "platform_id": "anthropic",
+  "name": "Anthropic (Claude)",
+  "category": "ai_llm",
+  "icon": "anthropic",
+  "official_docs_url": "https://platform.claude.com/docs/en/api/overview",
+  "auth_header": "x-api-key: <api_key>",
+  "default_base_url": "https://api.anthropic.com",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk-ant-api03-••••••••",
+      "validation": { "regex": "^sk-ant-api03-[A-Za-z0-9_-]{20,}$", "hint": "以 sk-ant-api03- 开头" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "通过 x-api-key 头传入。可设置过期时间。"
+    },
+    {
+      "key": "admin_api_key",
+      "label": "Admin API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sk-ant-admin••-••••",
+      "validation": { "regex": "^sk-ant-admin[A-Za-z0-9_-]{10,}-[A-Za-z0-9_-]{20,}$", "hint": "以 sk-ant-admin 开头" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced",
+      "description": "仅用于 Admin API,不可调用 /v1/messages。"
+    },
+    {
+      "key": "workspace_id",
+      "label": "Workspace ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "wrkspc_••••••••",
+      "validation": { "regex": "^wrkspc_[A-Za-z0-9]{10,}$", "hint": "以 wrkspc_ 开头" },
+      "group": "primary",
+      "description": "Workspace 作用域。Admin API 通过 ?workspace_id= 查询参数传入。"
+    },
+    {
+      "key": "service_account_id",
+      "label": "Service Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "svac_••••••••",
+      "validation": { "regex": "^svac_[A-Za-z0-9]{10,}$", "hint": "以 svac_ 开头" },
+      "group": "advanced",
+      "description": "Workload Identity Federation 身份标识,非直接密钥。"
+    }
+  ],
+  "notes": "认证头是 x-api-key(非 Bearer)。Bedrock / Vertex 上的 Claude 使用对应云厂商的凭证,不走此模板。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "anthropic"
+}
+```
+
+### 4.2 Google Cloud Platform (GCP) — Service Account JSON
+
+**官方文档**:<https://cloud.google.com/iam/docs/keys-create-delete>
+
+**关键事实**(2026 验证):
+- Service Account JSON 含 10 字段:type / project_id / private_key_id / private_key(PEM) / client_email / client_id / auth_uri / token_uri / auth_provider_x509_cert_url / client_x509_cert_url。
+- Project ID 格式:`^[a-z][-a-z0-9]{4,28}[a-z0-9]$`(6-30 字符)。
+- 推荐 Workload Identity Federation 替代静态 Service Account Key。
+
+```json
+{
+  "id": "gcp_service_account",
+  "platform_id": "gcp",
+  "name": "GCP Service Account JSON Key",
+  "category": "cloud",
+  "icon": "gcp",
+  "official_docs_url": "https://cloud.google.com/iam/docs/keys-create-delete",
+  "auth_header": "OAuth 2.0 Bearer(由 SDK 自动用 private_key 换 access_token)",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "service_account_json",
+      "label": "Service Account JSON",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "{\"type\":\"service_account\",•••}",
+      "validation": {
+        "regex": "^\\{[\\s\\S]*\"type\"\\s*:\\s*\"service_account\"[\\s\\S]*\\}$",
+        "hint": "完整 JSON 对象,含 type=service_account 等 10 字段"
+      },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "完整 Service Account JSON。建议整体存储而非拆分字段(PEM 含转义换行)。"
+    },
+    {
+      "key": "project_id",
+      "label": "Project ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": {
+        "regex": "^[a-z][-a-z0-9]{4,28}[a-z0-9]$",
+        "hint": "6-30 字符,小写字母/数字/连字符,字母开头"
+      },
+      "group": "primary",
+      "description": "GCP 项目 ID。"
+    },
+    {
+      "key": "client_email",
+      "label": "Service Account Email",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "••••@•••.iam.gserviceaccount.com",
+      "validation": {
+        "regex": "^[a-z][-a-z0-9]{4,28}[a-z0-9]@[-a-z0-9]{4,28}\\.iam\\.gserviceaccount\\.com$",
+        "hint": "格式 <name>@<project>.iam.gserviceaccount.com"
+      },
+      "group": "primary"
+    }
+  ],
+  "notes": "推荐 Workload Identity Federation 替代静态 Key。新项目策略可能禁止创建 Service Account Key。整个 JSON 整体存储更安全(PEM 含转义换行,拆分易破坏签名)。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "gcp"
+}
+```
+
+### 4.3 Azure — Service Principal
+
+**官方文档**:<https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal>
+
+**关键事实**(2026 验证):
+- Tenant ID / Client ID / Subscription ID / Object ID 均为 GUID(8-4-4-4-12)。
+- Client Secret 创建时仅显示一次,默认 6 个月过期,最长 24 个月。
+- 推荐使用 Managed Identity 或 Workload Identity Federation 替代 Client Secret。
+
+```json
+{
+  "id": "azure_service_principal",
+  "platform_id": "azure",
+  "name": "Azure Service Principal",
+  "category": "cloud",
+  "icon": "azure",
+  "official_docs_url": "https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal",
+  "auth_header": "OAuth 2.0 client_credentials flow → Authorization: Bearer <access_token>",
+  "default_base_url": "https://management.azure.com",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "tenant_id",
+      "label": "Tenant ID (Directory ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "••••••••-••••-••••-••••-••••••••••••",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID 格式" },
+      "group": "primary",
+      "description": "Microsoft Entra ID 租户 ID。"
+    },
+    {
+      "key": "client_id",
+      "label": "Client ID (Application ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "••••••••-••••-••••-••••-••••••••••••",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID 格式" },
+      "group": "primary"
+    },
+    {
+      "key": "client_secret",
+      "label": "Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[A-Za-z0-9~._-]{20,60}$", "hint": "创建时仅显示一次" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "默认 6 个月过期,最长 24 个月。推荐证书认证替代。"
+    },
+    {
+      "key": "subscription_id",
+      "label": "Subscription ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "••••••••-••••-••••-••••-••••••••••••",
+      "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "hint": "GUID 格式" },
+      "group": "primary"
+    },
+    {
+      "key": "arm_endpoint",
+      "label": "ARM Endpoint",
+      "kind": "url",
+      "sensitive": false,
+      "required": false,
+      "validation": {
+        "regex": "^https://management\\.(azure\\.com|chinacloudapi\\.cn|usgovcloudapi\\.net|microsoftazure\\.de)/?$",
+        "hint": "默认 https://management.azure.com,主权云需覆盖"
+      },
+      "group": "advanced",
+      "description": "Azure Resource Manager 端点。主权云(Azure China / GovCloud / Germany)需自定义。"
+    }
+  ],
+  "notes": "推荐 Managed Identity(若部署在 Azure 上)或 Workload Identity Federation(若部署在云端 K8s)替代 Client Secret。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "azure"
+}
+```
+
+### 4.4 Aliyun (阿里云)
+
+**官方文档**:<https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair>
+
+**关键事实**(2026 验证):
+- AccessKey ID 前缀 `LTAI` + 16 字符(共 20)。
+- AccessKey Secret 30 字符,创建时仅显示一次。
+- STS 临时 AccessKey ID 前缀 `STS.`。
+- RAM Role ARN 格式 `acs:ram::<account_id>:role/<role_name>`。
+
+```json
+{
+  "id": "aliyun_ram_user",
+  "platform_id": "aliyun",
+  "name": "阿里云 RAM 用户 AccessKey",
+  "category": "cloud",
+  "icon": "aliyun",
+  "official_docs_url": "https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair",
+  "auth_header": "ACS3-HMAC-SHA256 签名",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "LTAI••••••••",
+      "validation": { "regex": "^LTAI[a-zA-Z0-9]{16}$", "hint": "以 LTAI 开头,共 20 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{30}$", "hint": "30 字符,创建时仅显示一次" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "无法后续查询,丢失需重新创建。每 RAM 用户最多 2 个 AccessKey。"
+    },
+    {
+      "key": "region_id",
+      "label": "默认 Region ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "cn-hangzhou",
+      "validation": {
+        "regex": "^(cn|ap|us|eu|me)-[a-z]+(-[0-9]+)?$",
+        "hint": "如 cn-hangzhou、ap-southeast-1、us-west-1、eu-central-1"
+      },
+      "group": "primary"
+    },
+    {
+      "key": "account_id",
+      "label": "Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^\\d{12,16}$", "hint": "12-16 位数字" },
+      "group": "secondary"
+    }
+  ],
+  "notes": "主密码登录控制台时可启用 MFA。AccessKey 无内置过期,推荐使用 STS 临时凭证(见 aliyun_sts 模板)。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "aliyun"
+}
+```
+
+### 4.5 Cloudflare
+
+**官方文档**:<https://developers.cloudflare.com/fundamentals/api/get-started/token-formats/>
+
+**关键事实**(2026 验证):
+- 新格式前缀(2024 起):User Token `cfut_`、Account Token `cfat_`、Global API Key `cfk_` + 40 字符 + 校验和。
+- R2 为 S3 兼容,Access Key ID 64 位 hex。
+- 推荐使用 Scoped API Token(细粒度权限)替代 Global API Key。
+
+```json
+{
+  "id": "cloudflare",
+  "platform_id": "cloudflare",
+  "name": "Cloudflare",
+  "category": "code_hosting",
+  "icon": "cloudflare",
+  "official_docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/token-formats/",
+  "auth_header": "Authorization: Bearer <api_token>",
+  "default_base_url": "https://api.cloudflare.com/client/v4",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "api_token",
+      "label": "User API Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "cfut_••••••••",
+      "validation": { "regex": "^cfut_[A-Za-z0-9\\-]{40}[A-Za-z0-9_\\-]{6}$", "hint": "以 cfut_ 开头(新格式)" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "细粒度权限,推荐替代 Global API Key。"
+    },
+    {
+      "key": "account_api_token",
+      "label": "Account API Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "cfat_••••••••",
+      "validation": { "regex": "^cfat_[A-Za-z0-9\\-]{40}[A-Za-z0-9_\\-]{6}$", "hint": "以 cfat_ 开头" },
+      "rotatable": true,
+      "group": "primary"
+    },
+    {
+      "key": "global_api_key",
+      "label": "Global API Key (传统,不推荐)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "cfk_••••••••",
+      "validation": { "regex": "^cfk_[a-f0-9]{40}[A-Za-z0-9_\\-]{6}$", "hint": "以 cfk_ 开头,全账户访问" },
+      "rotatable": true,
+      "group": "secondary",
+      "description": "传统全账户访问密钥,不推荐使用。"
+    },
+    {
+      "key": "account_id",
+      "label": "Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^[a-f0-9]{32}$", "hint": "32 位 hex" },
+      "group": "primary"
+    },
+    {
+      "key": "zone_id",
+      "label": "Zone ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^[a-f0-9]{32}$", "hint": "32 位 hex" },
+      "group": "secondary"
+    },
+    {
+      "key": "r2_access_key_id",
+      "label": "R2 Access Key ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^[a-f0-9]{64}$", "hint": "S3 兼容,64 位 hex" },
+      "group": "advanced"
+    },
+    {
+      "key": "r2_secret_access_key",
+      "label": "R2 Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[a-f0-9]{64}$", "hint": "64 位 hex" },
+      "rotatable": true,
+      "group": "advanced"
+    }
+  ],
+  "notes": "新前缀格式 cfut_/cfat_/cfk_ 自 2024 起启用,旧格式无前缀 hex 仍存在但被 GitHub secret scanning 主动撤销。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "cloudflare"
+}
+```
+
+### 4.6 Slack
+
+**官方文档**:<https://docs.slack.dev/authentication/tokens>
+
+**关键事实**(2026 验证):
+- Bot Token `xoxb-`、User Token `xoxp-`、App-Level Token `xapp-`(Socket Mode)。
+- Signing Secret 验证 `X-Slack-Signature` 头(HMAC-SHA256)。
+- Incoming Webhook URL 自带认证,视同 secret。
+
+```json
+{
+  "id": "slack",
+  "platform_id": "slack",
+  "name": "Slack",
+  "category": "communication",
+  "icon": "slack",
+  "official_docs_url": "https://docs.slack.dev/authentication/tokens",
+  "auth_header": "Authorization: Bearer <bot_token>",
+  "default_base_url": "https://slack.com/api",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "bot_token",
+      "label": "Bot User OAuth Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xoxb-••••-••••-••••",
+      "validation": { "regex": "^xoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+$", "hint": "以 xoxb- 开头" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "Bot 默认 Token,workspace 安装 app 后获取。"
+    },
+    {
+      "key": "user_token",
+      "label": "User OAuth Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xoxp-••••-••••-••••",
+      "validation": { "regex": "^xoxp-[0-9]+-[0-9]+-[A-Za-z0-9]+$", "hint": "以 xoxp- 开头" },
+      "rotatable": true,
+      "group": "secondary",
+      "description": "代表用户操作的 Token,需 OAuth 流程。"
+    },
+    {
+      "key": "app_token",
+      "label": "App-Level Token (Socket Mode)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "xapp-••••-••••",
+      "validation": { "regex": "^xapp-[0-9]+-[A-Za-z0-9]+$", "hint": "以 xapp- 开头" },
+      "rotatable": true,
+      "group": "advanced",
+      "description": "Socket Mode 用的 App-Level Token。"
+    },
+    {
+      "key": "signing_secret",
+      "label": "Signing Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,}$", "hint": "HMAC-SHA256 签名密钥" },
+      "group": "primary",
+      "description": "验证所有 incoming 请求的 X-Slack-Signature 头。"
+    },
+    {
+      "key": "webhook_url",
+      "label": "Incoming Webhook URL",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://hooks.slack.com/services/••••/••••/••••",
+      "validation": {
+        "regex": "^https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+$",
+        "hint": "Incoming Webhook URL 自带认证"
+      },
+      "group": "secondary",
+      "description": "URL 本身即凭据,泄露等同密钥泄露。"
+    },
+    {
+      "key": "client_id",
+      "label": "OAuth App Client ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^\\d{11,13}$", "hint": "11-13 位数字" },
+      "group": "advanced"
+    },
+    {
+      "key": "client_secret",
+      "label": "OAuth App Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[A-Fa-f0-9]{32,}$", "hint": "32+ hex" },
+      "rotatable": true,
+      "group": "advanced"
+    }
+  ],
+  "notes": "Bot Token (xoxb-) 为默认。Webhook URL 自带认证,视同 secret。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "slack"
+}
+```
+
+### 4.7 Twilio
+
+**官方文档**:<https://www.twilio.com/docs/glossary/what-is-a-sid> · <https://www.twilio.com/docs/usage/requests-to-twilio>
+
+**关键事实**(2026 验证):
+- 所有 SID 为 34 字符(2 字母前缀 + 32 hex):Account SID `AC`、API Key SID `SK`。
+- Auth Token 32 字符 hex。
+- 推荐 API Key + Secret 替代主 Auth Token(主 Auth Token 拥有完全账户权限)。
+- Webhook 签名使用主 Auth Token 的 HMAC-SHA1,通过 `X-Twilio-Signature` 头。
+
+```json
+{
+  "id": "twilio",
+  "platform_id": "twilio",
+  "name": "Twilio",
+  "category": "communication",
+  "icon": "twilio",
+  "official_docs_url": "https://www.twilio.com/docs/glossary/what-is-a-sid",
+  "auth_header": "HTTP Basic Auth: <api_key_sid>:<api_key_secret>",
+  "default_base_url": "https://api.twilio.com/2010-04-01",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "account_sid",
+      "label": "Account SID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AC••••••••",
+      "validation": { "regex": "^AC[a-f0-9]{32}$", "hint": "以 AC 开头,共 34 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "api_key_sid",
+      "label": "API Key SID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "SK••••••••",
+      "validation": { "regex": "^SK[a-f0-9]{32}$", "hint": "以 SK 开头,共 34 字符" },
+      "group": "primary",
+      "description": "推荐替代主 Auth Token,可细粒度限权。"
+    },
+    {
+      "key": "api_key_secret",
+      "label": "API Key Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "与 API Key SID 配对使用,HTTP Basic Auth。"
+    },
+    {
+      "key": "auth_token",
+      "label": "Auth Token (主,不推荐)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[a-f0-9]{32}$", "hint": "32 字符 hex" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "主 Auth Token,拥有完全账户权限。推荐改用 API Key + Secret。"
+    },
+    {
+      "key": "webhook_signing_secret",
+      "label": "Webhook Signing Secret (= Auth Token)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "validation": { "regex": "^[a-f0-9]{32}$", "hint": "使用主 Auth Token 的 HMAC-SHA1" },
+      "group": "secondary",
+      "description": "Webhook 验证使用主 Auth Token(非 API Key Secret)。"
+    }
+  ],
+  "notes": "生产环境推荐 API Key + Secret 替代主 Auth Token。Webhook 签名验证必须用主 Auth Token。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "twilio"
+}
+```
+
+### 4.8 Sentry
+
+**官方文档**:<https://docs.sentry.dev/api/auth/> · <https://docs.sentry.io/account/auth-tokens/>
+
+**关键事实**(2026 验证):
+- 新格式 Organization Auth Token `sntrys_...`,替代旧 64 字符 hex API Key。
+- DSN(`https://<public_key>@<host>/<project_id>`)用于 SDK 初始化。
+- DSN Public Key 32 字符 hex,Secret Key 已弃用。
+
+```json
+{
+  "id": "sentry",
+  "platform_id": "sentry",
+  "name": "Sentry",
+  "category": "monitoring",
+  "icon": "sentry",
+  "official_docs_url": "https://docs.sentry.dev/api/auth/",
+  "auth_header": "Authorization: Bearer <auth_token>",
+  "default_base_url": "https://sentry.io/api/0",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "fields": [
+    {
+      "key": "auth_token",
+      "label": "Organization Auth Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sntrys_••••••••",
+      "validation": { "regex": "^sntrys_[A-Za-z0-9_\\-]{20,}$", "hint": "以 sntrys_ 开头(新格式)" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "用于 Management API 与 CI 上传 source maps。"
+    },
+    {
+      "key": "dsn",
+      "label": "DSN (Client Key)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://•••@sentry.io/1",
+      "validation": {
+        "regex": "^https?://[a-f0-9]+@[a-z0-9.-]+/\\d+$",
+        "hint": "格式 https://<public_key>@<host>/<project_id>"
+      },
+      "group": "primary",
+      "description": "SDK 初始化用 DSN,含 public key。"
+    },
+    {
+      "key": "organization_slug",
+      "label": "Organization Slug",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "validation": { "regex": "^[a-z0-9-]+$", "hint": "组织 slug" },
+      "group": "primary"
+    },
+    {
+      "key": "project_slug",
+      "label": "Project Slug",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^[a-z0-9-]+$", "hint": "项目 slug" },
+      "group": "secondary"
+    }
+  ],
+  "notes": "新格式 sntrys_ 替代旧 64 字符 hex API Key。DSN 用于 SDK 初始化,Auth Token 用于 Management API。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "sentry"
+}
+```
+
+## 5. v0.3 扩展模板(8 个,关键摘录)
+
+### 5.1 GitLab
+
+**官方文档**:<https://docs.gitlab.com/security/tokens/>
+
+```json
+{
+  "id": "gitlab",
+  "platform_id": "gitlab",
+  "name": "GitLab",
+  "category": "code_hosting",
+  "icon": "gitlab",
+  "official_docs_url": "https://docs.gitlab.com/security/tokens/",
+  "auth_header": "Authorization: Bearer <pat> 或 PRIVATE-TOKEN: <pat>",
+  "default_base_url": "https://gitlab.com/api/v4",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "glpat-••••••••", "validation": { "regex": "^glpat-[A-Za-z0-9_\\-]{20,}$", "hint": "以 glpat- 开头" }, "rotatable": true, "expires_at_supported": true, "group": "primary" },
+    { "key": "project_access_token", "label": "Project Access Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "glpat-••••••••", "validation": { "regex": "^glpat-[A-Za-z0-9_\\-]{20,}$" }, "rotatable": true, "expires_at_supported": true, "group": "secondary" },
+    { "key": "oauth_application_secret", "label": "OAuth Application Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "gloas-••••••••", "validation": { "regex": "^gloas-[A-Za-z0-9_\\-]{20,}$" }, "rotatable": true, "group": "advanced" },
+    { "key": "ci_job_token", "label": "CI/CD Job Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "glcbt-••••••••", "validation": { "regex": "^glcbt-[A-Za-z0-9_\\-]{20,}$" }, "expires_at_supported": false, "group": "advanced", "description": "CI 流水线内自动生成,作业结束自动失效" },
+    { "key": "runner_token", "label": "Runner Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "glrt-••••••••", "validation": { "regex": "^gl(rt|rtr)-[A-Za-z0-9_\\-]{20,}$" }, "rotatable": true, "group": "advanced" },
+    { "key": "trigger_token", "label": "Pipeline Trigger Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "glptt-••••••••", "validation": { "regex": "^glptt-[A-Za-z0-9_\\-]{20,}$" }, "rotatable": true, "group": "advanced" },
+    { "key": "webhook_secret_token", "label": "Webhook Secret Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "validation": { "regex": "^[A-Za-z0-9_\\-]{20,}$" }, "group": "secondary", "description": "用户自定义,通过 X-Gitlab-Token 头验证" }
+  ],
+  "notes": "所有 Token 均有前缀(glpat-/gloas-/gldt-/glcbt-/glrt-/glptt-),2024 起不可配置。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "gitlab"
+}
+```
+
+### 5.2 Google Gemini / AI Studio
+
+**官方文档**:<https://ai.google.dev/gemini-api/docs/api-key>
+
+```json
+{
+  "id": "google_gemini",
+  "platform_id": "google_gemini",
+  "name": "Google Gemini / AI Studio",
+  "category": "ai_llm",
+  "icon": "gemini",
+  "official_docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
+  "auth_header": "?key=<api_key> 查询参数 或 x-goog-api-key 头",
+  "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "api_key", "label": "Gemini API Key", "kind": "secret", "sensitive": true, "required": true, "default_mask": "AIza••••••••", "validation": { "regex": "^AIza[A-Za-z0-9_-]{35}$", "hint": "AIza 前缀 + 35 字符,共 39 字符" }, "rotatable": true, "expires_at_supported": false, "group": "primary" },
+    { "key": "google_cloud_project_id", "label": "Google Cloud Project ID", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$", "hint": "6-30 字符" }, "group": "primary" }
+  ],
+  "notes": "Vertex AI 上的 Gemini 使用 GCP Service Account 认证,不走此模板。可在 GCP Console 限制 API Key 到特定 API、IP、Referer。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "google_gemini"
+}
+```
+
+### 5.3 Azure OpenAI
+
+**官方文档**:<https://learn.microsoft.com/en-us/azure/foundry/openai/reference>
+
+```json
+{
+  "id": "azure_openai",
+  "platform_id": "azure_openai",
+  "name": "Azure OpenAI",
+  "category": "ai_llm",
+  "icon": "azure",
+  "official_docs_url": "https://learn.microsoft.com/en-us/azure/foundry/openai/reference",
+  "auth_header": "api-key: <api_key> 或 Authorization: Bearer <entra_token>",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "endpoint", "label": "Endpoint URL", "kind": "url", "sensitive": false, "required": true, "validation": { "regex": "^https://[a-z0-9-]+\\.(openai\\.azure\\.com|services\\.ai\\.azure\\.com)/?$", "hint": "格式 https://<resource>.openai.azure.com 或 https://<resource>.services.ai.azure.com (Foundry)" }, "group": "primary" },
+    { "key": "api_key", "label": "API Key", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••", "validation": { "regex": "^[a-f0-9]{32}$", "hint": "32 字符 hex" }, "rotatable": true, "expires_at_supported": false, "group": "primary", "description": "每资源 2 个 Key(key1/key2)支持轮换" },
+    { "key": "deployment_name", "label": "Deployment Name", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[a-zA-Z0-9-]{1,64}$" }, "group": "primary", "description": "部署名(非模型 ID),URL 路径 /deployments/<name>" },
+    { "key": "api_version", "label": "API Version", "kind": "text", "sensitive": false, "required": true, "placeholder": "2025-04-01-preview", "validation": { "regex": "^\\d{4}-\\d{2}-\\d{2}(-preview)?$", "hint": "格式 YYYY-MM-DD 或 YYYY-MM-DD-preview" }, "group": "primary" },
+    { "key": "subscription_id", "label": "Subscription ID (管理平面)", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }, "group": "advanced" },
+    { "key": "resource_group", "label": "Resource Group", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^[A-Za-z0-9._()-]{1,90}$" }, "group": "advanced" }
+  ],
+  "notes": "生产环境推荐 DefaultAzureCredential(Managed Identity 或 Entra ID)。Foundry Models 使用 .services.ai.azure.com 新端点,与 legacy .openai.azure.com 共存。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "azure_openai"
+}
+```
+
+### 5.4 Vercel
+
+**官方文档**:<https://vercel.com/changelog/new-token-formats-and-secret-scanning>
+
+```json
+{
+  "id": "vercel",
+  "platform_id": "vercel",
+  "name": "Vercel",
+  "category": "code_hosting",
+  "icon": "vercel",
+  "official_docs_url": "https://docs.vercel.com/docs/rest-api/authentication/create-an-auth-token",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://api.vercel.com",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "vcp_••••••••", "validation": { "regex": "^vcp_[A-Za-z0-9]{24,}$", "hint": "以 vcp_ 开头(2026-02 新格式)" }, "rotatable": true, "expires_at_supported": true, "group": "primary" },
+    { "key": "integration_token", "label": "Integration Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "vci_••••••••", "validation": { "regex": "^vci_[A-Za-z0-9]{24,}$" }, "rotatable": true, "group": "secondary" },
+    { "key": "api_key", "label": "API Key", "kind": "secret", "sensitive": true, "required": false, "default_mask": "vck_••••••••", "validation": { "regex": "^vck_[A-Za-z0-9]{24,}$" }, "rotatable": true, "group": "secondary" },
+    { "key": "team_id", "label": "Team ID", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^team_[A-Za-z0-9]{16,}$" }, "group": "primary" },
+    { "key": "project_id", "label": "Project ID", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^prj_[A-Za-z0-9]{16,}$" }, "group": "primary" },
+    { "key": "deploy_hook_url", "label": "Deploy Hook URL", "kind": "secret", "sensitive": true, "required": false, "default_mask": "https://api.vercel.com/.../••••", "validation": { "regex": "^https://api\\.vercel\\.com/v1/integrations/deploy/prj_[A-Za-z0-9]+/[A-Za-z0-9]{20,}$" }, "group": "advanced", "description": "URL 自带认证,视同 secret" }
+  ],
+  "notes": "2026-02 起新前缀格式 vcp_/vci_/vca_/vcr_/vck_,旧无前缀 Token 仍存在。GitHub secret scanning 检测到泄露会自动撤销。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "vercel"
+}
+```
+
+### 5.5 Firebase
+
+**官方文档**:<https://firebase.google.com/docs/projects/api-keys>
+
+```json
+{
+  "id": "firebase",
+  "platform_id": "firebase",
+  "name": "Firebase",
+  "category": "database_auth",
+  "icon": "firebase",
+  "official_docs_url": "https://firebase.google.com/docs/projects/api-keys",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "api_key", "label": "Web/Mobile API Key", "kind": "text", "sensitive": false, "required": true, "default_mask": "AIza••••", "validation": { "regex": "^AIza[0-9A-Za-z_\\-]{35}$" }, "group": "primary", "description": "标识项目,非密钥(Google 设计上可暴露)" },
+    { "key": "auth_domain", "label": "Auth Domain", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[a-z0-9-]+\\.firebaseapp\\.com$" }, "group": "primary" },
+    { "key": "project_id", "label": "Project ID", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[a-z0-9-]+$" }, "group": "primary" },
+    { "key": "app_id", "label": "App ID", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^1:\\d+:(android|ios|web):[a-f0-9]{12,}$" }, "group": "primary" },
+    { "key": "storage_bucket", "label": "Storage Bucket", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^[a-z0-9-]+\\.appspot\\.com$" }, "group": "secondary" },
+    { "key": "messaging_sender_id", "label": "Messaging Sender ID", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^\\d{10,20}$" }, "group": "secondary" },
+    { "key": "database_url", "label": "Realtime Database URL", "kind": "url", "sensitive": false, "required": false, "validation": { "regex": "^https://[a-z0-9-]+\\.firebaseio\\.com$" }, "group": "secondary" },
+    { "key": "service_account_json", "label": "Service Account JSON (Admin SDK)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "{\"type\":\"service_account\",•••}", "validation": { "regex": "^\\{[\\s\\S]*\"type\"\\s*:\\s*\"service_account\"[\\s\\S]*\\}$" }, "rotatable": true, "expires_at_supported": false, "group": "advanced", "description": "Admin SDK 用,真正具有写权限的凭据" }
+  ],
+  "notes": "Web/Mobile API Key 非密钥(可暴露)。真正的密钥是 Service Account JSON,用于 Admin SDK。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "firebase"
+}
+```
+
+### 5.6 Auth0
+
+**官方文档**:<https://auth0.com/docs/secure/tokens/access-tokens/management-api-access-tokens/get-management-api-access-tokens-for-production>
+
+```json
+{
+  "id": "auth0",
+  "platform_id": "auth0",
+  "name": "Auth0",
+  "category": "database_auth",
+  "icon": "auth0",
+  "official_docs_url": "https://auth0.com/docs/secure/tokens/access-tokens/management-api-access-tokens/get-management-api-access-tokens-for-production",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "domain", "label": "Tenant Domain", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[A-Za-z0-9-]+\\.(auth0\\.com|us\\.auth0\\.com|eu\\.auth0\\.com)$", "hint": "如 mytenant.auth0.com" }, "group": "primary" },
+    { "key": "client_id", "label": "Application Client ID", "kind": "text", "sensitive": false, "required": true, "validation": { "regex": "^[A-Za-z0-9]{32,}$" }, "group": "primary" },
+    { "key": "client_secret", "label": "Application Client Secret", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••", "validation": { "regex": "^[A-Za-z0-9_\\-]{64,}$" }, "rotatable": true, "expires_at_supported": false, "group": "primary" },
+    { "key": "management_api_audience", "label": "Management API Audience", "kind": "url", "sensitive": false, "required": false, "validation": { "regex": "^https://[A-Za-z0-9-]+\\.auth0\\.com/api/v2/$" }, "group": "advanced" },
+    { "key": "m2m_token_url", "label": "M2M Token Endpoint", "kind": "url", "sensitive": false, "required": false, "validation": { "regex": "^https://[A-Za-z0-9-]+\\.auth0\\.com/oauth/token$" }, "group": "advanced" }
+  ],
+  "notes": "M2M Token 通过 Client Credentials flow 获取,短期 JWT。企业场景推荐 private_key_jwt 替代 Client Secret。",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "auth0"
+}
+```
+
+### 5.7 Bitbucket
+
+**官方文档**:<https://support.atlassian.com/bitbucket-cloud/docs/using-app-passwords/> · <https://www.atlassian.com/blog/bitbucket/bitbucket-cloud-transitions-to-api-tokens-enhancing-security-with-app-password-deprecation>
+
+**关键事实**:App Password 将于 2026-06-09 停用(2025-09-09 起不可新建),迁移到 Atlassian API Token。
+
+```json
+{
+  "id": "bitbucket",
+  "platform_id": "bitbucket",
+  "name": "Bitbucket Cloud",
+  "category": "code_hosting",
+  "icon": "bitbucket",
+  "official_docs_url": "https://support.atlassian.com/bitbucket-cloud/docs/using-app-passwords/",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "username", "label": "Atlassian 账户邮箱", "kind": "text", "sensitive": false, "required": false, "group": "primary" },
+    { "key": "api_token", "label": "Atlassian API Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "ATATT••••••••", "validation": { "regex": "^[A-Za-z0-9_\\-]{24,}$" }, "rotatable": true, "expires_at_supported": true, "group": "primary", "description": "替代将停用的 App Password" },
+    { "key": "app_password", "label": "App Password (2026-06 停用)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "rotatable": true, "expires_at_supported": false, "group": "secondary", "description": "2025-09-09 起不可新建,2026-06-09 停用" },
+    { "key": "oauth_consumer_key", "label": "OAuth Consumer Key", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^[A-Za-z0-9_\\-]{20,}$" }, "group": "advanced" },
+    { "key": "oauth_consumer_secret", "label": "OAuth Consumer Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "rotatable": true, "group": "advanced" },
+    { "key": "workspace", "label": "Workspace ID", "kind": "text", "sensitive": false, "required": false, "group": "primary" }
+  ],
+  "notes": "App Password 2026-06-09 停用,迁移到 Atlassian API Token。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "bitbucket"
+}
+```
+
+### 5.8 Netlify
+
+**官方文档**:<https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/>
+
+```json
+{
+  "id": "netlify",
+  "platform_id": "netlify",
+  "name": "Netlify",
+  "category": "code_hosting",
+  "icon": "netlify",
+  "official_docs_url": "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
+  "auth_header": "Authorization: Bearer <pat>",
+  "default_base_url": "https://api.netlify.com/api/v1",
+  "mvp_included": false,
+  "introduced_in": "v0.3",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••", "validation": { "regex": "^[A-Za-z0-9_\\-]{40,}$" }, "rotatable": true, "expires_at_supported": true, "group": "primary" },
+    { "key": "site_id", "label": "Site ID", "kind": "text", "sensitive": false, "required": false, "validation": { "regex": "^[A-Za-z0-9\\-]{20,}$" }, "group": "primary" },
+    { "key": "account_id", "label": "Account ID", "kind": "text", "sensitive": false, "required": false, "group": "secondary" },
+    { "key": "webhook_secret", "label": "Webhook Signing Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "group": "secondary" }
+  ],
+  "notes": "密码重置会使所有 PAT 与 OAuth Token 失效。SAML/SSO 团队需逐 Token 授权。",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "netlify"
+}
+```
+
+## 6. v0.4 / v1.0 扩展模板(摘要)
+
+> 此节列出 v0.4 与 v1.0 阶段计划纳入的模板关键元数据。完整 JSON 在对应版本实现时补齐。
+
+### 6.1 v0.4 扩展(轮换集成相关)
+
+| id | platform_id | name | category | 关键字段 | rotation_provider |
+|---|---|---|---|---|---|
+| `google_gemini_rotate` | google_gemini | Gemini (轮换) | ai_llm | api_key, project_id | google_gemini |
+| `github_pat_rotate` | github | GitHub PAT (轮换) | code_hosting | pat_fine_grained, pat_classic | github |
+
+### 6.2 v1.0 扩展(15 个)
+
+| id | platform_id | name | category | 关键字段(摘要) |
+|---|---|---|---|---|
+| `tencent_cloud` | tencent_cloud | 腾讯云 | cloud | secret_id (AKID+32), secret_key (32), app_id (14位数字), region |
+| `huawei_cloud` | huawei_cloud | 华为云 | cloud | access_key_id (20大写), secret_access_key (40), project_id (32 hex), region |
+| `huggingface` | huggingface | Hugging Face | ai_llm | access_token (hf_+30), username, organization |
+| `deepseek` | deepseek | DeepSeek | ai_llm | api_key (sk-+32) |
+| `xai` | xai | xAI (Grok) | ai_llm | api_key (xai-+20), team_id, management_api_key |
+| `alipay` | alipay | 支付宝 | payment | app_id (16位20开头), app_private_key (PEM), alipay_public_key, gateway_url |
+| `wechat_pay` | wechat_pay | 微信支付 | payment | mch_id (8-10位), mch_api_v3_key (32), mch_cert_serial, mch_private_key (PEM), app_id (wx+16hex) |
+| `mongodb_atlas` | mongodb_atlas | MongoDB Atlas | database_auth | connection_string (mongodb+srv://), public_api_key, private_api_key (UUID), org_id, project_id |
+| `neon` | neon | Neon | database_auth | api_key, connection_string, project_id, branch_id (br-) |
+| `sendgrid` | sendgrid | SendGrid | communication | api_key (SG.x.y), webhook_public_key |
+| `mailgun` | mailgun | Mailgun | communication | api_key (key-+32hex), domain, smtp_username, smtp_password, region |
+| `datadog` | datadog | Datadog | monitoring | api_key (32 hex), app_key (40 hex), site (datadoghq.com 等) |
+| `discord` | discord | Discord | communication | bot_token (3段点分), application_id (17-20位数字), public_key (64 hex) |
+| `telegram_bot` | telegram_bot | Telegram Bot | communication | bot_token (`<id>:<35hash>`), webhook_secret_token |
+| `feishu` | feishu | 飞书 (Lark) | productivity | app_id (cli_+16hex), app_secret, verification_token, encrypt_key |
+
+---
+
+## 7. v1.x 远期模板索引(40+ 平台摘要)
+
+> 以下平台已调研字段格式,将在 v1.0 后按用户需求优先级纳入。完整 JSON 在 v1.x 实现时补齐。社区贡献模板可基于此索引扩展。
+
+### 7.1 云厂商(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `volcengine` | 火山引擎 | `AKLT` + ~20 字符;`trn:iam::...:role/...` | <https://www.volcengine.com/docs/6257/65000> |
+| `volcengine_ark` | 火山方舟 (LLM) | UUID 格式 API Key;`ep-` Endpoint ID | <https://www.volcengine.com/docs/82379/1541594> |
+| `aws_sso` | AWS IAM Identity Center | `sso_start_url`, `sso_region`, `sso_account_id` | <https://docs.aws.amazon.com/singlesignon/latest/userguide/howtogetcredentials.html> |
+| `azure_managed_identity` | Azure Managed Identity | `client_id`, `resource`, `identity_type` | <https://learn.microsoft.com/en-us/entra/identity-platform/app-objects-and-service-principals> |
+| `azure_storage` | Azure Storage 连接串 | `DefaultEndpointsProtocol=...;AccountName=...;AccountKey=base64...` | <https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string> |
+| `azure_sas` | Azure Storage SAS | `sv=...&ss=...&srt=...&sp=...&se=...&sig=...` | <https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas> |
+| `gcp_oauth` | GCP OAuth Client | `client_id` (apps.googleusercontent.com), `client_secret` (GOCSPX-) | <https://support.google.com/cloud/answer/6158849> |
+| `gcp_api_key` | GCP API Key | `AIza` + 35 字符 | <https://cloud.google.com/api-keys/docs/overview> |
+| `aliyun_sts` | 阿里云 STS | `STS.` + 16-32 字符;`acs:ram::...:role/...` | <https://www.alibabacloud.com/help/en/ram/developer-reference/api-sts-2015-04-01-assumerole> |
+| `tencent_cloud_sts` | 腾讯云 STS | `qcs::cam::uin/...:roleName/...` | <https://www.tencentcloud.com/document/product/1150/49456> |
+| `huawei_cloud_temporary` | 华为云临时凭证 | `X-Security-Token`;`iam::...:agency:...` | <https://support.huaweicloud.com/intl/en-us/api-iam5/iam_02_1109.html> |
+
+### 7.2 AI / LLM(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `cohere` | Cohere | opaque, trial vs production | <https://docs.cohere.com/v2/docs/create-client> |
+| `mistral` | Mistral AI | opaque, workspace-scoped | <https://docs.mistral.ai/admin/security-access/api-keys> |
+| `together` | Together AI | opaque, project-scoped | <https://docs.together.ai/docs/api-keys-authentication> |
+| `groq` | Groq | `gsk_` + 20 字符 | <https://console.groq.com/docs/quickstart> |
+| `replicate` | Replicate | `r8_` + 37 字符(共 40) | <https://replicate.com/docs/topics/security/api-tokens> |
+| `openrouter` | OpenRouter | `sk-or-(v1-)?` + 20 字符 | <https://openrouter.ai/docs/api/reference/authentication> |
+| `perplexity` | Perplexity | `pplx-` + 32 字符 | <https://docs.perplexity.ai/docs/getting-started/quickstart> |
+| `alibaba_bailian` | 阿里百炼 | `sk-`(通用)/ `sk-sp-`(Coding Plan) | <https://www.alibabacloud.com/help/zh/model-studio/get-api-key> |
+| `baidu_qianfan` | 百度千帆 | `bce-v3/ALTAK-.../...` 或 AK/SK 签名 | <https://cloud.baidu.com/doc/qianfan-api/s/ym9chdsy5> |
+| `tencent_hunyuan` | 腾讯混元 | OpenAI-compat Bearer 或 SecretId/SecretKey | <https://cloud.tencent.com/document/product/1729/111007> |
+| `moonshot` | Moonshot (Kimi) | `sk-` + 20 字符 | <https://platform.kimi.ai/docs/api/overview> |
+| `zhipu` | 智谱 / GLM | opaque;两个端点 | <https://docs.bigmodel.cn/cn/guide/start/quick-start> |
+| `minimax` | MiniMax | opaque + 19 位 Group ID | <https://platform.minimax.io/docs/guides/quickstart-preparation> |
+| `baichuan` | 百川智能 | opaque api_key + secret_key(MD5 签名) | <https://f8cxtsvnr8.apifox.cn/doc-3443253> |
+| `stepfun` | 阶跃星辰 | opaque;3 种 base_url | <https://platform.stepfun.com/docs/zh/quickstart/overview> |
+
+### 7.3 代码与托管(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `render` | Render | `rnd_` + 20 字符 | <https://render.com/docs/api> |
+| `fly` | Fly.io | `FlyV1 fm2_` + 40 字符(macaroon) | <https://fly.io/docs/security/tokens/> |
+| `vercel_app_token` | Vercel App Token | `vca_` / `vcr_` | <https://vercel.com/changelog/new-token-formats-and-secret-scanning> |
+
+### 7.4 支付(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `paypal` | PayPal | client_id (~80字符), client_secret, webhook_id | <https://developer.paypal.com/api/rest/> |
+| `square` | Square | `EAAA` + 60 字符 或 `sandbox-`;`sq0idp-` App ID | <https://developer.squareup.com/docs/build-basics/access-tokens> |
+| `lemon_squeezy` | Lemon Squeezy | 40+ 字符;webhook secret 6-40 字符 | <https://docs.lemonsqueezy.com/guides/developer-guide/getting-started> |
+| `paddle` | Paddle | `pdl_live_apikey_...` / `pdl_sdbx_apikey_...`(69 字符,5 下划线) | <https://developer.paddle.com/api-reference/about/authentication> |
+
+### 7.5 数据库 / Auth(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `planetscale` | PlanetScale | service_token_id + service_token | <https://planetscale.com/docs/cli/service-tokens> |
+| `tigris` | Tigris | `tid_` + 20 字符 (S3 兼容) | <https://www.tigrisdata.com/docs/sdks/s3/> |
+| `turso` | Turso | api_token + auth_token (v+40) | <https://docs.turso.tech/sdk/authentication> |
+
+### 7.6 通讯(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `resend` | Resend | `re_` + 20 字符;`whsec_` webhook | <https://resend.com/docs/api-reference/api-keys/create-api-key> |
+| `postmark` | Postmark | 36 字符 server/account token | <https://postmarkapp.com/developer/api/overview> |
+
+### 7.7 监控(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `newrelic` | New Relic | `NRAK-` + 27 字符;license_key 40 hex | <https://docs.newrelic.com/docs/apis/intro-apis/new-relic-api-keys/> |
+| `grafana_cloud` | Grafana Cloud | access policy token | <https://grafana.com/docs/grafana-cloud/security-and-account-management/authentication-and-permissions/access-policies/using-an-access-policy-token/> |
+
+### 7.8 生产力 / SaaS(扩展)
+
+| platform_id | name | 关键前缀/格式 | 官方文档 |
+|---|---|---|---|
+| `notion` | Notion | `secret_` / `ntn_` + 50 字符 | <https://developers.notion.com/docs/authorization> |
+| `linear` | Linear | opaque api_key | <https://developers.linear.app/guides/authentication/personal-api-keys> |
+| `airtable` | Airtable | `pat` + 22 字符 | <https://airtable.com/developers/web/api/authentication> |
+| `dingtalk` | 钉钉 | `ding` 前缀 AppKey/AppSecret;AES Key | <https://open.dingtalk.com/document/> |
+| `wecom` | 企业微信 | `ww` 前缀 Corp ID;EncodingAESKey 43 字符 | <https://developer.work.weixin.qq.com/document/> |
+| `wechat_oa` | 微信公众号 | `wx` + 16 hex AppID;EncodingAESKey 43 字符 | <https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Overview.html> |
+
+## 8. 模板加载与运行时行为
+
+### 8.1 模板加载流程
+
+```
+应用启动
+  ├── 扫描 %LOCALAPPDATA%\Programs\OmniKeyVault\templates\*.json  (内置)
+  ├── 扫描 %APPDATA%\OmniKeyVault\templates\*.json                 (用户自定义,覆盖内置)
+  ├── 解析 JSON,校验 schema(§2)
+  ├── 按 id 去重(用户自定义优先)
+  ├── 按 category 分组缓存
+  └── 通过 TemplateService 暴露给 UI / CLI
+```
+
+### 8.2 模板应用流程(GUI)
+
+```
+用户点击 [+ New]
+  │
+  ▼
+弹出模板选择对话框
+  ├── 搜索框(按 name / category 筛选)
+  ├── 模板列表(展示 name + icon + category)
+  └── [Custom] 按钮(不用模板)
+  │
+  ▼ 选择模板(如 "openai")
+  │
+  ▼
+创建 Entry:
+  ├── Entry.type ← 推断(默认 api_key;证书类模板 → certificate)
+  ├── Entry.platform_id ← template.platform_id
+  ├── Entry.fields ← template.fields 映射(值留空,继承 kind/sensitive/mask/validation)
+  └── Entry.name ← 用户输入
+  │
+  ▼
+打开条目编辑器(见 UI_UX_SPEC §4.4)
+  ├── 用户填充字段值
+  ├── 校验 validation.regex(软校验,失败警告但不阻止保存)
+  └── Ctrl+S 保存
+```
+
+### 8.3 模板应用流程(CLI)
+
+```bash
+# 列出可用模板
+okv template list
+
+# 从模板创建空条目
+okv template apply --id openai --name "OpenAI prod"
+
+# 后续填充字段(从 stdin 读值,避免 ps 历史)
+echo "sk-proj-..." | okv entry set --id <entry_id> --field api_key
+```
+
+详见 [INTERNAL.md §5.4](./INTERNAL.md#54-template--平台模板)。
+
+### 8.4 模板版本管理
+
+- **`introduced_in` 字段**:标识模板首次引入版本。
+- **覆盖策略**:应用升级时,内置模板按 `introduced_in` 决定覆盖行为:
+  - 用户未修改的内置模板 → 自动更新到新版。
+  - 用户修改过的内置模板 → 保留用户版本,提示有新版可用。
+  - 用户自定义模板 → 永不覆盖。
+- **回滚**:用户可在设置中"恢复内置模板"。
+
+### 8.5 模板贡献流程
+
+```
+社区贡献者
+  ├── Fork OmniKey Vault 仓库
+  ├── 在 templates/contrib/ 创建 <platform_id>.json
+  ├── 提交 PR(附官方文档 URL 作为字段来源证据)
+  ├── 维护者审核(字段完整性、regex 准确性、citation 可信)
+  └── 合并后随下个版本发布到 templates/ 内置目录
+```
+
+---
+
+## 9. 实现注意事项
+
+### 9.1 与 OKV_FORMAT.md 领域模型的对齐
+
+本规范扩展 [OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `Template` 与 `TemplateField`:
+
+| OKV_FORMAT.md §3.6 字段 | 本规范扩展字段 | 说明 |
+|---|---|---|
+| `Template.Id` | `id` | 不变 |
+| `Template.PlatformId` | `platform_id` | 不变 |
+| `Template.Fields[]` | `fields[]` | 类型扩展 |
+| — | `name` | 新增(展示名) |
+| — | `category` | 新增(分类枚举) |
+| — | `icon` | 新增(图标资源名) |
+| — | `official_docs_url` | 新增(用于"查看官方文档") |
+| — | `auth_header` | 新增(展示用) |
+| — | `default_base_url` | 新增(展示用) |
+| — | `mvp_included` | 新增(标识 v0.1 MVP 集) |
+| — | `introduced_in` | 新增(版本管理) |
+| — | `notes` | 新增(实现注记) |
+| — | `expires_at_supported` | 新增(条目级过期支持) |
+| — | `rotation_supported` | 新增(轮换支持) |
+| — | `rotation_provider` | 新增(轮换集成 provider) |
+| `TemplateField.Key` | `key` | 不变 |
+| `TemplateField.Kind` | `kind` | 不变(FieldKind 枚举) |
+| `TemplateField.Sensitive` | `sensitive` | 不变 |
+| `TemplateField.Required` | `required` | 不变 |
+| `TemplateField.DefaultMask` | `default_mask` | 不变 |
+| `TemplateField.Validation` | `validation` | 不变(含 regex + hint) |
+| — | `label` | 新增(展示名,zh-CN 优先) |
+| — | `placeholder` | 新增(输入框占位) |
+| — | `expires_at_supported` | 新增(字段级过期支持) |
+| — | `rotatable` | 新增(可轮换) |
+| — | `description` | 新增(字段说明) |
+| — | `examples` | 新增(示例值) |
+| — | `group` | 新增(UI 分组) |
+
+**需同步更新**:[OKV_FORMAT.md §3.6](./OKV_FORMAT.md#36-folder-与-template) 的 `Template` / `TemplateField` C# record 定义应包含上述扩展字段。本规范的 JSON schema 是其序列化形式。
+
+### 9.2 国际化策略
+
+依据 [MANUAL.md §15 国际化与语言策略](./MANUAL.md#15-国际化与语言策略):
+
+- **始终英文(技术标识符,豁免清单)**:`id` / `platform_id` / `key` / `category` / `rotation_provider`。
+- **zh-CN 优先(展示文案)**:`name` / `label` / `hint` / `description` / `notes` / `placeholder`。
+- **未来 i18n**:可在模板文件中并行存储 `name_zh_CN` / `name_en_US` 等,加载时按 `ui.locale` 选择。v0.1 仅支持 zh-CN,故不分 locale 字段。
+
+### 9.3 安全注意事项
+
+1. **模板文件不含凭据**:纯 JSON 明文,可由版本控制系统跟踪。
+2. **regex 软校验**:正则不匹配时**警告但不阻止保存**(用户可能存的是新格式或自定义值)。`--strict-validation` 模式下拒绝保存。
+3. **掩码不暴露长度**:掩码 `••••••••` 长度固定 8,不反映真实值长度(防长度侧信道)。
+4. **webhook_secret / signing_secret 类字段**:强制 `sensitive=true`,UI 默认掩码。
+5. **Webhook URL 自带认证**:URL 本身即凭据,`kind=secret`,UI 默认掩码。
+6. **PEM 私钥**:整段 PEM 存储于单个 `kind=secret` 字段,建议用 `kind=file_ref` 引用附件池(见 [OKV_FORMAT.md §7](./OKV_FORMAT.md#7-附件-blob-存储))。
+7. **Service Account JSON**:整体存储(PEM 含转义换行,拆分易破坏签名)。
+
+### 9.4 模板测试用例
+
+| 用例 ID | 验证 |
+|---|---|
+| `TPL-LOAD-01` | 内置 5 模板加载成功,字段数与本文档一致 |
+| `TPL-LOAD-02` | 用户自定义模板覆盖同 id 内置模板 |
+| `TPL-LOAD-03` | 损坏 JSON 文件被跳过,日志告警不崩溃 |
+| `TPL-LOAD-04` | schema 校验:`kind=secret` 时 `sensitive=true` 强制 |
+| `TPL-APPLY-01` | GUI 选择 openai 模板 → Entry 字段预填(api_key / organization_id / project_id) |
+| `TPL-APPLY-02` | CLI `template apply --id aws_iam_long_term --name ...` 创建空条目 |
+| `TPL-VALID-01` | regex 软校验:输入 `sk-foo`(不匹配 `^sk-proj-...`)→ 警告但可保存 |
+| `TPL-VALID-02` | regex 严格模式:同输入 → 拒绝保存并显示 hint |
+| `TPL-VALID-03` | 必填字段为空 → 禁止保存 |
+| `TPL-ROTATE-01` | OpenAI 模板 `api_key` 字段 `rotatable=true`,CLI `entry rotate` 可调用 |
+
+### 9.5 性能目标
+
+| 操作 | 目标 |
+|---|---|
+| 启动时全量加载模板(73+) | ≤100ms |
+| 模板选择对话框搜索 | ≤50ms |
+| 单模板 apply 创建 Entry | ≤10ms |
+
+---
+
+## 10. 引用索引
+
+### 10.1 云厂商
+
+| Provider | 官方文档 URL | 用途 |
+|---|---|---|
+| AWS | <https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html> | AKIA/ASIA 前缀、ARN 格式 |
+| AWS | <https://docs.aws.amazon.com/STS/latest/APIReference/API_GetSessionToken.html> | STS 凭证范围 900s-129600s |
+| AWS | <https://docs.aws.amazon.com/singlesignon/latest/userguide/howtogetcredentials.html> | Identity Center 1-12h 会话 |
+| Azure | <https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal> | Service Principal 创建 |
+| Azure | <https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string> | 存储连接串 |
+| Azure | <https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas> | SAS Token 参数 |
+| GCP | <https://cloud.google.com/iam/docs/keys-create-delete> | Service Account JSON schema |
+| GCP | <https://cloud.google.com/api-keys/docs/overview> | API Key 概述 |
+| GCP | <https://support.google.com/cloud/answer/6158849> | OAuth Client(2025-04 起仅显示一次) |
+| Aliyun | <https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair> | AccessKey 创建 |
+| Aliyun | <https://www.alibabacloud.com/help/en/ram/developer-reference/api-sts-2015-04-01-assumerole> | STS AssumeRole |
+| Tencent | <https://cloud.tencent.com/document/product/598/40488> | 主账号 API Key |
+| Tencent | <https://www.tencentcloud.com/document/product/1150/49456> | CAM Role ARN |
+| Huawei | <https://support.huaweicloud.com/intl/zh-cn/api-iam/iam_04_0000.html> | AK/SK 管理 |
+| Huawei | <https://support.huaweicloud.com/intl/en-us/api-iam5/iam_02_1109.html> | 临时凭证(Agency) |
+| Volcengine | <https://www.volcengine.com/docs/6257/65000> | AKLT 前缀、CreateAccessKey |
+| Volcengine | <https://github.com/volcengine/volcengine-nodejs-sdk/blob/master/docs/1-Credentials.md> | SDK 凭证链 |
+
+### 10.2 AI / LLM
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| OpenAI | <https://platform.openai.com/docs/api-reference/introduction> | sk-proj- / sk- / sk-admin- |
+| OpenAI | <https://developers.openai.com/api/reference/resources/organization/subresources/projects/subresources/api_keys/> | 项目作用域密钥 |
+| Anthropic | <https://platform.claude.com/docs/en/api/overview> | sk-ant-api03- 前缀,x-api-key 头 |
+| Anthropic | <https://platform.claude.com/docs/en/api/admin/api_keys> | Admin API Key |
+| Google Gemini | <https://ai.google.dev/gemini-api/docs/api-key> | AIza + 35 字符(共 39) |
+| Azure OpenAI | <https://learn.microsoft.com/en-us/azure/foundry/openai/reference> | 32 字符 hex,新 Foundry 端点 |
+| Cohere | <https://docs.cohere.com/v2/docs/create-client> | opaque,trial vs production |
+| Mistral | <https://docs.mistral.ai/admin/security-access/api-keys> | opaque,workspace-scoped |
+| Hugging Face | <https://huggingface.co/docs/hub/main/en/security-tokens> | hf_ + 30, fine-grained 推荐 |
+| Together | <https://docs.together.ai/docs/api-keys-authentication> | opaque,project-scoped |
+| Groq | <https://console.groq.com/docs/quickstart> | gsk_ + 20 |
+| Replicate | <https://replicate.com/docs/topics/security/api-tokens> | r8_ + 37(共 40) |
+| OpenRouter | <https://openrouter.ai/docs/api/reference/authentication> | sk-or-(v1-)? + 20 |
+| DeepSeek | <https://api-docs.deepseek.com/> | sk- + 32 |
+| xAI | <https://docs.x.ai/developers/quickstart> | xai- + 20,team-scoped ACLs |
+| Perplexity | <https://docs.perplexity.ai/docs/getting-started/quickstart> | pplx- + 32 |
+| Volcengine Ark | <https://www.volcengine.com/docs/82379/1541594> | UUID API Key + ep- Endpoint ID |
+| Alibaba Bailian | <https://www.alibabacloud.com/help/zh/model-studio/get-api-key> | sk-(通用)/ sk-sp-(Coding Plan) |
+| Baidu Qianfan | <https://cloud.baidu.com/doc/qianfan-api/s/ym9chdsy5> | bce-v3/ALTAK-.../... |
+| Tencent Hunyuan | <https://cloud.tencent.com/document/product/1729/111007> | 三种认证方案共存 |
+| Moonshot | <https://platform.kimi.ai/docs/api/overview> | sk- + 20,OpenAI 兼容 |
+| Zhipu | <https://docs.bigmodel.cn/cn/guide/start/quick-start> | opaque,两个端点 |
+| MiniMax | <https://platform.minimax.io/docs/guides/quickstart-preparation> | opaque + 19 位 Group ID |
+| Baichuan | <https://f8cxtsvnr8.apifox.cn/doc-3443253> | api_key + secret_key(MD5 签名) |
+| Stepfun | <https://platform.stepfun.com/docs/zh/quickstart/overview> | opaque,3 种 base_url |
+
+### 10.3 代码与托管
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| GitHub | <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens> | ghp_ / github_pat_ / gho_ / ghu_ / ghs_ / ghr_ |
+| GitHub | <https://github.blog/changelog/2025-03-18-fine-grained-pats-are-now-generally-available/> | Fine-grained PAT GA |
+| GitLab | <https://docs.gitlab.com/security/tokens/> | glpat- / gloas- / gldt- / glcbt- / glrt- / glptt- |
+| Bitbucket | <https://support.atlassian.com/bitbucket-cloud/docs/using-app-passwords/> | App Password 2026-06 停用 |
+| Bitbucket | <https://www.atlassian.com/blog/bitbucket/bitbucket-cloud-transitions-to-api-tokens-enhancing-security-with-app-password-deprecation> | 迁移到 Atlassian API Token |
+| Vercel | <https://vercel.com/changelog/new-token-formats-and-secret-scanning> | vcp_ / vci_ / vca_ / vcr_ / vck_(2026-02 新格式) |
+| Netlify | <https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/> | PAT 40+ 字符 |
+| Cloudflare | <https://developers.cloudflare.com/fundamentals/api/get-started/token-formats/> | cfut_ / cfat_ / cfk_ 新前缀 |
+| Cloudflare | <https://developers.cloudflare.com/r2/api/tokens/> | R2 S3 兼容 |
+| Render | <https://render.com/docs/api> | rnd_ + 20 |
+| Fly.io | <https://fly.io/docs/security/tokens/> | FlyV1 fm2_ + 40(macaroon) |
+
+### 10.4 支付
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| Stripe | <https://docs.stripe.com/keys> | sk_live_ / sk_test_ / pk_ / rk_ / whsec_ / acct_ |
+| Stripe | <https://docs.stripe.com/webhooks/signature> | Webhook 签名验证 |
+| PayPal | <https://developer.paypal.com/api/rest/> | client_id / client_secret |
+| Square | <https://developer.squareup.com/docs/build-basics/access-tokens> | EAAA / sandbox- / sq0idp- |
+| Lemon Squeezy | <https://docs.lemonsqueezy.com/guides/developer-guide/getting-started> | API Key 1 年过期 |
+| Paddle | <https://developer.paddle.com/api-reference/about/authentication> | pdl_live_apikey_... / pdl_sdbx_apikey_... |
+| Paddle | <https://developer.paddle.com/changelog/2025/api-key-improvements> | 2025-05 标准化格式 |
+| Alipay | <https://opendocs.alipay.com/common/05yvy1> | APPID 16 位 20 开头,RSA2 |
+| WeChat Pay | <https://pay.weixin.qq.com/doc/v3/merchant/4013070756> | APIv3,SHA256-RSA2048 |
+
+### 10.5 数据库 / Auth
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| Supabase | <https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys> | sb_publishable_ / sb_secret_ 新格式 |
+| Supabase | <https://supabase.com/changelog/29260-upcoming-changes-to-supabase-api-keys> | 2025-05 RSA 非对称签名 |
+| Firebase | <https://firebase.google.com/docs/projects/api-keys> | AIza + 35,Web Key 非密钥 |
+| Auth0 | <https://auth0.com/docs/secure/tokens/access-tokens/management-api-access-tokens/get-management-api-access-tokens-for-production> | M2M Client Credentials |
+| MongoDB Atlas | <https://www.mongodb.com/docs/atlas/cli/upcoming/atlas-cli-env-variables/> | public/private API Key,UUID private |
+| PlanetScale | <https://planetscale.com/docs/cli/service-tokens> | service_token_id + service_token |
+| Neon | <https://neon.com/docs/reference/api-reference> | api_key + connection_string + project_id |
+| Tigris | <https://www.tigrisdata.com/docs/sdks/s3/> | tid_ + 20,S3 兼容 |
+| Turso | <https://docs.turso.tech/sdk/authentication> | api_token + per-db auth_token |
+
+### 10.6 通讯
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| Twilio | <https://www.twilio.com/docs/glossary/what-is-a-sid> | SID 34 字符(2 前缀 + 32 hex) |
+| Twilio | <https://www.twilio.com/docs/usage/requests-to-twilio> | API Key SID + Secret 推荐替代 Auth Token |
+| SendGrid | <https://docs.sendgrid.com/api-reference/api-keys> | SG.x.y 格式 |
+| Mailgun | <https://documentation.mailgun.com/docs/mailgun/api-reference/mg-auth> | key- + 32 hex,HTTP Basic |
+| Resend | <https://resend.com/docs/api-reference/api-keys/create-api-key> | re_ + 20,whsec_ webhook |
+| Postmark | <https://postmarkapp.com/developer/api/overview> | 36 字符 server/account token |
+| Slack | <https://docs.slack.dev/authentication/tokens> | xoxb- / xoxp- / xapp- |
+| Discord | <https://docs.discord.com/developers/quick-start/getting-started> | Bot Token 3 段点分,Ed25519 验签 |
+| Telegram Bot | <https://core.telegram.org/bots/api/> | `<bot_id>:<35hash>` |
+
+### 10.7 监控
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| Sentry | <https://docs.sentry.dev/api/auth/> | sntrys_ 新格式替代 64 hex |
+| Datadog | <https://docs.datadoghq.com/account_management/api-app-keys.md> | api_key 32 hex + app_key 40 hex |
+| Datadog | <https://docs.datadoghq.com/getting_started/site/> | 8 个区域站点 |
+| New Relic | <https://docs.newrelic.com/docs/apis/intro-apis/new-relic-api-keys/> | NRAK- + 27,REST API Keys 2025-03 EOL |
+| Grafana Cloud | <https://grafana.com/docs/grafana-cloud/security-and-account-management/authentication-and-permissions/access-policies/using-an-access-policy-token/> | Access Policy Token |
+
+### 10.8 生产力 / SaaS
+
+| Provider | 官方文档 URL | 关键事实 |
+|---|---|---|
+| Notion | <https://developers.notion.com/docs/authorization> | secret_ / ntn_ + 50 |
+| Linear | <https://developers.linear.app/guides/authentication/personal-api-keys> | opaque api_key |
+| Airtable | <https://airtable.com/developers/web/api/authentication> | pat + 22 |
+| Feishu | <https://open.feishu.cn/document/> | cli_ + 16 hex App ID |
+| DingTalk | <https://open.dingtalk.com/document/> | ding 前缀 AppKey,自定义机器人 HmacSHA256 |
+| WeCom | <https://developer.work.weixin.qq.com/document/> | ww 前缀 Corp ID,EncodingAESKey 43 字符 |
+| WeChat OA | <https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Overview.html> | wx + 16 hex AppID |
+
+---
+
+## 11. 附录
+
+### 11.1 模板 ID 命名规则
+
+- **小写 snake_case**:`openai` / `aws_iam_long_term` / `azure_service_principal`。
+- **多模板同 platform**:用 `<platform>_<variant>` 区分,如 `aws_iam_long_term` vs `aws_sts_temporary`。
+- **保留字**:不可使用 `custom` / `note` / `all`(与 Entry.type / 文件夹名冲突)。
+
+### 11.2 category 枚举
+
+| category | 含义 | 示例平台 |
+|---|---|---|
+| `cloud` | 云厂商(IAM 凭证) | AWS / Azure / GCP / Aliyun / Tencent / Huawei / Volcengine |
+| `ai_llm` | AI / LLM 提供商 | OpenAI / Anthropic / Gemini / Azure OpenAI / DeepSeek / xAI |
+| `code_hosting` | 代码托管与部署 | GitHub / GitLab / Bitbucket / Vercel / Netlify / Cloudflare |
+| `payment` | 支付网关 | Stripe / PayPal / Square / Alipay / WeChat Pay / Paddle |
+| `database_auth` | 数据库与认证 | Supabase / Firebase / Auth0 / MongoDB Atlas / Neon / Turso |
+| `communication` | 通讯(邮件/短信/聊天) | Twilio / SendGrid / Mailgun / Slack / Discord / Telegram |
+| `monitoring` | 监控与可观测性 | Sentry / Datadog / New Relic / Grafana Cloud |
+| `productivity` | 生产力 SaaS | Notion / Linear / Airtable / 飞书 / 钉钉 / WeCom |
+| `other` | 其他 | 用户自定义内部服务 |
+
+### 11.3 修订记录
+
+| 版本 | 日期 | 修订 |
+|---|---|---|
+| v0.1 | 2026-06-19 | 初稿。基于 2025-2026 官方文档调研 73+ 平台,定义统一模板 schema,提供 v0.1 MVP 5 模板与 v0.2-v0.3 扩展模板完整 JSON,v1.0+ 平台索引摘要。 |
+| **0.2** | **2026-06-24** | **cross-ref 更新:PRD.md → MANUAL.md §4.3 / §1.3 / §16.1;CLI_SPEC.md → INTERNAL.md §5.4;UI_UX_SPEC.md §9 → MANUAL.md §15(国际化策略)。模板 JSON 与字段定义不变。** |
+

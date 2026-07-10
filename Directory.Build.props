@@ -1,0 +1,34 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Authors>Sisyphus</Authors>
+    <Company>OmniKey Vault</Company>
+    <Product>OmniKey Vault</Product>
+    <!-- P3 / Phase 3: bumped to 1.1.0 to reflect v1.1 optimization work (Roslyn analyzers land). -->
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <RepositoryUrl>https://github.com/omnikeyvault/omnikeyvault</RepositoryUrl>
+  </PropertyGroup>
+  <!--
+    P3-T7: inject the OmniKey Vault Roslyn analyzer (tools/OmniKeyVault.Analyzers/)
+    into every project EXCEPT the analyzer project itself (would self-reference)
+    and its test project (already has a regular ProjectReference to call analyzer
+    classes directly from test code).
+    OutputItemType="Analyzer" makes MSBuild load the assembly as a Roslyn
+    diagnostic analyzer during compilation; ReferenceOutputAssembly="false"
+    prevents it from appearing as a runtime dependency in the output .dll.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'OmniKeyVault.Analyzers' and '$(MSBuildProjectName)' != 'OmniKeyVault.Analyzers.Tests'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)tools\OmniKeyVault.Analyzers\OmniKeyVault.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>
+

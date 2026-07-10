@@ -1,0 +1,115 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.RecoveryKeyWindow"
+        Title="恢复密钥"
+        Width="580" Height="560"
+        MinWidth="480" MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgBrush}">
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="20,12" />
+        </Style>
+        <Style Selector="Button.primary:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
+        <Style Selector="Border.code-cell">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="MinWidth" Value="62" />
+        </Style>
+        <Style Selector="TextBlock.cell-text">
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="LetterSpacing" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24,20">
+        <StackPanel Spacing="14">
+            <!-- Header -->
+            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                <Border Width="44" Height="44"
+                        HorizontalAlignment="Center"
+                        BorderBrush="{DynamicResource AccentBrush}"
+                        BorderThickness="1.5"
+                        CornerRadius="22">
+                    <TextBlock Text="⚿" FontSize="20"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AccentBrush}" />
+                </Border>
+                <TextBlock Text="恢复密钥"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="20" FontWeight="Medium"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource FgBrush}" />
+                <TextBlock Text="请将以下 32 组字符抄写或打印后,离线保存在安全处。&#x0a;凭此密钥可在忘记主密码时恢复金库。"
+                           TextAlignment="Center"
+                           FontSize="11"
+                           Foreground="{DynamicResource FgMutedBrush}"
+                           TextWrapping="Wrap"
+                           MaxWidth="420" />
+            </StackPanel>
+
+            <!-- 4x8 grid of 32 cells (fits 580pt window with 62pt cells, 4pt spacing) -->
+            <Border Background="{DynamicResource BgCardBrush}"
+                    BorderBrush="{DynamicResource BorderBrightBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10,10">
+                <StackPanel x:Name="GridContainer" Spacing="4" HorizontalAlignment="Center" />
+            </Border>
+
+            <!-- Save / output buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                <Button Classes="ghost" Click="OnPrintClick" Padding="10,6">
+                    <TextBlock Text="🖨  打印" FontSize="11" />
+                </Button>
+                <Button Classes="ghost" Click="OnSavePdfClick" Padding="10,6">
+                    <TextBlock Text="📄  另存为 PDF" FontSize="11" />
+                </Button>
+                <Button Classes="ghost" Click="OnCopyClick" Padding="10,6">
+                    <TextBlock x:Name="CopyButtonText" Text="⧉  复制" FontSize="11" />
+                </Button>
+            </StackPanel>
+
+            <!-- Confirm row -->
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                <StackPanel Spacing="8">
+                    <CheckBox x:Name="ConfirmCheck" HorizontalAlignment="Center">
+                        <TextBlock Text="我已离线保存恢复密钥"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <Button Classes="primary"
+                            x:Name="ConfirmButton"
+                            IsEnabled="False"
+                            HorizontalAlignment="Center"
+                            MinWidth="200"
+                            Click="OnConfirmClick">
+                        <TextBlock Text="确认并继续" />
+                    </Button>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Border>
+</Window>

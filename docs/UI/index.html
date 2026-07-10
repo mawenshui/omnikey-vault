@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniKey Vault — 应用原型</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500;1,9..144,600&family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Grain texture overlay -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ============================================= -->
+  <!-- UNLOCK SCREEN                                  -->
+  <!-- ============================================= -->
+  <section id="screen-unlock" class="screen screen-unlock active">
+    <div class="unlock-ambient" aria-hidden="true">
+      <div class="ambient-grid"></div>
+      <div class="ambient-glow"></div>
+      <div class="ambient-vignette"></div>
+    </div>
+
+    <div class="unlock-card">
+      <div class="vault-emblem" id="vault-emblem" aria-hidden="true">
+        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer ring -->
+          <circle cx="60" cy="60" r="54" stroke="currentColor" stroke-width="1.5" opacity="0.4" />
+          <circle cx="60" cy="60" r="48" stroke="currentColor" stroke-width="1" opacity="0.25" />
+          <!-- Spokes (vault door radial) -->
+          <g class="emblem-spokes" stroke="currentColor" stroke-width="1" opacity="0.5">
+            <line x1="60" y1="12" x2="60" y2="24" />
+            <line x1="60" y1="96" x2="60" y2="108" />
+            <line x1="12" y1="60" x2="24" y2="60" />
+            <line x1="96" y1="60" x2="108" y2="60" />
+            <line x1="26.4" y1="26.4" x2="34.8" y2="34.8" />
+            <line x1="85.2" y1="85.2" x2="93.6" y2="93.6" />
+            <line x1="93.6" y1="26.4" x2="85.2" y2="34.8" />
+            <line x1="34.8" y1="85.2" x2="26.4" y2="93.6" />
+          </g>
+          <!-- Inner dial -->
+          <circle cx="60" cy="60" r="22" stroke="currentColor" stroke-width="1.5" opacity="0.7" />
+          <circle cx="60" cy="60" r="14" fill="currentColor" opacity="0.08" />
+          <!-- Center mark -->
+          <path d="M60 50 L60 70 M50 60 L70 60" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <!-- Indicator notch -->
+          <circle cx="60" cy="22" r="2" fill="var(--accent)" />
+        </svg>
+      </div>
+
+      <p class="unlock-eyebrow">本地优先 · 端到端加密</p>
+      <h1 class="unlock-title">OmniKey <em>Vault</em></h1>
+
+      <div class="vault-meta">
+        <div class="meta-row">
+          <span class="meta-label">保险库</span>
+          <span class="meta-value mono">01H7XGK1·8K7R · My Vault</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">上次访问</span>
+          <span class="meta-value">3 天前 · 2 台设备</span>
+        </div>
+      </div>
+
+      <form class="unlock-form" id="unlock-form" autocomplete="off">
+        <div class="field">
+          <label for="master-pw">主密码</label>
+          <div class="input-wrap">
+            <input
+              type="password"
+              id="master-pw"
+              placeholder="请输入主密码"
+              autofocus
+              spellcheck="false"
+            />
+            <button type="button" class="reveal-toggle" id="reveal-pw" aria-label="显示密码">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M1 8 Q8 2 15 8 Q8 14 1 8 Z" stroke="currentColor" stroke-width="1.2" fill="none" />
+                <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="unlock-btn">
+          <span class="btn-label">解锁保险库</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+
+        <button type="button" class="btn btn-ghost btn-block" id="recovery-btn">
+          使用恢复密钥
+        </button>
+
+        <label class="checkbox">
+          <input type="checkbox" id="remember-15" checked />
+          <span class="checkbox-mark"></span>
+          <span class="checkbox-label">保持解锁 15 分钟</span>
+        </label>
+      </form>
+
+      <div class="unlock-footer">
+        <span class="mono dim">无云端找回 · 零知识</span>
+      </div>
+    </div>
+
+    <!-- KDF progress overlay (shown during unlock) -->
+    <div class="kdf-overlay" id="kdf-overlay" aria-hidden="true">
+      <div class="kdf-content">
+        <div class="kdf-emblem">
+          <svg viewBox="0 0 80 80" fill="none">
+            <circle cx="40" cy="40" r="36" stroke="currentColor" stroke-width="1" opacity="0.2" />
+            <circle
+              cx="40"
+              cy="40"
+              r="36"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-dasharray="226"
+              stroke-dashoffset="226"
+              class="kdf-progress-ring"
+              transform="rotate(-90 40 40)"
+            />
+          </svg>
+        </div>
+        <p class="kdf-status mono">派生密钥 · Argon2id 256MiB</p>
+        <p class="kdf-detail mono dim">正在验证主密码…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================= -->
+  <!-- MAIN APPLICATION                               -->
+  <!-- ============================================= -->
+  <section id="screen-main" class="screen screen-main">
+    <!-- Profile banner (shown when dev/test profile active) -->
+    <div class="profile-banner" id="profile-banner" aria-hidden="true">
+      <span class="banner-text" id="banner-text">DEV — 非生产数据</span>
+    </div>
+    <div class="profile-watermark" id="profile-watermark" aria-hidden="true"></div>
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="app-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
+            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5" />
+            <path d="M12 8 V16 M8 12 H16" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            <circle cx="12" cy="3" r="1.2" fill="var(--accent)" />
+          </svg>
+        </div>
+        <span class="app-name">OmniKey <em>Vault</em></span>
+      </div>
+
+      <div class="topbar-center">
+        <div class="search-box">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2" />
+            <line x1="9.5" y1="9.5" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          <input
+            type="text"
+            id="search-input"
+            placeholder="搜索条目、字段、标签…  (试试:tags:ai field:sk-*)"
+            spellcheck="false"
+          />
+          <kbd class="search-kbd mono">/</kbd>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="icon-btn" id="sync-btn" title="同步状态">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8 Q3 3 8 3 Q12 3 13 6 M13 8 Q13 13 8 13 Q4 13 3 10" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" />
+            <path d="M11 4 L13 6 L11 8 M5 8 L3 10 L5 12" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="设置">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none" />
+            <path d="M8 1 V3 M8 13 V15 M1 8 H3 M13 8 H15 M2.8 2.8 L4.2 4.2 M11.8 11.8 L13.2 13.2 M2.8 13.2 L4.2 11.8 M11.8 4.2 L13.2 2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button class="icon-btn icon-btn-lock" id="lock-btn" title="锁定保险库 (Ctrl+L)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="3" y="7" width="10" height="7" rx="1" stroke="currentColor" stroke-width="1.2" fill="none" />
+            <path d="M5 7 V5 Q5 2 8 2 Q11 2 11 5 V7" stroke="currentColor" stroke-width="1.2" fill="none" />
+            <circle cx="8" cy="10.5" r="0.8" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main layout -->
+    <div class="main-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <!-- Profile switcher -->
+        <div class="sidebar-section">
+          <div class="section-label">
+            <span>配置文件</span>
+          </div>
+          <button class="profile-chip" data-profile="prod" id="profile-chip">
+            <span class="profile-dot profile-dot-prod"></span>
+            <span class="profile-name">prod</span>
+            <span class="profile-count mono" id="profile-count-prod">5</span>
+            <svg class="profile-chev" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3 4 L5 6 L7 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Folders -->
+        <div class="sidebar-section">
+          <div class="section-label">
+            <span>文件夹</span>
+          </div>
+          <ul class="folder-tree">
+            <li class="folder-item active">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3 Q1 2 2 2 H4 L5 3 H10 Q11 3 11 4 V9 Q11 10 10 10 H2 Q1 10 1 9 Z" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+              <span>全部条目</span>
+              <span class="count mono">5</span>
+            </li>
+            <li class="folder-item">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3 Q1 2 2 2 H4 L5 3 H10 Q11 3 11 4 V9 Q11 10 10 10 H2 Q1 10 1 9 Z" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+              <span>AI 服务</span>
+              <span class="count mono">2</span>
+            </li>
+            <li class="folder-item">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3 Q1 2 2 2 H4 L5 3 H10 Q11 3 11 4 V9 Q11 10 10 10 H2 Q1 10 1 9 Z" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+              <span>云服务</span>
+              <span class="count mono">1</span>
+            </li>
+            <li class="folder-item">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3 Q1 2 2 2 H4 L5 3 H10 Q11 3 11 4 V9 Q11 10 10 10 H2 Q1 10 1 9 Z" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+              <span>支付</span>
+              <span class="count mono">1</span>
+            </li>
+            <li class="folder-item">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3 Q1 2 2 2 H4 L5 3 H10 Q11 3 11 4 V9 Q11 10 10 10 H2 Q1 10 1 9 Z" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+              <span>数据库</span>
+              <span class="count mono">1</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Tags -->
+        <div class="sidebar-section">
+          <div class="section-label">
+            <span>标签</span>
+          </div>
+          <div class="tag-cloud">
+            <button class="tag-chip" data-tag="ai">#ai</button>
+            <button class="tag-chip" data-tag="work">#work</button>
+            <button class="tag-chip" data-tag="cloud">#cloud</button>
+            <button class="tag-chip" data-tag="prod">#prod</button>
+            <button class="tag-chip" data-tag="pay">#pay</button>
+            <button class="tag-chip" data-tag="db">#db</button>
+            <button class="tag-chip" data-tag="dev">#dev</button>
+          </div>
+        </div>
+
+        <!-- Spacer -->
+        <div class="sidebar-spacer"></div>
+
+        <!-- Footer of sidebar -->
+        <div class="sidebar-footer">
+          <div class="device-info">
+            <span class="device-dot"></span>
+            <span class="mono dim">laptop-abc</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Entry list -->
+      <main class="entry-list">
+        <div class="list-header">
+          <div class="list-title">
+            <h2 id="list-title">全部条目</h2>
+            <span class="list-count mono dim" id="list-count">5 个条目</span>
+          </div>
+          <div class="list-actions">
+            <button class="btn btn-ghost btn-sm" id="sort-btn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 3 H10 M3 6 H9 M4 9 H8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
+              <span>排序</span>
+            </button>
+            <button class="btn btn-primary btn-sm" id="new-entry-btn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2 V10 M2 6 H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+              <span>新建条目</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="list-body" id="entry-list-body">
+          <!-- Entries injected by JS -->
+        </div>
+
+        <div class="list-empty" id="list-empty" hidden>
+          <div class="empty-icon" aria-hidden="true">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="1" opacity="0.3" />
+              <circle cx="24" cy="24" r="10" stroke="currentColor" stroke-width="1" opacity="0.5" />
+              <path d="M24 18 V30 M18 24 H30" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+            </svg>
+          </div>
+          <p class="empty-title">没有匹配的条目</p>
+          <p class="empty-sub dim">试试清除筛选条件或更换搜索关键词。</p>
+          <button class="btn btn-ghost btn-sm" id="clear-filters">清除筛选</button>
+        </div>
+      </main>
+
+      <!-- Detail panel -->
+      <aside class="detail-panel" id="detail-panel">
+        <div class="detail-empty" id="detail-empty">
+          <div class="detail-empty-emblem" aria-hidden="true">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="1" opacity="0.2" />
+              <circle cx="32" cy="32" r="12" stroke="currentColor" stroke-width="1" opacity="0.4" />
+              <path d="M32 24 V40 M24 32 H40" stroke="currentColor" stroke-width="1" opacity="0.6" stroke-linecap="round" />
+            </svg>
+          </div>
+          <p class="detail-empty-title">请选择一个条目</p>
+          <p class="detail-empty-sub dim">从左侧列表中选择条目以查看详情。</p>
+        </div>
+
+        <div class="detail-content" id="detail-content" hidden>
+          <!-- Injected by JS -->
+        </div>
+      </aside>
+    </div>
+
+    <!-- Status bar -->
+    <footer class="statusbar">
+      <div class="status-left">
+        <span class="sync-indicator" id="sync-indicator">
+          <span class="sync-dot sync-dot-synced"></span>
+          <span class="mono" id="sync-text">3 秒前同步 · 来自 laptop-abc</span>
+        </span>
+      </div>
+      <div class="status-center">
+        <span class="status-profile" id="status-profile">
+          <span class="status-dot status-dot-prod"></span>
+          <span class="mono">prod</span>
+        </span>
+      </div>
+      <div class="status-right">
+        <span class="mono dim" id="lock-countdown">已解锁 · 剩余 14 分钟</span>
+        <button class="icon-btn icon-btn-sm" id="lock-now-btn" title="立即锁定">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <rect x="2.5" y="5.5" width="7" height="5" rx="0.5" stroke="currentColor" stroke-width="1" fill="none" />
+            <path d="M4 5.5 V4 Q4 2 6 2 Q8 2 8 4 V5.5" stroke="currentColor" stroke-width="1" fill="none" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============================================= -->
+  <!-- ENTRY EDITOR OVERLAY                           -->
+  <!-- ============================================= -->
+  <div class="overlay editor-overlay" id="editor-overlay" aria-hidden="true">
+    <div class="editor-panel">
+      <header class="editor-header">
+        <button class="btn btn-ghost btn-sm" id="editor-back">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2 L4 6 L8 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <span>返回</span>
+        </button>
+        <h2 class="editor-title">编辑条目</h2>
+        <button class="btn btn-primary btn-sm" id="editor-save">
+          <span>保存</span>
+        </button>
+      </header>
+
+      <div class="editor-body">
+        <div class="editor-grid">
+          <div class="field">
+            <label>名称</label>
+            <input type="text" value="OpenAI 生产环境" />
+          </div>
+          <div class="field">
+            <label>类型</label>
+            <select><option>api_key</option><option>oauth</option><option>certificate</option><option>ssh_key</option><option>note</option></select>
+          </div>
+          <div class="field">
+            <label>平台</label>
+            <select><option>openai</option><option>github</option><option>aws</option><option>stripe</option><option>supabase</option></select>
+          </div>
+          <div class="field">
+            <label>文件夹</label>
+            <select><option>AI 服务</option><option>云服务</option><option>支付</option><option>数据库</option></select>
+          </div>
+          <div class="field field-full">
+            <label>标签</label>
+            <div class="tag-input">
+              <span class="tag-chip tag-chip-removable">ai <span class="tag-remove">×</span></span>
+              <span class="tag-chip tag-chip-removable">work <span class="tag-remove">×</span></span>
+              <span class="tag-chip tag-chip-removable">prod <span class="tag-remove">×</span></span>
+              <input type="text" placeholder="添加标签…" />
+            </div>
+          </div>
+          <div class="field">
+            <label>过期时间(可选)</label>
+            <input type="text" placeholder="2026-12-31" />
+          </div>
+        </div>
+
+        <div class="editor-section">
+          <div class="section-label">
+            <span>字段</span>
+            <button class="btn btn-ghost btn-xs" id="add-field">+ 添加字段</button>
+          </div>
+          <div class="field-rows">
+            <div class="field-row">
+              <div class="field-row-head">
+                <span class="field-key mono">api_key</span>
+                <span class="field-kind">密文</span>
+                <div class="field-row-actions">
+                  <button class="btn btn-ghost btn-xs field-reveal" title="按住显示明文">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6 Q6 1.5 11 6 Q6 10.5 1 6 Z" stroke="currentColor" stroke-width="1" fill="none" /><circle cx="6" cy="6" r="1.5" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+                    <span>显示</span>
+                  </button>
+                  <button class="btn btn-ghost btn-xs field-copy" title="复制">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="3" y="3" width="6" height="6" rx="0.5" stroke="currentColor" stroke-width="1" fill="none" /><path d="M2 8 V2 H8" stroke="currentColor" stroke-width="1" fill="none" /></svg>
+                    <span>复制</span>
+                  </button>
+                </div>
+              </div>
+              <div class="field-row-value">
+                <input type="password" class="mono" value="sk-proj-abc123XYZdef456GHI789JKLmno012PQRstu345UVW" data-secret="sk-proj-abc123XYZdef456GHI789JKLmno012PQRstu345UVW" />
+                <span class="exposed-dot" aria-hidden="true"></span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-row-head">
+                <span class="field-key mono">organization_id</span>
+                <span class="field-kind">文本</span>
+              </div>
+              <div class="field-row-value">
+                <input type="text" class="mono" value="org-aBcDeFgHiJkLmNoPqRsT" />
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-row-head">
+                <span class="field-key mono">project_id</span>
+                <span class="field-kind">文本</span>
+              </div>
+              <div class="field-row-value">
+                <input type="text" class="mono" value="proj_xYzAbCdEfGhIjKlMnOp" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-section">
+          <div class="section-label"><span>备注</span></div>
+          <textarea class="notes-area" placeholder="添加备注(纯文本)…">生产环境 OpenAI Key,用于主 API 服务。上次轮换:2026-05-12。</textarea>
+        </div>
+
+        <div class="editor-section">
+          <div class="section-label"><span>历史</span></div>
+          <div class="history-list">
+            <div class="history-row">
+              <span class="mono">v3</span>
+              <span class="dim">2026-06-15 14:32 UTC</span>
+              <span class="dim">laptop-abc</span>
+            </div>
+            <div class="history-row">
+              <span class="mono">v2</span>
+              <span class="dim">2026-05-12 09:18 UTC</span>
+              <span class="dim">workstation-def</span>
+            </div>
+            <div class="history-row">
+              <span class="mono">v1</span>
+              <span class="dim">2026-05-01 10:00 UTC</span>
+              <span class="dim">workstation-def</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-meta mono dim">
+          创建于 2026-05-01 · 更新于 2026-06-15 · v3
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- PROFILE SWITCHER OVERLAY                       -->
+  <!-- ============================================= -->
+  <div class="overlay profile-switcher-overlay" id="profile-switcher-overlay" aria-hidden="true">
+    <div class="switcher-panel">
+      <div class="switcher-header">
+        <h2>切换配置文件</h2>
+        <button class="icon-btn" id="switcher-close" aria-label="关闭">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3 L11 11 M11 3 L3 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
+        </button>
+      </div>
+      <ul class="switcher-list">
+        <li class="switcher-item active" data-profile="prod">
+          <span class="switcher-dot profile-dot-prod"></span>
+          <div class="switcher-info">
+            <span class="switcher-name">prod</span>
+            <span class="switcher-meta mono dim">5 个条目 · 已同步</span>
+          </div>
+          <span class="switcher-check" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6 L5 9 L10 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </span>
+        </li>
+        <li class="switcher-item" data-profile="dev">
+          <span class="switcher-dot profile-dot-dev"></span>
+          <div class="switcher-info">
+            <span class="switcher-name">dev</span>
+            <span class="switcher-meta mono dim">2 个条目 · 仅本地</span>
+          </div>
+        </li>
+        <li class="switcher-item" data-profile="test">
+          <span class="switcher-dot profile-dot-test"></span>
+          <div class="switcher-info">
+            <span class="switcher-name">test</span>
+            <span class="switcher-meta mono dim">0 个条目 · 仅本地</span>
+          </div>
+        </li>
+      </ul>
+      <button class="btn btn-ghost btn-block" id="new-profile-btn">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2 V10 M2 6 H10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
+        <span>新建配置文件</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- TOAST CONTAINER                                -->
+  <!-- ============================================= -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

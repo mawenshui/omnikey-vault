@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.DeviceTrustDialog"
+        Title="信任新设备"
+        Width="480" Height="320"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <StackPanel Spacing="14">
+            <TextBlock Text="🔐 信任新设备"
+                       FontFamily="{DynamicResource FontDisplay}" FontSize="20" FontWeight="Medium"
+                       Foreground="{DynamicResource FgBrush}" />
+            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource FgMutedBrush}"
+                       Text="检测到来自未识别设备的签名。设备使用 Ed25519 公钥签名 vault 文件 — 一旦信任,所有该设备的未来签名都会自动通过验证。" />
+
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,8" Background="{DynamicResource BgSunkenBrush}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="设备 ID" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <TextBlock x:Name="DeviceIdText" FontFamily="{DynamicResource FontMono}" FontSize="12" Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock Text="公钥指纹" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,6,0,0" />
+                    <TextBlock x:Name="PublicKeyText" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
+                    <TextBlock Text="触发原因" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,6,0,0" />
+                    <TextBlock x:Name="ReasonText" FontSize="11" Foreground="{DynamicResource FgMutedBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="选择:" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,4,0,0" />
+            <StackPanel Spacing="6">
+                <Button Classes="primary" Click="OnTrust" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <TextBlock Text="✓ 信任并记住此设备" FontSize="12" />
+                </Button>
+                <Button Classes="ghost" Click="OnTrustOnce" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <TextBlock Text="⏵ 仅本次信任(不持久化)" FontSize="12" />
+                </Button>
+                <Button Classes="danger" Click="OnReject" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <TextBlock Text="✕ 拒绝 — 同步将失败" FontSize="12" />
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

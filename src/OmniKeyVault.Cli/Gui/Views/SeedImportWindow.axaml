@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.SeedImportWindow"
+        Title="导入 Seed (.okv.dev)"
+        Width="560" Height="460"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="{DynamicResource FontMono}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <StackPanel Spacing="14">
+            <TextBlock Text="导入 Seed (.okv.dev)"
+                       FontFamily="{DynamicResource FontDisplay}"
+                       FontSize="20" FontWeight="Medium"
+                       Foreground="{DynamicResource FgBrush}" />
+            <TextBlock TextWrapping="Wrap" FontSize="11"
+                       Foreground="{DynamicResource FgDimBrush}"
+                       Text="从 .okv.dev 文件导入条目。生产数据隔离:仅允许导入到 dev/test profile。导入到 prod 需要输入确认短语。" />
+
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="Seed 文件路径" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <Button Grid.Column="1" Classes="ghost" Click="OnBrowseClick" Padding="8,3" FontSize="11">
+                        <TextBlock Text="📂 查找最近" />
+                    </Button>
+                </Grid>
+                <TextBox Classes="field" x:Name="SeedPathBox" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="目标 Profile" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                <ComboBox x:Name="TargetProfileBox" SelectionChanged="OnTargetProfileChanged" />
+            </StackPanel>
+
+            <StackPanel x:Name="ConfirmBox" Spacing="6" IsVisible="False">
+                <TextBlock Text="⚠ 导入到 prod 是危险操作。输入 IMPORT TO PROD 确认:"
+                           FontSize="11" Foreground="{DynamicResource WarningBrush}" />
+                <TextBox Classes="field" x:Name="ConfirmTextBox" Watermark="IMPORT TO PROD" />
+            </StackPanel>
+
+            <TextBlock x:Name="StatusText" FontSize="12" IsVisible="False" TextWrapping="Wrap" />
+
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                <Button Grid.Column="1" Classes="ghost" Click="OnCloseClick" Margin="0,0,8,0" Width="80">
+                    <TextBlock Text="取消" HorizontalAlignment="Center" />
+                </Button>
+                <Button Grid.Column="2" Classes="primary" Click="OnImportClick" Width="120">
+                    <TextBlock Text="导入" HorizontalAlignment="Center" />
+                </Button>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

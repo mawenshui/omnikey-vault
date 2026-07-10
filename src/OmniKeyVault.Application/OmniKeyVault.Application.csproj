@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>OmniKeyVault.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />
+    <ProjectReference Include="..\OmniKeyVault.Contracts\OmniKeyVault.Contracts.csproj" />
+  </ItemGroup>
+</Project>

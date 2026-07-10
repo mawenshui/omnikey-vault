@@ -1,0 +1,66 @@
+{
+  "id": "aws_sts_temporary",
+  "platform_id": "aws",
+  "name": "AWS STS Temporary Credentials",
+  "category": "cloud",
+  "icon": "aws",
+  "official_docs_url": "https://docs.aws.amazon.com/STS/latest/APIReference/API_GetSessionToken.html",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "expires_at_supported": true,
+  "rotation_supported": false,
+  "notes": "Prefer temporary credentials over long-term access keys. Obtain via AssumeRole or GetSessionToken.",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID (Temporary)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "ASIA\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^ASIA[0-9A-Z]{16}$", "hint": "Must start with ASIA (STS temporary key)" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Za-z0-9/+=]{40}$", "hint": "40 chars" },
+      "group": "primary"
+    },
+    {
+      "key": "session_token",
+      "label": "Session Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "IQoJ\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Za-z0-9/+=]{20,2000}$", "hint": "Sent via x-amz-security-token header" },
+      "group": "primary",
+      "description": "STS session token, must be sent with every request. Max ~2KB."
+    },
+    {
+      "key": "expiration",
+      "label": "Expiration",
+      "kind": "date",
+      "sensitive": false,
+      "required": true,
+      "validation": { "regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$", "hint": "ISO-8601 UTC" },
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "Credential expiration. Range: 15min-36h (default 12h); root user 15min-1h."
+    },
+    {
+      "key": "role_arn",
+      "label": "Role ARN (if via AssumeRole)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^arn:(aws|aws-cn|aws-us-gov):iam::\\d{12}:role/[\\w+=,.@/-]+$", "hint": "ARN of the assumed role" },
+      "group": "secondary"
+    }
+  ]
+}

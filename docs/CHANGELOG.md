@@ -1,0 +1,173 @@
+# OmniKey Vault — 变更日志 (CHANGELOG)
+
+> 本文档记录 `okv` (OmniKey Vault) 的全部用户可见变更。版本号遵循 [SemVer 2.0](https://semver.org/),GUI 为唯一用户面向入口,内部 CLI 仅供集成测试 / CI 流水线 / 调试(详见 [INTERNAL.md](./INTERNAL.md))。
+
+---
+
+## [1.1.0-alpha] - 2026-07-07 — v1.1 优化进行中
+
+### 🎯 里程碑
+v1.1 优化:基于 v1.0 RC 代码审计,启动 12 阶段优化计划。Phase 1-2 已完成,Phase 3 部分完成。**467 / 467 测试通过**(457 单元/集成 + 10 分析器)。详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md)。
+
+### ✨ 新增
+
+#### Phase 1 增量(2026-07-04 落地)
+- **`vault change-password` CLI 子命令**:`okv vault change-password --old-password-env X --new-password-env Y`;4 个 E2E 测试(成功 / 旧密码错 / 缺参数 / 新密码过短)。
+- **`.gitignore`**:仓库根创建,排除 `bin/` / `obj/` / `*.trx` / `TestResults/` / `*.user` / `.vs/`。
+- **sync 退出码修复**:`SyncOutcome.Failed` 拆为 `FailedConflict`(退出码 14)/ `FailedNetwork`(退出码 20)。
+
+#### Phase 2 增量(2026-07-04 落地)
+- **`CliContainer.Dispose` 幂等性**:注册 `AppDomain.ProcessExit` + `Console.CancelKeyPress` 钩子,确保三处调用(进程退出 / Ctrl+C / using)不双重释放;2 个测试。
+- **陈旧 .trx 文件清理**:删除 `tests/tests.trx` + `TestResults/tests.trx`;`.gitignore` 排除未来生成。
+- **SECURITY.md §10.1 标注**:4 条 Roslyn 分析器规则标注 `[v1.1 落地,见 plan-v1.1-optimization.md Phase 3]`。
+
+#### Phase 3 部分增量(2026-07-07 落地)
+- **Roslyn 分析器项目**(`tools/OmniKeyVault.Analyzers/`):新建项目,注入所有 src/ 项目(通过 `Directory.Build.props`)。
+- **OKV0001 分析器**:禁止 `string` 作为 `ICryptoProvider` 参数;5 个分析器测试。
+- **OKV0003 分析器**:禁止 `==` 比较密钥 / MAC / 签名,要求用 `CryptographicOperations.FixedTimeEquals`;5 个分析器测试。
+- **版本号升级**:`Directory.Build.props` 版本从 `1.0.0` 升至 `1.1.0`。
+
+### 🔧 变更
+- 二进制版本号 `1.0.0` → `1.1.0`(`Directory.Build.props`)。
+- `Directory.Build.props` 新增分析器注入 `ItemGroup`(所有非分析器项目自动引用 `OmniKeyVault.Analyzers`)。
+
+### 🐛 修复
+- 删除 `CommandHandlers.cs` 中主密码 `Debug.WriteLine` 泄漏(P1-T1)。
+- 删除 `MainWindow.axaml.cs` 中 `Obsolete` SearchMatches 属性(P1-T5)。
+
+### 🔒 安全
+- Roslyn 分析器 OKV0001 + OKV0003 落地,从编译期拦截密码学违规。
+- 进程退出钩子确保异常退出时 MK/KEK/DEK 内存清零。
+
+### 📊 测试
+| 项目 | 测试数 | 状态 |
+|---|---|---|
+| `OmniKeyVault.Tests` | 457 | ✅ 全部通过 |
+| `OmniKeyVault.Analyzers.Tests` | 10 | ✅ 全部通过 |
+| **总计** | **467** | **100% 通过** |
+
+---
+
+## [1.0.0] - 2026-06-25 — RC 候选
+
+### 🎯 里程碑
+v1.0 RC:代码 + 单元测试就绪,等待外部安全审计(Sprint 9)+ EV 代码签名 + MSIX 商店分发(Sprint 10)以触发正式公开发布。**451 / 451 测试通过**,**1万条目性能压测全部达标**。
+
+### ✨ 新增
+
+#### v0.3 增量(2026-06-24 落地)
+- **全文 + 字段级搜索**:`SearchService` 支持 `tags:` / `platform:` / `field:` / `expired` 语法 + 字段命中元数据(用于 GUI 高亮)。
+- **附件 Blob 加密存储**:`AttachmentService` 单文件 + per-blob DEK + Profile KEK 包装;SHA-256 寻址 + 自动去重;LRU 缓存(16 条目)。
+- **KeePass 2.x XML 导入**:`KeePassXmlImporter` + `KeePassImportWindow` GUI 入口(注:二进制 KDBX 加密格式需 KeePassLib 全套密码学栈,留作 v2.x)。
+- **en-US 国际化**:`EnUsLocalizer` + `ZhCnLocalizer` 统一通过 `UIStrings` 入口;`SettingsStore.Language` 持久化。
+- **GUI 新窗口**:`SearchWindow` / `KeePassImportWindow`。
+- **CLI 新格式**:`import --format kdbx-xml`(实际为 KeePass 2.x XML 导出格式)。
+
+#### v0.4 增量(2026-06-25 落地)
+- **自动锁屏 / 空闲定时器**:`IdleTimer`(默认 15 分钟,可通过 `SettingsStore.IdleLockMinutes` 配置);`IdleTimer.RecordActivity` 重置;`SettingsStore.LockOnSessionLock` / `LockOnSuspend` 即时锁定。
+- **历史快照查看 + 还原**:`HistoryWindow` GUI;`BackupService.Restore` 还原后版本递增;`entry history --restore <version>` CLI。
+- **一键轮换**:`IPlatformRotator` 接口 + `OpenAiRotator` + `GitHubPatRotator`;`EditorWindow` 中"Rotate"按钮(仅在 platform_id ∈ {openai, github} 时显示);`entry rotate` CLI。
+- **1万条目性能压测工具**:`tools/OmniKeyVault.Benchmark`,4 场景(create / unlock / search / sync)全部达标。
+- **GUI demo 入口补全**:14 个 XAML 窗口中 12 个支持 `OKV_GUI_DEMO_*` 环境变量直接启动(供设计评审 / 截图):
+  - `OKV_GUI_DEMO_DEV` / `OKV_GUI_DEMO_RECOVERY` / `OKV_GUI_DEMO_SETTINGS` / `OKV_GUI_DEMO_CREATE` / `OKV_GUI_DEMO_CREATEFULL` / `OKV_GUI_DEMO_UNLOCK` (v0.2 已有)
+  - `OKV_GUI_DEMO_EDITOR` / `OKV_GUI_DEMO_SEARCH` / `OKV_GUI_DEMO_HISTORY` / `OKV_GUI_DEMO_PROFILE` / `OKV_GUI_DEMO_SYNC_CONFLICT` / `OKV_GUI_DEMO_DEVICE_TRUST` / `OKV_GUI_DEMO_SEED_EXPORT` / `OKV_GUI_DEMO_SEED_IMPORT` / `OKV_GUI_DEMO_KEEPASS_IMPORT` (v0.3/v0.4 新增)
+- **CLI 新命令**:
+  - `entry search --query <q>` — 全文 + 字段级搜索
+  - `entry rotate --id <uuid>` — 一键平台轮换
+  - `entry history --id <uuid> [--restore <ver>]` — 历史查看 / 还原
+  - `sync pause` / `sync resume` — 进程级同步开关
+  - `config get` / `config set` / `config list` — 镜像 `SettingsStore` 的 CLI 入口
+- **GUI 端到端测试套件(V0.3 + V0.4)**:7 个新测试覆盖搜索 / 附件 / KeePass 导入 / en-US 切换 / 空闲定时器 / 轮换元数据 / 历史还原 — 服务层(完整 Avalonia headless 留作 v2.x)。
+
+### 🔧 变更
+- 二进制版本号 `0.2.0` → `1.0.0`(`Directory.Build.props`)。
+- `SettingsWindow` About 文本更新为 v1.0.0。
+- 文档版本号全部从 0.x → 1.0:
+  - `MANUAL.md` §16 新增 16.3 (v0.3) + 16.4 (v0.4) 已交付章节,§17 改为 v1.0 RC 计划
+  - `ROADMAP.md` §5 + §6 标记 v0.3 + v0.4 全部已交付,§7 v1.0 RC 当前进行中
+  - `TEST_REPORT.md` 357 → 451 tests,新增 v0.3+v0.4 增量交付清单
+  - `BUILD.md` 集成 `tools/OmniKeyVault.Benchmark`,§3.4 benchmark 用法
+  - `INTERNAL.md` §2.2 命令清单更新(7 命令 + kdbx-xml 格式 + 4 个新子命令)
+  - `ARCHITECTURE.md` 服务层加入 v0.3 + v0.4 服务
+  - `CHANGELOG.md`(本文档)新增
+
+### 📊 性能
+| 场景 | 实际 | 目标 | 状态 |
+|---|---|---|---|
+| 创建 1万条目 Vault | 0.7 s | ≤ 60 s | ✅ |
+| 解锁(64 MiB Argon2id) | 0.1 s | ≤ 1.5 s | ✅ |
+| 全文搜索 1万条目 | 1.5 ms | ≤ 200 ms | ✅ |
+| 2 实例同步 1万条目 | 0.0 s | ≤ 5 s | ✅ |
+
+> Benchmark 工具:`dotnet run --project tools/OmniKeyVault.Benchmark`(可指定条目数:`okv-bench 5000`)。
+
+### 🐛 修复
+- 无(v0.3 / v0.4 增量全部为新功能,未引入回归)。
+
+### 🔒 安全
+- **密码学不变量**:8 / 8 落地项全部通过;INV-09(同步路径仅密文)在 v0.2 实质性增强,延续至 v1.0。
+- **密码学原语**:libsodium 1.0.18(Sodium.Core 1.3.2);Argon2id 256 MiB(生产) / 64 MiB(测试);XChaCha20-Poly1305 AEAD;Ed25519 签名。
+- **新增安全护栏**:
+  - `entry rotate` 不在 JSON 输出中包含 NewValue / OldValue(避免 CI 日志泄露)
+  - `entry history` 默认 JSON 输出不含 value 字段
+  - 平台轮换失败消息**不**包含旧值或新值(`PlatformApiException` 自动脱敏)
+
+### 📦 部署
+- 单文件可执行:`okv.exe` ~68 MB(自包含 .NET 8 + libsodium + 11 模板)
+- 框架依赖:`okv.exe` + `okv.dll` + 11 模板 + `libsodium.dll` ~280 KB(需 .NET 8 Desktop Runtime)
+- 跨 RID:win-x64/x86/arm64,linux-x64/arm/arm64 + musl 变体,osx-x64 + osx-arm64(详见 [BUILD.md §5](./BUILD.md))
+- 命名约定:`okv-v1.0.0-<rid>-<variant>.<ext>`
+
+---
+
+## [0.2.0] - 2026-06-23
+
+### 🎯 里程碑
+v0.2 — 多 Profile + Dev 备份 + 同步 + TOTP。**357 / 357 测试通过**。GUI 全部主流程落地(14 个 XAML 视图)。
+
+### ✨ 新增
+- **多 Profile**:`ProfileService` + Profile CRUD + 独立 DEK 包装;`prod` / `dev` / `test` 默认配置。
+- **Dev 备份**:`SeedFormat`(.okv.dev,OKVD magic)+ `SeedExporter` + `SeedImporter`(强制 target=dev/test;可选 `--strip-secrets` REDACTED 替换)。
+- **文件系统级同步**:`SyncService` + `VectorClock` 合并 + `ManifestService`(`manifest.json` 明文元数据);`sync status` / `sync force` CLI;`OSWatcherProvider` FileSystemWatcher 实现(Windows)。
+- **TOTP 字段**:`TotpService` HMAC-SHA1 RFC 6238;`FieldKind.TotpUri`;EditorWindow 自动展开 6 位 + 倒计时。
+- **Profile 设置**:`ProfileSettings.ParticipateInSync` / `AutoLockOnSwitch` / `IdleLockMinutes`。
+- **6 个新平台模板**:Anthropic / GCP / Azure / AWS STS / Aliyun / Slack。
+- **GUI 全部主流程**:解锁 / 创建 Vault 向导 / Recovery Key / 主窗口 / 条目编辑器 / Profile 切换器(banner + 水印)/ 设置 / 导入 / 导出 / 同步冲突向导 / 设备信任 / 历史快照对话框。
+
+### 🔧 变更
+- 二进制名 `OmniKeyVault.exe` → `okv.exe`。
+- GUI 为主入口(无参数启动),CLI 重新定位为内部 / CI 接口。
+
+---
+
+## [0.1.0] - 2026-06-22
+
+### 🎯 里程碑
+v0.1 MVP — 本地 Vault + 单 Profile + 条目 CRUD + 5 模板 + Bitwarden 导入 + `.okv` 格式第一版。**170 / 170 测试通过**。
+
+### ✨ 新增
+- **本地 Vault**:创建 / 解锁 / 锁定(Argon2id 256 MiB);`.okv` 二进制格式 OKV1 magic;原子写入(`.okv.tmp` + rename)。
+- **条目 CRUD**:单 Profile;5 字段 kind(secret / text / url / number / date);Field 校验 regex。
+- **5 个 MVP 模板**:GitHub / OpenAI / AWS / Stripe / Supabase。
+- **剪贴板**:8 秒自动清空;`ClipboardService` 抽象(便于测试)。
+- **Bitwarden JSON 导入**:`BitwardenImporter` 支持标准导出格式。
+- **CLI 框架**:`vault` / `entry` / `template` 命令 + 退出码表。
+
+### 🔒 安全
+- 完整密码学栈落地:libsodium 包装(Argon2id + XChaCha20-Poly1305 + Ed25519 + 安全内存清零)。
+- `ICryptoProvider` 抽象;`SecureKey` 一次性使用;`FixedTimeEquals`;8 个密码学不变量(INV-01 ~ INV-10)。
+
+---
+
+## 文档版本对照
+
+| 文档集版本 | 对应代码版本 | 状态 |
+|---|---|---|
+| 0.1 | v0.1.0 | MVP 已交付 |
+| 0.2 | v0.2.0 | 多 Profile + Dev 备份 + 同步 + TOTP 已交付 |
+| 0.3 | (内部迭代) | v0.2 基础上 GUI 烟测补全 + 文档整合 |
+| 0.4 | (内部迭代) | (未发版;v0.3 之上增量交付 v0.3+v0.4 全部功能) |
+| **1.0** | **v1.0.0** | **v1.0 RC 候选**:v0.3 + v0.4 全部已交付,等待外部审计 + 签名 + MSIX |
+| **1.1(当前)** | **v1.1.0-alpha** | **v1.1 优化进行中**:Phase 1-2 已完成,Phase 3 部分完成(OKV0001 + OKV0003);467/467 测试通过 |
+
+> 文档集 0.3 / 0.4 为 v1.0 准备过程中的内部版本号(用于标识文档同步状态),未与代码版本一一对应。

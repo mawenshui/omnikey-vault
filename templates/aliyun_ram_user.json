@@ -1,0 +1,59 @@
+{
+  "id": "aliyun_ram_user",
+  "platform_id": "aliyun",
+  "name": "Aliyun RAM User AccessKey",
+  "category": "cloud",
+  "icon": "aliyun",
+  "official_docs_url": "https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair",
+  "auth_header": "ACS3-HMAC-SHA256 signature",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "aliyun",
+  "notes": "Enable MFA on console login. Long-term AccessKey has no built-in expiry; prefer STS temporary credentials.",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "AccessKey ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "LTAI\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^LTAI[a-zA-Z0-9]{16}$", "hint": "Must start with LTAI, 20 chars total" },
+      "group": "primary"
+    },
+    {
+      "key": "access_key_secret",
+      "label": "AccessKey Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^[A-Za-z0-9]{30}$", "hint": "30 chars, shown only once at creation" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "Cannot be retrieved later; recreate if lost. Each RAM user can have at most 2 AccessKeys."
+    },
+    {
+      "key": "region_id",
+      "label": "Default Region ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "cn-hangzhou",
+      "validation": { "regex": "^(cn|ap|us|eu|me)-[a-z]+(-[0-9]+)?$", "hint": "Examples: cn-hangzhou, ap-southeast-1, us-west-1, eu-central-1" },
+      "group": "primary"
+    },
+    {
+      "key": "account_id",
+      "label": "Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "validation": { "regex": "^\\d{12,16}$", "hint": "12-16 digits" },
+      "group": "secondary"
+    }
+  ]
+}

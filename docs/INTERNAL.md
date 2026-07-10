@@ -1,0 +1,423 @@
+# OmniKey Vault — 内部 CLI 接口规范
+
+| 文档版本 | 日期 | 作者 | 状态 |
+|---|---|---|---|
+| 1.1 | 2026-07-07 | Sisyphus | v1.1 优化进行中:467/467 tests(含 10 分析器测试) |
+| 1.0 | 2026-06-25 | Sisyphus | v1.0 RC:全部内部 CLI 命令落地 + 测试 451/451 |
+
+> **⚠️ 重要定位**
+>
+> 本文档描述的 **CLI 模式是 `okv.exe` 的内部 / 集成测试 / 自动化接口**,**不是**用户面向的产品。
+>
+> - **用户面向** = GUI 主程序(无参数启动 → 进入 Avalonia 桌面应用)。详见 [MANUAL.md](./MANUAL.md)。
+> - **本接口面向** = 集成测试 / CI 流水线 / 调试场景。脚本化取用请直接通过 GUI 操作;**生产自动化建议改用 GUI 的"导出 .okv.dev"或编程访问 `OmniKeyVault.Application` 程序集**。
+>
+> 历史原因:CLI 与 GUI 共享同一二进制(`okv.exe`),从 v0.1 起就保留 CLI 作为开发与测试入口。该接口在 v1.0 之前可能随内部重构而变化(退出码可能细化);**不承诺长期向后兼容**。
+>
+> 关联文档:[MANUAL.md](./MANUAL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [SECURITY.md](./SECURITY.md)
+
+---
+
+## 1. 概述
+
+### 1.1 何时使用 CLI
+
+| 场景 | 推荐方式 |
+|---|---|
+| 日常创建 / 查看 / 编辑条目 | **GUI**(主程序) |
+| 团队间共享 dev 种子 | **GUI** 导出 `seed.okv.dev`,再分发 |
+| 自动化测试 fixture 注入 | CLI 或直接调用 `OmniKeyVault.Application` |
+| CI 中临时取用 key 注入环境变量 | CLI(仅限 ci-* Profile) |
+| 调试 / 故障排查 | CLI(快速看 `sync status` 等状态) |
+
+### 1.2 启动方式
+
+```bash
+# GUI(无参数)— 主程序
+okv
+
+# CLI(带子命令)— 内部接口
+okv vault --help
+okv entry list --vault /path/to/vault.okv
+```
+
+无参数 = Avalonia 主循环;有参数 = 解析子命令 + 调用 Service 层后退出。**不启动 GUI 主循环**。
+
+### 1.3 与 GUI 共享的部分
+
+- **DI 容器**(`CliContainer`):同一组服务实例,VaultService / EntryService / ProfileService / ClipboardService / SyncService 等。
+- **Infrastructure**:`SodiumCryptoProvider` / `VaultFormat` / `SeedFormat` / `FileSystemStorageProvider` 等。
+- **Domain**:`Vault` / `Profile` / `Entry` / `VectorClock` / `Argon2Params`。
+- **Templates**:从 `okv.exe` 同目录的 `templates/` 加载 + `%APPDATA%/OmniKeyVault/templates/` 用户覆盖。
+
+### 1.4 不在 CLI 范围
+
+- 复杂 UI 交互(批量编辑、冲突解决向导、Profile banner)— 走 GUI。
+- 桌面通知、Toast、状态栏—仅 GUI。
+- 全局热键、剪贴板自动清空(GUI 内实现)— CLI 输出明文后由调用方负责。
+
+---
+
+## 2. 命令结构
+
+### 2.1 总体语法
+
+```
+okv [全局选项] <命令> [子命令] [命令选项] [参数]
+```
+
+### 2.2 命令清单
+
+| 命令 | 子命令 | 用途 | 引入版本 |
+|---|---|---|---|
+| `vault` | `create` / `unlock` / `lock` / `info` / `change-password` | Vault 生命周期 | v0.1 / v0.2 |
+| `profile` | `list` / `create` / `switch` / `delete` / `info` | Profile 管理 | v0.2 |
+| `entry` | `list` / `get` / `set` / `delete` / `search` / `rotate` / `history` | 条目 CRUD + 搜索 + 轮换 + 历史 | v0.1 / v0.2 / v0.3 / v0.4 |
+| `template` | `list` / `show` / `apply` | 平台模板 | v0.1 |
+| `export` | `--profile <name>` `--output <path>` | 导出 Vault / 种子 | v0.2 |
+| `import` | `--input <path>` `--format <fmt>` `--profile <name>` | 导入 Vault / 种子 / KeePass XML | v0.1 / v0.2 / v0.3 |
+| `sync` | `status` / `force` / `pause` / `resume` | 同步控制 | v0.2 / v0.4 |
+| `config` | `get` / `set` / `list` | 用户配置 | v0.2 / v0.4 |
+| `version` | — | 版本信息 | v0.1 |
+| `help` | — | 帮助 | v0.1 |
+
+### 2.3 全局选项
+
+| 选项 | 说明 | 默认 |
+|---|---|---|
+| `--vault <path>` | Vault 文件路径 | `%USERPROFILE%\OmniKeyVault\vault.okv` |
+| `--profile <name>` | 默认 Profile | `prod` |
+| `--format <json\|text\|raw>` | 输出格式 | `text` |
+| `--yes` | 跳过确认提示 | false |
+| `--quiet` | 仅输出结果,不输出提示信息 | false |
+| `--verbose` | 详细日志(到 stderr) | false |
+| `--password-file <path>` | 从文件读主密码(见 §3.3) | — |
+| `--password-env <var>` | 从环境变量读主密码 | — |
+| `--no-color` | 禁用彩色输出 | false(自动检测 TTY) |
+
+---
+
+## 3. 退出码(权威表)
+
+CLI 脚本必须按以下退出码分支。
+
+| 码 | 含义 | 典型场景 |
+|---|---|---|
+| 0 | 成功 | 命令正常完成 |
+| 1 | 内部错误 | 未分类异常 |
+| 2 | 参数错误 | 缺少必填参数、格式错误 |
+| 3 | Vault 锁定 | 需先 `vault unlock` |
+| 4 | 密码学错误 | 主密码错误、文件损坏、签名失败 |
+| 5 | Profile 不存在 | `--profile` 指定错误 |
+| 6 | 文件 I/O 错误 | 文件不存在 / 锁定 / 权限 |
+| 7 | 条目不存在 | `--id` 指定错误 |
+| 8 | 字段不存在 | `--field` 指定错误 |
+| 9 | 名称冲突 | Profile / Entry 名重复 |
+| 10 | 平台不支持 | `rotate` 不支持该平台 |
+| 11 | API 调用失败 | `rotate` 调用平台 API 失败 |
+| 12 | 格式不支持 | `import` / `export` 未知格式 |
+| 13 | 文件损坏 | 解析失败 |
+| 14 | 同步冲突 | 需要手动解决(用 GUI) |
+| 20 | 网络错误 | 平台 API 不可达 |
+| 30 | Recovery Key 错误 | 解锁恢复时输入错误 |
+
+**语义约束**:
+
+- 退出码 0 表示**完全成功**,任何非致命问题都应输出到 stderr 但仍返回 0。
+- 退出码 1 仅用于未分类异常(应避免,尽量归类到 2-30)。
+- 退出码 3 / 4 / 5 / 7 / 8 是脚本可恢复的常见错误,应明确区分。
+
+---
+
+## 4. 主密码输入约定
+
+为避免命令行参数泄露到 `ps` / shell 历史,主密码**绝不**接受 `--password <value>` 形式。
+
+| 方式 | 说明 | 推荐 |
+|---|---|---|
+| 交互输入(默认) | TTY 提示,关闭回显 | 调试 / 一次性操作 |
+| `--password-file <path>` | 从文件读取(文件需权限 600 / 用户 ACL) | CI |
+| `--password-env <var>` | 从环境变量读取 | CI / 临时脚本 |
+| stdin(`--password-stdin`) | 从 stdin 读取一行 | 管道 |
+
+**示例**:
+
+```bash
+# 交互式
+okv vault unlock
+
+# CI:从环境变量
+export OKV_MASTER_PASSWORD="..."
+okv vault unlock --password-env OKV_MASTER_PASSWORD
+
+# CI:从 stdin(用后立即清空环境变量)
+echo "$OKV_MASTER_PASSWORD" | okv vault unlock --password-stdin
+```
+
+---
+
+## 5. 关键命令速查
+
+> 本节仅列最常用的命令,完整命令参数请运行 `okv <command> --help`。
+
+### 5.1 `vault` — Vault 生命周期
+
+```bash
+okv vault create \
+  --vault <path> \
+  --name "My Vault" \
+  [--password-file <path> | --password-env <var>]
+
+okv vault unlock  [--password-file | --password-env | --password-stdin]
+okv vault lock
+okv vault info    [--vault <path>]
+okv vault change-password  [--old-password-env <var> --new-password-env <var>]
+```
+
+### 5.2 `profile` — Profile 管理
+
+```bash
+okv profile list
+okv profile create --name <name> --color <green|yellow|blue|red|purple> \
+  [--participate-in-sync <true|false>] [--idle-lock-min <int>]
+okv profile switch --name <name>
+okv profile delete --name <name> [--yes]
+okv profile info --name <name>
+```
+
+### 5.3 `entry` — 条目 CRUD
+
+```bash
+# 列出
+okv entry list [--profile <name>] [--tag <tag>] [--platform <id>] \
+  [--folder <id>] [--search <query>] [--limit <int>] [--offset <int>] \
+  [--sort <name|updated|created|expires>] [--format json|text|csv]
+
+# 获取(支持 env 格式注入到 shell)
+okv entry get --id <entry-id> --field <key> [--format raw|json|env]
+
+# 创建 / 更新
+okv entry set --name "OpenAI prod" --type api_key --platform openai \
+  --template openai [--tag ai] [--folder <id>] [--expires-at 2026-12-31]
+okv entry set --id <entry-id> --field <key>   # 从 stdin 读值
+okv entry set --from-json entry.json
+
+# 删除 / 轮换 / 历史
+okv entry delete --id <entry-id> [--yes]
+okv entry rotate --id <entry-id> --field <key>
+okv entry history --id <entry-id> [--restore <version>]
+```
+
+### 5.4 `template` — 平台模板
+
+```bash
+okv template list [--category <id>] [--mvp-only] [--search <query>]
+okv template show --id <template-id>
+okv template apply --id <template-id> --name "My OpenAI Key" [--profile <name>]
+```
+
+### 5.5 `export` / `import` — 跨格式迁移
+
+```bash
+# 导出(完整 / 种子 / 跨工具)
+okv export --vault <path> --output backup.okv --format okv
+okv export --profile dev --output seed.okv.dev --format okv-dev [--strip-secrets]
+okv export --profile prod --output bw.json --format bitwarden-json
+okv export --profile prod --output .env --format env --yes --yes  # 强警告
+
+# 导入
+okv import --input backup.okv [--target-profile <name>] [--merge-strategy <newer|overwrite|skip>]
+okv import --input seed.okv.dev --target-profile dev [--no-confirm]   # 强制仅 dev/test
+okv import --input bw.json --format bitwarden-json [--target-profile prod]
+okv import --input keepass.kdbx --format kdbx --kdbx-password-file <path>
+```
+
+**`seed.okv.dev` 强制隔离**:
+
+- `--target-profile` 仅接受 `dev` / `test` / `ci-*`;其他返回退出码 2。
+- 默认需 `--yes` 确认"此文件不受主密码保护"。
+
+**.env 导出安全约束**:
+
+- `--format env` 不加 `--yes` 直接退出码 2。
+- 首次调用输出警告并要求二次 `--yes --yes`。
+- 导出前输出明文预览(脱敏)让用户确认字段。
+
+### 5.6 `sync` — 同步控制
+
+```bash
+okv sync status
+okv sync force      # 强制触发一次同步检测
+okv sync pause
+okv sync resume
+```
+
+### 5.7 `config` — 用户配置
+
+```bash
+okv config get  --key <key>
+okv config set  --key <key> --value <value>
+okv config list
+```
+
+**关键配置项**:
+
+| 键 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `sync.dir` | path | `%USERPROFILE%\OmniKeyVault` | 同步目录 |
+| `lock.idle_minutes` | int | 15 | 空闲锁定分钟 |
+| `lock.on_session_switch` | bool | true | 系统锁屏时锁定 |
+| `clipboard.clear_seconds` | int | 8 | 剪贴板清空秒数 |
+| `totp.auto_compute` | bool | true | TOTP 自动计算 |
+| `ui.locale` | string | `zh-CN` | UI 语言 |
+| `ui.theme` | string | `system` | `light` / `dark` / `system` |
+| `log.level` | string | `Information` | Serilog 级别 |
+| `cli.default_profile` | string | `prod` | CLI 默认 Profile |
+
+### 5.8 `version` / `help`
+
+```bash
+okv version
+okv help            # 根 help
+okv help <command>  # 子命令 help
+okv <command> --help
+```
+
+---
+
+## 6. 输出格式
+
+| 格式 | 用途 | 备注 |
+|---|---|---|
+| `text`(默认) | 人类可读,表格 + 状态行 | 自动检测 TTY,非 TTY 禁用颜色 + 进度条 |
+| `json` | 结构化输出,便于脚本解析 | snake_case 字段;ISO 8601 UTC;二进制 base64 |
+| `raw` | 仅原始值,无末尾换行 | 用于 `entry get --field api_key --format raw` |
+| `env` | `export KEY="value"` | 便于 `eval "$(okv entry get --id ... --format env)"` |
+| `csv` | 表格数据,不含 sensitive 字段值 | `entry list --format csv` |
+
+---
+
+## 7. 安全注意事项
+
+### 7.1 stdin 读取敏感值
+
+- **规则**:主密码、字段值等敏感输入必须从 stdin 或文件读取,**绝不**进命令行参数。
+- **原因**:命令行参数出现在 `ps` / `/proc/<pid>/cmdline` / shell 历史中。
+- **实现**:`Console.In.ReadLine()`;读完立即清零缓冲。
+
+### 7.2 stdout 明文清理
+
+- **规则**:输出明文到 stdout 后,30 秒内主动清零 stdout 在内存中的副本。
+- **限制**:无法清零 terminal 的 scrollback;**强烈建议在 CI 中通过 pipe 到 `read -s` 或重定向到 `/dev/null` 使用**。
+
+### 7.3 进程内存清理
+
+- **规则**:CLI 进程退出时,主动清零所有 `SecureKey` 内存(MK / KEK / DEK)。
+- **实现**:`AppDomain.ProcessExit` + `Console.CancelKeyPress` 注册清理钩子。
+
+### 7.4 日志脱敏
+
+- **规则**:日志永远不记录 sensitive 字段值、主密码、密钥。
+- **实现**:Serilog 自定义 `redact` 过滤器,识别字段名(`password` / `secret` / `api_key` / `token` / ...)并替换为 `***`。
+
+### 7.5 文件权限
+
+- **`--password-file`**:读取前检查文件权限,若非 600(POSIX)或仅当前用户可读(Windows ACL),警告并要求 `--yes` 确认。
+- **导出文件**:写入时设置权限 600(POSIX)或仅当前用户(Windows ACL)。
+
+### 7.6 CI 推荐模式
+
+```bash
+# 临时环境变量,用后立即 unset
+export OKV_MASTER_PASSWORD="$(read -s from-secure-source)"
+okv entry get --profile prod --id 01H7... --field api_key \
+  --format raw --password-env OKV_MASTER_PASSWORD
+unset OKV_MASTER_PASSWORD
+```
+
+> ⚠️ **`export` 不是加密方式** — 进程内环境变量在 `/proc/<pid>/environ` 中对管理员可读。对密钥管理请用 vault / 密钥管理服务。
+
+---
+
+## 8. 集成示例(精简)
+
+完整 CI 集成模板(多平台 / 各种 CI 系统)见 [BUILD.md §4.3 端到端烟测](./BUILD.md#43-端到端快速烟测-smoke-test)。
+
+### 8.1 测试 fixture 注入
+
+```bash
+# 准备测试 Vault
+okv vault create --vault /tmp/test.okv --password-env OKV_MASTER_PASSWORD
+okv import --vault /tmp/test.okv --password-env OKV_MASTER_PASSWORD \
+  --input ./seeds/openai-mock.okv.dev --format okv-dev \
+  --target-profile ci-test --no-confirm
+
+# 注入环境变量
+export OPENAI_API_KEY=$(okv entry get \
+  --vault /tmp/test.okv --password-env OKV_MASTER_PASSWORD \
+  --profile ci-test --id 01H7... --field api_key --format raw)
+dotnet test
+unset OPENAI_API_KEY
+```
+
+### 8.2 Dev 种子分发
+
+```bash
+# 团队 Lead:生成 strip-secrets 种子
+okv export --profile dev --output seeds/openai-mock.okv.dev \
+  --format okv-dev --strip-secrets
+
+# 提交到仓库
+git add seeds/openai-mock.okv.dev
+git commit -m "chore: add openai mock seed for CI"
+```
+
+---
+
+## 9. 测试用例要求
+
+### 9.1 命令行解析测试
+
+| 用例 | 验证 |
+|---|---|
+| `CLI-PARSE-01` | 全局选项 + 子命令 + 命令选项组合解析正确 |
+| `CLI-PARSE-02` | 未知子命令 → 退出码 2 |
+| `CLI-PARSE-03` | 缺少必填参数 → 退出码 2 + 错误消息 |
+| `CLI-PARSE-04` | `--help` 输出完整用法 |
+
+### 9.2 安全测试
+
+| 用例 | 验证 |
+|---|---|
+| `CLI-SEC-01` | `entry set --field` 从 stdin 读取,不出现在 `ps` |
+| `CLI-SEC-02` | `entry get --field` 输出后 30s 内内存清零 |
+| `CLI-SEC-03` | `--password-file` 权限不严警告 |
+| `CLI-SEC-04` | 日志不含敏感字段值 |
+
+### 9.3 退出码测试
+
+| 用例 | 验证 |
+|---|---|
+| `CLI-EXIT-01` | 每个退出码语义正确(见 §3) |
+| `CLI-EXIT-02` | 脚本可基于退出码分支 |
+
+### 9.4 集成测试
+
+| 用例 | 验证 |
+|---|---|
+| `CLI-INTEG-01` | `export $(okv entry get ...)` 在 Bash 中生效 |
+| `CLI-INTEG-02` | PowerShell `Invoke-Expression` 模式生效 |
+| `CLI-INTEG-03` | CI 种子库导入 + 测试 fixture 注入端到端 |
+
+---
+
+## 附录 A · 修订记录
+
+| 版本 | 日期 | 修订 |
+|---|---|---|
+| 0.1 | 2026-06-18 | 初稿,覆盖 MVP + v0.2-v0.4 CLI 命令(原 [CLI_SPEC.md](./CLI_SPEC.md)) |
+| 0.2 | 2026-06-24 | 重新定位为内部 / 集成测试 / CI 调试接口(原文档为公开产品接口);删除 Shell 集成示例(并入 [BUILD.md](./BUILD.md));退出码表保持;二进制名统一为 `okv.exe` |
+| **1.1** | **2026-07-07** | **v1.1 优化进行中:** 新增 `vault change-password` CLI 子命令(Phase 1 P1-T3);sync 退出码修复(`FailedConflict` = 14 / `FailedNetwork` = 20);`CliContainer.Dispose` 幂等性(ProcessExit + CancelKeyPress 钩子);§3 退出码表新增 change-password 说明;测试数 451 → 467(含 10 分析器测试) |
+| **1.0** | **2026-06-25** | **v1.0 RC:** §2.2 命令清单更新至完整 7 命令(原 6 命令 + 新增 `config` / `entry search` / `entry history` / `entry rotate` / `sync pause-resume` / `import --format kdbx-xml`);新增 `entry` 详解(rotate / history / search 三个 v1.0 落地子命令);新增 `sync` 详解(pause / resume v0.4 落地);新增 `config` 整节(get / set / list v0.4 落地);新增 `import` kdbx-xml 格式(v0.3 落地);14 个新 V1CommandTests 全部通过 |
+
+> **状态变化**:本接口不再是产品对外接口,而是内部测试 / 自动化入口。GUI 才是用户面向的主程序。

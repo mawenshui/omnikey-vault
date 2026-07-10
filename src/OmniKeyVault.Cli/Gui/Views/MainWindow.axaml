@@ -1,0 +1,562 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.MainWindow"
+        Title="OmniKey Vault"
+        Width="1200" Height="760"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgBrush}">
+    <Window.Styles>
+        <Style Selector="Button.icon">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Button.icon:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="Button.sidebar-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Button.sidebar-item:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+        <Style Selector="Button.primary-sm">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.ghost-sm">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.entry-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.entry-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+        </Style>
+        <Style Selector="Button.entry-row.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#146366f1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDimBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- TOP BAR -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource BgElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,0"
+                Height="56">
+            <Grid ColumnDefinitions="220,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Width="24" Height="24"
+                            Background="{DynamicResource AccentBrush}"
+                            Opacity="0.2"
+                            CornerRadius="12" />
+                    <Border Width="14" Height="14"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1.5"
+                            CornerRadius="7"
+                            VerticalAlignment="Center" />
+                    <TextBlock VerticalAlignment="Center"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}">
+                        <Run Text="OmniKey " />
+                        <Run Text="Vault" FontStyle="Italic" Foreground="{DynamicResource AccentBrush}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource BgSunkenBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Width="480" Height="36">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="🔍"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource FgDimBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0,4,0" />
+                        <TextBox Grid.Column="1"
+                                 x:Name="SearchBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 FontSize="13"
+                                 Foreground="{DynamicResource FgBrush}"
+                                 CaretBrush="{DynamicResource AccentBrush}"
+                                 Watermark="搜索条目、字段、标签…"
+                                 VerticalAlignment="Center"
+                                 TextChanged="OnSearchTextChanged" />
+                        <Border Grid.Column="2"
+                                Background="{DynamicResource BgElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="6,2"
+                                Margin="0,0,8,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="/"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="icon" Click="OnSyncClick" ToolTip.Tip="同步状态">
+                        <TextBlock Text="⟳" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
+                    <Button Classes="icon" Click="OnAdvancedSearchClick" ToolTip.Tip="高级搜索 (tags: / platform: / field:KEY:VALUE)">
+                        <TextBlock Text="🔍" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
+                    <Button Classes="icon" Click="OnSettingsClick" ToolTip.Tip="设置">
+                        <TextBlock Text="⚙" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
+                    <Button Classes="icon" Click="OnLockClick" ToolTip.Tip="立即锁定 (Ctrl+L)">
+                        <TextBlock Text="🔒" FontSize="14" Foreground="{DynamicResource AccentBrush}" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- PROFILE BANNER (dev = amber, test = blue, prod = hidden) -->
+        <Border Grid.Row="1"
+                x:Name="ProfileBanner"
+                IsVisible="False"
+                Background="{DynamicResource WarningBrush}"
+                Height="28"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="BannerText"
+                       Text="DEV — 非生产数据"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontFamily="{DynamicResource FontMono}"
+                       FontSize="11" FontWeight="SemiBold"
+                       LetterSpacing="2.5"
+                       Foreground="#1e293b" />
+        </Border>
+
+        <!-- MAIN LAYOUT (sidebar | list | detail) -->
+        <Grid Grid.Row="2" ColumnDefinitions="220,*,380">
+            <Border Grid.Column="0"
+                    Background="{DynamicResource BgElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <ScrollViewer Padding="16,16">
+                    <StackPanel Spacing="20">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="配置文件"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1.6"
+                                       Foreground="{DynamicResource FgFaintBrush}" />
+                            <Button x:Name="ProfileChip"
+                                    Classes="sidebar-item"
+                                    HorizontalAlignment="Stretch"
+                                    Click="OnProfileChipClick">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                    <Ellipse Grid.Column="0"
+                                             x:Name="ProfileDot"
+                                             Width="8" Height="8"
+                                             Fill="{DynamicResource ProfileProdBrush}"
+                                             VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1"
+                                               x:Name="ProfileNameText"
+                                               Text="prod"
+                                               Margin="8,0,0,0"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource FgBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2"
+                                               x:Name="ProfileCountText"
+                                               Text="0"
+                                               FontFamily="{DynamicResource FontMono}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource FgDimBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="▾"
+                                               FontSize="10"
+                                               Foreground="{DynamicResource FgDimBrush}"
+                                               Margin="4,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="文件夹"
+                                           FontFamily="{DynamicResource FontMono}"
+                                           FontSize="10" LetterSpacing="1.6"
+                                           Foreground="{DynamicResource FgFaintBrush}" />
+                                <Button Grid.Column="1" x:Name="AddFolderBtn" Classes="sidebar-item" Padding="2,0" Click="OnAddFolderClick" ToolTip.Tip="新建文件夹">
+                                    <TextBlock Text="+" FontSize="14" Foreground="{DynamicResource FgDimBrush}" />
+                                </Button>
+                            </Grid>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnFolderClick" Tag="all">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="🗂" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="全部条目" Margin="8,0,0,0" FontSize="13" />
+                                    <TextBlock Grid.Column="2" x:Name="FolderAllCount" Text="0"
+                                               FontFamily="{DynamicResource FontMono}" FontSize="11"
+                                               Foreground="{DynamicResource FgFaintBrush}" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnFolderClick" Tag="__none__">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="📄" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="未分类" Margin="8,0,0,0" FontSize="13" />
+                                    <TextBlock Grid.Column="2" x:Name="FolderNoneCount" Text="0"
+                                               FontFamily="{DynamicResource FontMono}" FontSize="11"
+                                               Foreground="{DynamicResource FgFaintBrush}" />
+                                </Grid>
+                            </Button>
+                            <!-- v0.2 gap-fill: real folder tree (CRUD via right-click
+                                 context menu). Populated by RebuildFoldersPanel. -->
+                            <StackPanel x:Name="FoldersList" Spacing="2" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="标签"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1.6"
+                                       Foreground="{DynamicResource FgFaintBrush}" />
+                            <WrapPanel x:Name="TagsPanel" />
+                        </StackPanel>
+
+                        <TextBlock Text="" Height="40" />
+
+                        <!-- v0.2 Dev Tools: seed export/import + sync status -->
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Dev Tools · v0.2"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1.6"
+                                       Foreground="{DynamicResource FgFaintBrush}"
+                                       Margin="0,0,0,4" />
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnExportSeedClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📤" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导出 Seed" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImportSeedClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📥" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 Seed" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImportKeePassClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔐" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 KeePass (XML)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnSyncNowClick">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="🔄" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="同步" Margin="8,0,0,0" FontSize="12" />
+                                    <TextBlock Grid.Column="2" x:Name="LastSyncText" Text="从未同步"
+                                               FontFamily="{DynamicResource FontMono}" FontSize="10"
+                                               Foreground="{DynamicResource FgFaintBrush}" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="DeviceIdText"
+                                           Text="device"
+                                           FontFamily="{DynamicResource FontMono}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource FgDimBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,16,20,12">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock x:Name="ListTitle"
+                                   Text="全部条目"
+                                   FontFamily="{DynamicResource FontDisplay}"
+                                   FontSize="22"
+                                   FontWeight="Medium"
+                                   Foreground="{DynamicResource FgBrush}" />
+                        <TextBlock x:Name="ListCountText"
+                                   Text="0 个条目"
+                                   FontFamily="{DynamicResource FontMono}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource FgDimBrush}"
+                                   VerticalAlignment="Bottom" Margin="0,0,0,4" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <Button Classes="ghost-sm" Click="OnImportClick">
+                            <TextBlock Text="↓ 导入" FontSize="12" />
+                        </Button>
+                        <Button Classes="ghost-sm" Click="OnExportClick">
+                            <TextBlock Text="↑ 导出" FontSize="12" />
+                        </Button>
+                        <Button Classes="ghost-sm" Click="OnSortClick">
+                            <TextBlock Text="⇅ 排序" FontSize="12" />
+                        </Button>
+                        <Button Classes="primary-sm" Click="OnNewEntryClick">
+                            <TextBlock Text="+ 新建条目" FontSize="12" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1" Margin="20,0,20,0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="EntryListPanel" Spacing="2" />
+                </ScrollViewer>
+
+                <StackPanel x:Name="EmptyState"
+                            Grid.Row="1"
+                            IsVisible="False"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center"
+                            Spacing="12">
+                    <TextBlock Text="🗝"
+                               HorizontalAlignment="Center"
+                               FontSize="40"
+                               Opacity="0.4" />
+                    <TextBlock x:Name="EmptyTitle"
+                               Text="没有匹配的条目"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="18"
+                               Foreground="{DynamicResource FgMutedBrush}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock x:Name="EmptySub"
+                               Text="试试清除筛选条件或更换搜索关键词。"
+                               FontSize="13"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Column="2"
+                    Background="{DynamicResource BgElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1,0,0,0">
+                <ScrollViewer>
+                    <Grid>
+                        <StackPanel x:Name="DetailEmpty"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    Spacing="8"
+                                    Margin="32">
+                            <TextBlock Text="◇"
+                                       HorizontalAlignment="Center"
+                                       FontSize="48"
+                                       Opacity="0.3" />
+                            <TextBlock Text="请选择一个条目"
+                                       FontFamily="{DynamicResource FontDisplay}"
+                                       FontSize="16"
+                                       Foreground="{DynamicResource FgMutedBrush}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="从左侧列表中选择条目以查看详情。"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource FgDimBrush}"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       MaxWidth="240"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel x:Name="DetailContent"
+                                    IsVisible="False"
+                                    Margin="20"
+                                    Spacing="20">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Border Grid.Column="0"
+                                        Width="40" Height="40"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Opacity="0.2"
+                                        CornerRadius="6" />
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="2">
+                                    <TextBlock x:Name="DetailTitle"
+                                               Text="OpenAI 生产环境"
+                                               FontFamily="{DynamicResource FontDisplay}"
+                                               FontSize="20"
+                                               FontWeight="Medium"
+                                               Foreground="{DynamicResource FgBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="DetailSubtitle"
+                                               Text="openai · api_key"
+                                               FontFamily="{DynamicResource FontMono}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource FgDimBrush}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Button Grid.Column="2"
+                                        Classes="icon"
+                                        Click="OnDetailEditClick"
+                                        ToolTip.Tip="编辑">
+                                    <TextBlock Text="✎" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                                </Button>
+                            </Grid>
+
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="字段"
+                                           FontFamily="{DynamicResource FontMono}"
+                                           FontSize="10" LetterSpacing="1.6"
+                                           Foreground="{DynamicResource FgFaintBrush}" />
+                                <StackPanel x:Name="DetailFieldsPanel" Spacing="0" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="DetailNotesSection" Spacing="8" IsVisible="False">
+                                <TextBlock Text="备注"
+                                           FontFamily="{DynamicResource FontMono}"
+                                           FontSize="10" LetterSpacing="1.6"
+                                           Foreground="{DynamicResource FgFaintBrush}" />
+                                <Border Background="{DynamicResource BgSunkenBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12">
+                                    <TextBlock x:Name="DetailNotes"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource FgMutedBrush}"
+                                               TextWrapping="Wrap" />
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="元数据"
+                                           FontFamily="{DynamicResource FontMono}"
+                                           FontSize="10" LetterSpacing="1.6"
+                                           Foreground="{DynamicResource FgFaintBrush}" />
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                                    <StackPanel Grid.Row="0" Grid.Column="0">
+                                        <TextBlock Text="创建于" FontFamily="{DynamicResource FontMono}" FontSize="10" Foreground="{DynamicResource FgFaintBrush}" />
+                                        <TextBlock x:Name="MetaCreated" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgMutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="0" Grid.Column="1">
+                                        <TextBlock Text="更新于" FontFamily="{DynamicResource FontMono}" FontSize="10" Foreground="{DynamicResource FgFaintBrush}" />
+                                        <TextBlock x:Name="MetaUpdated" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgMutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Grid.Column="0">
+                                        <TextBlock Text="版本" FontFamily="{DynamicResource FontMono}" FontSize="10" Foreground="{DynamicResource FgFaintBrush}" />
+                                        <TextBlock x:Name="MetaVersion" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgMutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Grid.Column="1">
+                                        <TextBlock Text="文件夹" FontFamily="{DynamicResource FontMono}" FontSize="10" Foreground="{DynamicResource FgFaintBrush}" />
+                                        <TextBlock x:Name="MetaFolder" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgMutedBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Border>
+
+            <!-- WATERMARK (dev / test only): huge semi-transparent italic text
+                 behind the main content per UI_UX_SPEC §5.3 + docs/UI 05-dev-profile.png -->
+            <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
+                       x:Name="ProfileWatermark"
+                       IsVisible="False"
+                       IsHitTestVisible="False"
+                       Text="DEV"
+                       FontFamily="{DynamicResource FontDisplay}"
+                       FontStyle="Italic"
+                       FontSize="280"
+                       FontWeight="Medium"
+                       Foreground="{DynamicResource WarningBrush}"
+                       Opacity="0.07"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+
+            <!-- TOAST CONTAINER: bottom-right slide-in notifications
+                 per UI_UX_SPEC §7 + docs/UI/app.js toast() -->
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="3"
+                        x:Name="ToastContainer"
+                        Orientation="Vertical"
+                        Spacing="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,20,44"
+                        IsHitTestVisible="False" />
+        </Grid>
+
+        <!-- STATUS BAR -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource BgElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Height="28"
+                Padding="16,0">
+            <Grid ColumnDefinitions="*,Auto,*">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse x:Name="SyncDot" Width="6" Height="6" Fill="{DynamicResource SuccessBrush}" />
+                    <TextBlock x:Name="SyncText"
+                               Text="已同步 · 当前设备"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse x:Name="StatusProfileDot" Width="6" Height="6" Fill="{DynamicResource ProfileProdBrush}" />
+                    <TextBlock x:Name="StatusProfileText"
+                               Text="prod"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgMutedBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock x:Name="LockCountdownText"
+                               Text="已解锁 · 剩余 15 分钟"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               VerticalAlignment="Center" />
+                    <Button Classes="icon" Padding="4" Click="OnLockClick" ToolTip.Tip="立即锁定">
+                        <TextBlock Text="🔒" FontSize="10" Foreground="{DynamicResource AccentBrush}" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

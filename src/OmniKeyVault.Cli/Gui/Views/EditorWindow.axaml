@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.EditorWindow"
+        Title="编辑条目"
+        Width="560" Height="640"
+        MinWidth="480" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="TextBox.field-input">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="20,16">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="ghost" Click="OnBackClick" Padding="10,6">
+                    <TextBlock Text="← 返回" FontSize="12" />
+                </Button>
+                <TextBlock Grid.Column="1"
+                           x:Name="EditorTitle"
+                           Text="新建条目"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="17"
+                           FontWeight="Medium"
+                           Foreground="{DynamicResource FgBrush}" />
+                <Button Grid.Column="2" Classes="primary" Click="OnSaveClick" Padding="14,6">
+                    <TextBlock Text="保存" FontSize="12" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Body -->
+        <ScrollViewer Padding="20">
+            <StackPanel Spacing="14">
+                <TextBlock Text="名称" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                <TextBox Classes="field-input" x:Name="NameBox" Watermark="例:OpenAI 生产环境" />
+
+                <Grid ColumnDefinitions="*,*">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="平台(模板)" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                        <ComboBox x:Name="TemplateBox" Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource FgBrush}" SelectionChanged="OnTemplateChanged" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
+                        <TextBlock Text="平台 ID (独立)" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                        <TextBox Classes="field-input" x:Name="PlatformIdBox" Watermark="如:openai / github (可独立于模板)" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- v0.4 S8-T4: one-click rotation panel. Only visible when the
+                     entry's platform_id has a registered IPlatformRotator in
+                     CliContainer.Rotators. Hidden in new-entry mode until a
+                     PlatformId is typed. -->
+                <Border x:Name="RotatePanel" IsVisible="False"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                        Background="{DynamicResource BgSunkenBrush}" Padding="12,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock x:Name="RotateHeader" FontFamily="{DynamicResource FontMono}" FontSize="10" LetterSpacing="1.2"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock x:Name="RotateHint" FontSize="11" Foreground="{DynamicResource FgDimBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="primary" Click="OnRotateClick" Padding="14,6">
+                            <TextBlock x:Name="RotateButtonText" Text="🔄 轮换密钥" FontSize="12" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*,*">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="类型" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                        <ComboBox x:Name="TypeBox" SelectedIndex="0" Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource FgBrush}">
+                            <ComboBoxItem Content="api_key" />
+                            <ComboBoxItem Content="oauth" />
+                            <ComboBoxItem Content="certificate" />
+                            <ComboBoxItem Content="ssh_key" />
+                            <ComboBoxItem Content="note" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
+                        <TextBlock Text="文件夹" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                        <ComboBox x:Name="FolderBox" Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource FgBrush}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6" Margin="8,0,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="到期 (可选)" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                            <Button Grid.Column="1" x:Name="ClearExpiryBtn" Classes="ghost" Padding="4,0" Click="OnClearExpiryClick" ToolTip.Tip="清空到期时间">
+                                <TextBlock Text="✕" FontSize="10" Foreground="{DynamicResource FgDimBrush}" />
+                            </Button>
+                        </Grid>
+                        <DatePicker x:Name="ExpiresAtPicker" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="标签(逗号分隔)" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <TextBox Classes="field-input" x:Name="TagsBox" Watermark="ai, work, prod" />
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <TextBlock Grid.Column="0" Text="字段"
+                                   FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1"
+                                   Foreground="{DynamicResource FgDimBrush}" />
+                        <Button Grid.Column="1" Classes="ghost" Click="OnAddTotpClick" Padding="8,4" Margin="0,0,6,0"
+                                ToolTip.Tip="添加 otpauth:// TOTP URI 字段,详情面板会自动显示 6 位验证码 + 倒计时">
+                            <TextBlock Text="🔐 添加 TOTP" FontSize="11" />
+                        </Button>
+                        <Button Grid.Column="2" Classes="ghost" Click="OnAddFileRefClick" Padding="8,4" Margin="0,0,6,0"
+                                ToolTip.Tip="添加 file_ref 字段,引用附件池中的文件(图片 / 证书 / 私钥)">
+                            <TextBlock Text="📎 添加附件" FontSize="11" />
+                        </Button>
+                        <Button Grid.Column="3" Classes="ghost" Click="OnAddFieldClick" Padding="8,4">
+                            <TextBlock Text="+ 添加字段" FontSize="11" />
+                        </Button>
+                    </Grid>
+                    <StackPanel x:Name="FieldsPanel" Spacing="6" />
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="备注" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                    <TextBox Classes="field-input" x:Name="NotesBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock x:Name="StatusText"
+                           FontSize="12"
+                           Foreground="{DynamicResource DangerBrush}"
+                           IsVisible="False"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

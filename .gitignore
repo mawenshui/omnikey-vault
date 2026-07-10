@@ -1,0 +1,45 @@
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Test results
+[Tt]est[Rr]esults/
+*.trx
+coverage/
+
+# IDE / editor
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local secrets / user-specific
+appsettings.*.local.json
+*.local.json
+.env
+
+# OS
+Desktop.ini
+ehthumbs.db
+
+# Build output / publish
+publish/
+installer/
+installer_output/
+
+# Agent / IDE working files
+.omo/
+.claude/
+.cursor/
+
+# Screenshots / temp
+issues/
+问题截图/
+*.ps1.bak
+
+# Logs
+*.log

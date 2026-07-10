@@ -1,0 +1,229 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.SettingsWindow"
+        Title="设置"
+        Width="620" Height="720"
+        MinWidth="520" MinHeight="600"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource BgSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource FgBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="设置"
+                           FontFamily="{DynamicResource FontDisplay}"
+                           FontSize="20" FontWeight="Medium"
+                           Foreground="{DynamicResource FgBrush}" />
+                <Button Grid.Column="1" Classes="ghost" Padding="10,4" Click="OnCloseClick">
+                    <TextBlock Text="✕" FontSize="12" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Padding="24,16">
+            <StackPanel Spacing="16">
+                <!-- ===== 通用 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="通用" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBlock Grid.Column="0" Text="语言" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" x:Name="LanguageBox" SelectionChanged="OnLanguageChanged" MinWidth="140">
+                            <ComboBoxItem Content="简体中文" Tag="zh-CN" />
+                            <ComboBoxItem Content="English" Tag="en-US" />
+                        </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBlock Grid.Column="0" Text="主题" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" x:Name="ThemeBox" SelectionChanged="OnThemeChanged" MinWidth="140">
+                            <ComboBoxItem Content="跟随系统" Tag="System" />
+                            <ComboBoxItem Content="深色" Tag="Dark" />
+                            <ComboBoxItem Content="浅色" Tag="Light" />
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== 安全 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="安全" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBlock Grid.Column="0" Text="自动锁定(空闲)" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" x:Name="AutoLockBox" SelectionChanged="OnAutoLockChanged" MinWidth="140">
+                            <ComboBoxItem Content="5 分钟" />
+                            <ComboBoxItem Content="10 分钟" />
+                            <ComboBoxItem Content="15 分钟" />
+                            <ComboBoxItem Content="30 分钟" />
+                            <ComboBoxItem Content="60 分钟" />
+                        </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBlock Grid.Column="0" Text="剪贴板自动清空" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" x:Name="ClipboardBox" SelectionChanged="OnClipboardChanged" MinWidth="140">
+                            <ComboBoxItem Content="4 秒" />
+                            <ComboBoxItem Content="8 秒" />
+                            <ComboBoxItem Content="16 秒" />
+                            <ComboBoxItem Content="30 秒" />
+                        </ComboBox>
+                    </Grid>
+                    <CheckBox x:Name="LockOnSessionLockBox" IsCheckedChanged="OnLockOnSessionLockChanged" Margin="0,4,0,0">
+                        <TextBlock Text="系统锁屏时立即锁定" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <CheckBox x:Name="LockOnSuspendBox" IsCheckedChanged="OnLockOnSuspendChanged" Margin="0,2,0,0">
+                        <TextBlock Text="系统休眠时立即锁定" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== 同步 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="同步 (S4-T1)" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="同步目录" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Classes="field" x:Name="SyncDirBox" />
+                            <Button Grid.Column="1" Classes="ghost" Padding="10,4" Margin="6,0,0,0" Click="OnBrowseSyncDirClick">
+                                <TextBlock Text="📂 浏览" FontSize="11" />
+                            </Button>
+                        </Grid>
+                        <TextBlock Text="(留空则监听 vault 所在目录)" FontSize="10" Foreground="{DynamicResource FgDimBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <CheckBox x:Name="WatcherEnabledBox" IsCheckedChanged="OnWatcherEnabledChanged" Margin="0,4,0,0">
+                        <TextBlock Text="启用文件监听(检测到 .okv 变化时自动提示)" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== WebDAV 云同步 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="WebDAV 云同步" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="服务器地址" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                        <TextBox Classes="field" x:Name="WebDavUrlBox" Watermark="https://dav.example.com/okv/" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,*" Margin="0,2,0,0">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="用户名" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                            <TextBox Classes="field" x:Name="WebDavUserBox" Watermark="username" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <TextBlock Text="密码" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                            <TextBox Classes="field" x:Name="WebDavPassBox" PasswordChar="•" Watermark="password" />
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Spacing="4" Margin="0,2,0,0">
+                        <TextBlock Text="远端文件路径" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                        <TextBox Classes="field" x:Name="WebDavPathBox" Watermark="vault.okv" />
+                    </StackPanel>
+                    <CheckBox x:Name="WebDavEnabledBox" IsCheckedChanged="OnWebDavEnabledChanged" Margin="0,4,0,0">
+                        <TextBlock Text="启用 WebDAV 同步" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <CheckBox x:Name="WebDavAutoSyncBox" IsCheckedChanged="OnWebDavAutoSyncChanged" Margin="0,2,0,0">
+                        <TextBlock Text="自动同步(解锁后拉取,保存后推送)" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <Button Classes="primary" Padding="14,6" Click="OnTestWebDavClick">
+                            <TextBlock Text="🔗 测试连接" FontSize="12" />
+                        </Button>
+                        <Button Classes="ghost" Padding="14,6" Click="OnSaveWebDavClick">
+                            <TextBlock Text="💾 保存配置" FontSize="12" />
+                        </Button>
+                    </StackPanel>
+                    <TextBlock x:Name="WebDavStatusText" FontSize="10" TextWrapping="Wrap"
+                               IsVisible="False" Margin="0,2,0,0" />
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== Profiles ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Profiles" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                            Padding="12,8" Background="{DynamicResource BgSunkenBrush}">
+                        <StackPanel x:Name="ProfilesPanel" Spacing="6" />
+                    </Border>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== 设备 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="设备" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
+                            Padding="12,8" Background="{DynamicResource BgSunkenBrush}">
+                        <StackPanel x:Name="DeviceInfoPanel" Spacing="6" />
+                    </Border>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== 危险操作 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="危险操作" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <Button Classes="ghost" Click="OnChangePasswordClick">
+                        <TextBlock Text="修改主密码" />
+                    </Button>
+                    <Button Classes="ghost" Click="OnViewRecoveryKeyClick">
+                        <TextBlock Text="查看恢复密钥" />
+                    </Button>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
+                <!-- ===== 关于 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="关于" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <TextBlock x:Name="AboutText" FontFamily="{DynamicResource FontMono}" FontSize="11"
+                               Foreground="{DynamicResource FgDimBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock x:Name="StatusText" FontSize="11" TextWrapping="Wrap"
+                           IsVisible="False" Foreground="{DynamicResource SuccessBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

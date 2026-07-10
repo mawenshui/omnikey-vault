@@ -1,0 +1,71 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OmniKeyVault.Cli.Gui.Views.SyncConflictResolver"
+        Title="同步冲突解决"
+        Width="520" Height="420"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgElevatedBrush}">
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentFgBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="24">
+        <StackPanel Spacing="14">
+            <TextBlock Text="⚠ 同步冲突"
+                       FontFamily="{DynamicResource FontDisplay}" FontSize="20" FontWeight="Medium"
+                       Foreground="{DynamicResource WarningBrush}" />
+            <TextBlock x:Name="SummaryText" TextWrapping="Wrap"
+                       FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+
+            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,8" Background="{DynamicResource BgSunkenBrush}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Vector Clock 状态" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.2" Foreground="{DynamicResource FgDimBrush}" />
+                    <TextBlock x:Name="LocalVectorText" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock x:Name="RemoteVectorText" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgBrush}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="选择解决方式:" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,8,0,0" />
+            <StackPanel Spacing="8">
+                <Button Classes="ghost" Click="OnKeepLocal" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <StackPanel>
+                        <TextBlock Text="💾 保留本地" FontSize="13" Foreground="{DynamicResource FgBrush}" />
+                        <TextBlock Text="用本地版本覆盖远端。远端其他设备的修改会丢失。" FontSize="11" Foreground="{DynamicResource FgDimBrush}" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Click="OnTakeRemote" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <StackPanel>
+                        <TextBlock Text="📥 采用远端" FontSize="13" Foreground="{DynamicResource FgBrush}" />
+                        <TextBlock Text="用远端版本覆盖本地。本地修改会丢失。" FontSize="11" Foreground="{DynamicResource FgDimBrush}" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="primary" Click="OnMerge" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                    <StackPanel>
+                        <TextBlock Text="🔀 自动合并" FontSize="13" Foreground="{DynamicResource AccentFgBrush}" FontWeight="SemiBold" />
+                        <TextBlock Text="合并非冲突条目,冲突的字段需要后续手动处理。" FontSize="11" Foreground="{DynamicResource AccentFgBrush}" Opacity="0.78" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <Button Classes="ghost" Click="OnCancel" HorizontalAlignment="Right" Margin="0,8,0,0" Width="100">
+                <TextBlock Text="取消" HorizontalAlignment="Center" />
+            </Button>
+        </StackPanel>
+    </Border>
+</Window>

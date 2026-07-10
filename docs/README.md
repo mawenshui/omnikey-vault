@@ -1,0 +1,201 @@
+# OmniKey Vault — 文档总览
+
+| 文档集版本 | 日期 | 状态 |
+|---|---|---|
+| 1.1 | 2026-07-07 | v1.1 优化进行中:Phase 1-2 已完成,Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地);467/467 测试通过 |
+| 1.0 | 2026-06-25 | v1.0 候选:v0.1-v0.4 全部已交付,外部审计 + 签名 + MSIX + 视频教程为下一步 |
+
+> **OmniKey Vault** 是一款本地优先、E2EE 的多平台凭据管理工具。`okv.exe` 是单一可执行文件;**用户面向入口是 GUI 桌面应用**(无参数启动),**内部 / CI 自动化入口是 CLI 模式**(详见 [INTERNAL.md](./INTERNAL.md))。
+
+---
+
+## 0. 快速开始(开发者)
+
+```bash
+# 1. 克隆并进入项目
+git clone <repo-url> OmniKeyVault && cd OmniKeyVault
+
+# 2. 还原 + 构建
+dotnet restore OmniKeyVault.sln
+dotnet build OmniKeyVault.sln -c Release    # → 0 warnings, 0 errors
+
+# 3. 启动 GUI 桌面应用(主程序)
+dotnet run --project src/OmniKeyVault.Cli
+
+# 4. 启动内部 CLI(集成测试 / CI 入口)
+dotnet run --project src/OmniKeyVault.Cli -- vault --help
+
+# 5. 跑测试
+dotnet test                                      # → 467/467 通过 (457 + 10 分析器)
+
+# 6. 跑性能压测(1万条目)
+dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0.1s, search 1.5ms, sync 0.0s
+```
+
+完整构建 / 打包 / 故障排查见 [BUILD.md](./BUILD.md)。
+
+---
+
+## 1. 文档结构(总览)
+
+### 1.1 用户面向(从这里开始)
+
+| 文档 | 何时读 | 说明 |
+|---|---|---|
+| **[MANUAL.md](./MANUAL.md)** | 必读 | **单一项目手册** — 产品定位、用户画像、安全摘要、UI/UX 规范、路线图。**先看这本。** |
+| [docs/UI/](./UI/) | 视觉参考 | GUI HTML 静态原型(非最终实现,以代码 `src/OmniKeyVault.Cli/Gui/Views/*.axaml` 为准) |
+
+### 1.2 技术规范(按需深入)
+
+| 文档 | 何时读 | 说明 |
+|---|---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | 改代码前 | 分层架构、模块划分、关键接口、ADR |
+| [SECURITY.md](./SECURITY.md) | 改密码学前 | 威胁模型、密码学套件、密钥层级、不变量、审计清单 |
+| [OKV_FORMAT.md](./OKV_FORMAT.md) | 改 .okv 读写前 | 二进制格式字节布局、Profile Section、Entry 序列化、版本兼容 |
+| [PLATFORM_TEMPLATES.md](./PLATFORM_TEMPLATES.md) | 加新平台模板 | 模板 schema、73+ 平台完整 JSON 库、字段校验 |
+| [INTERNAL.md](./INTERNAL.md) | 写集成测试 / CI | **内部 CLI 模式规范** — 集成测试 / CI 自动化 / 调试入口(非用户接口) |
+| [BUILD.md](./BUILD.md) | 发版本前 | 编译、运行、打包、跨 RID 发布、故障排查 |
+| [TEST_REPORT.md](./TEST_REPORT.md) | 评估测试覆盖 | v0.1 / v0.2 / v0.3 / v0.4 测试结果、性能基准、已知偏差 |
+| [ROADMAP.md](./ROADMAP.md) | 规划下一里程碑 | Sprint 任务分解、依赖、风险、团队配置 |
+| [CHANGELOG.md](./CHANGELOG.md) | 跟踪版本变更 | v0.1 → v1.0 全部用户可见变更(新增 / 变更 / 修复 / 性能 / 安全 / 部署) |
+
+### 1.3 视觉与原型
+
+| 资源 | 说明 |
+|---|---|
+| [docs/UI/index.html](./UI/index.html) | GUI 单页 HTML 视觉参考(中文) |
+| [docs/UI/styles.css](./UI/styles.css) | 设计令牌:色彩、字体、间距、动画 |
+| [docs/UI/app.js](./UI/app.js) | 交互行为演示(模拟数据,非真实数据) |
+| [docs/UI/previews/](./UI/previews/) | 设计阶段截图 |
+
+---
+
+## 2. 阅读路径(按角色)
+
+### 2.1 新用户 / 决策者
+
+1. [MANUAL.md §1 概述](./MANUAL.md#1-概述) — 一句话定位
+2. [MANUAL.md §2 目标与非目标](./MANUAL.md#2-目标与非目标) — 是否需要这个产品
+3. [MANUAL.md §7 安全模型(摘要)](./MANUAL.md#7-安全模型) — 是否敢信
+4. [MANUAL.md §16-18 路线图](./MANUAL.md#16-已交付里程碑) — 现状与未来
+5. [docs/UI/](./UI/) — 看看界面长什么样
+
+### 2.2 贡献者(开发者)
+
+1. [MANUAL.md §1-2](./MANUAL.md#1-概述) — 项目背景
+2. [ARCHITECTURE.md §2-4](./ARCHITECTURE.md#2-系统架构) — 分层与模块
+3. [BUILD.md §3-4](./BUILD.md#3-还原-构建与测试-restore-build-test) — 跑起来
+4. [ROADMAP.md §1-2](./ROADMAP.md#1-概述) — 当前 Sprint 状态
+5. [ARCHITECTURE.md §10 ADR](./ARCHITECTURE.md#10-架构决策记录-adr) — 关键设计决策
+
+### 2.3 密码学 / 安全审计
+
+1. [MANUAL.md §7](./MANUAL.md#7-安全模型) — 产品视角安全摘要
+2. [SECURITY.md §1-2](./SECURITY.md#1-概述) — 设计原则与威胁模型
+3. [SECURITY.md §3-4](./SECURITY.md#3-密码学套件) — 密码学套件 + 密钥层级
+4. [SECURITY.md §10-11](./SECURITY.md#10-密码学不变量) — 不变量 + 审计清单
+5. [OKV_FORMAT.md §4-5](./OKV_FORMAT.md#4-okv-二进制头部布局) — 信封格式字节布局
+
+### 2.4 集成测试 / CI 维护者
+
+1. [INTERNAL.md](./INTERNAL.md) — 内部 CLI 接口规范(全部必读)
+2. [TEST_REPORT.md §6](./TEST_REPORT.md#6-端到端-cli-烟测-smoke-test-实际调用) — CLI 烟测示例
+3. [BUILD.md §5-6](./BUILD.md#5-打包--发布-publishing--packaging) — 跨 RID 发布 + Docker
+4. [INTERNAL.md §7](./INTERNAL.md#7-安全注意事项) — 敏感值处理规范
+
+### 2.5 模板贡献者(社区)
+
+1. [PLATFORM_TEMPLATES.md §2](./PLATFORM_TEMPLATES.md#2-模板格式规范) — 模板 schema
+2. [PLATFORM_TEMPLATES.md §3-4](./PLATFORM_TEMPLATES.md#3-v01-mvp-模板5-个完整-json) — MVP 模板范例
+3. [PLATFORM_TEMPLATES.md §10](./PLATFORM_TEMPLATES.md#10-引用索引) — 字段来源引用规范
+4. [MANUAL.md §4.3](./MANUAL.md#43-平台模板platform-templates) — 产品侧描述
+
+### 2.6 升级 / 迁移(运维 / 用户)
+
+1. [CHANGELOG.md](./CHANGELOG.md) — v0.1 → v1.0 全部变更;升级前必读
+2. [BUILD.md §5](./BUILD.md#5-打包--发布-publishing--packaging) — 跨 RID 发布脚本
+3. [TEST_REPORT.md §7](./TEST_REPORT.md#7-性能基准-prd-6--roadmap-s2) — 性能基准
+
+---
+
+## 3. 文档维护规则
+
+### 3.1 命名约定
+
+- **用户面向**:`MANUAL.md`(单一手册) + 视觉资源 `docs/UI/`。
+- **技术规范**:`<TOPIC>.md`(`ARCHITECTURE.md` / `SECURITY.md` / `OKV_FORMAT.md` / `PLATFORM_TEMPLATES.md`)。
+- **内部接口**:`INTERNAL.md`(原 CLI 规范改名为 INTERNAL,定位为内部 / CI 接口,非产品用户接口)。
+- **运维 / 流程**:`BUILD.md` / `TEST_REPORT.md` / `ROADMAP.md`。
+
+### 3.2 Cross-Reference 规则
+
+- **技术规范** → [MANUAL.md](./MANUAL.md)(用户面向,产品 / UI 引用都走这里)。
+- **MANUAL.md** → 技术规范(通过锚点链接,如 `[ARCHITECTURE.md §2](./ARCHITECTURE.md#2-系统架构)`)。
+- **跨版本引用** → 标注"v0.2 / v0.3 / v1.0"等具体里程碑。
+- **历史引用** → 已在 0.3 修订中统一替换 `PRD.md` → `MANUAL.md`、`UI_UX_SPEC.md` → `MANUAL.md`、`CLI_SPEC.md` → `INTERNAL.md`。
+
+### 3.3 修订记录
+
+每份文档末尾保留 `### 修订记录` 表(版本 / 日期 / 修订),最近一次修订在最后一行,使用粗体或反引号高亮关键变更点。
+
+### 3.4 文档版本 vs 代码版本
+
+| 文档集版本 | 对应代码版本 | 状态 |
+|---|---|---|
+| 0.3 | v0.2(实际 357/357) | 与 v0.2 代码完全同步,GUI 已落地 |
+| 0.4(从未发版) | v0.4(实际 430/430) | 在 v0.2 之上增量交付,GUI demo 入口新增 |
+| 1.0 | v1.0(实际 451/451) | v0.1-v0.4 全部已交付;1 万条目性能压测达标 |
+| **1.1(当前)** | **v1.1(实际 467/467)** | **Phase 1-2 已完成(紧急止血 + 安全合规);Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地,10 分析器测试);Phase 4-12 待开始;详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md)** |
+
+---
+
+## 4. 历史与变更
+
+### 4.1 1.1(2026-07-07)— 当前
+
+**v1.1 优化进行中**:基于 v1.0 RC 代码审计结果,启动 12 阶段优化计划。Phase 1(紧急止血)和 Phase 2(安全合规)已完成,Phase 3(Roslyn 分析器)部分完成(OKV0001 禁止 string 密码参数 + OKV0003 禁止 == 比较密钥已落地,各含 5 个分析器测试)。467 / 467 测试通过(457 单元/集成 + 10 分析器)。详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md)。
+
+**主要变更**:
+- **Phase 1 已交付**:删除主密码 Debug.WriteLine、修复 sync 退出码、实现 `vault change-password` CLI、创建 `.gitignore`、删除 Obsolete SearchMatches。
+- **Phase 2 已交付**:`CliContainer.Dispose` 幂等性(ProcessExit + CancelKeyPress 钩子)、核对测试数、删除陈旧 .trx 文件、SECURITY.md §10.1 分析器承诺标注。
+- **Phase 3 部分交付**:`tools/OmniKeyVault.Analyzers/` 项目落地;OKV0001(string 禁入 ICryptoProvider)+ OKV0003(禁止 == 比较密钥)分析器实现并注入所有 src/ 项目;`Directory.Build.props` 版本升至 1.1.0;`tests/OmniKeyVault.Analyzers.Tests/` 10 个测试。
+- **待完成**:OKV0002(SecureKey Dispose)+ OKV0004(EnsureUnlocked);Phase 4-12(Field.Value byte[] 重构、架构拆分、GUI MVVM 全量重构等)。
+
+### 4.2 1.0(2026-06-25)
+
+**v1.0 候选发布**:v0.1-v0.4 全部已交付,451 / 451 测试通过,1 万条目性能压测达标。下一步为外部审计 + 代码签名 + MSIX + 视频教程(详见 [ROADMAP.md §7](./ROADMAP.md))。
+
+**主要变更**:
+- **v0.3 已交付**:全文 + 字段级搜索(SearchService)、附件 Blob 加密存储(AttachmentService)、KeePass 2.x XML 导入、en-US 国际化。
+- **v0.4 已交付**:自动锁屏(IdleTimer)+ 历史快照(HistoryWindow)+ 一键轮换(OpenAI / GitHub)+ 1万条目性能压测工具。
+- **新 CLI 命令**:`entry search` / `entry rotate` / `entry history` / `sync pause` / `sync resume` / `config get|set|list` / `import --format kdbx-xml`。
+- **GUI demo 入口补全**:14 个 XAML 窗口中 12 个支持 `OKV_GUI_DEMO_*` 环境变量直接启动(供设计评审与截图)。
+- **新增 [CHANGELOG.md](./CHANGELOG.md)**:v0.1 → v1.0 完整变更日志。
+
+### 4.3 0.3(2026-06-24)— 重构整合
+
+**重大重构**:将 10 份分散的"草案"文档整合为 9 份分工明确的文档;CLI 模式从产品用户接口**重新定位为内部 / CI / 调试接口**。
+
+| 原文档 | 新归属 | 状态 |
+|---|---|---|
+| `PRD.md`(779 行) | 合并到 [MANUAL.md](./MANUAL.md) | 删除(内容已合并) |
+| `UI_UX_SPEC.md`(936 行) | 合并到 [MANUAL.md §10-15](./MANUAL.md#10-主窗口布局) | 删除(内容已合并) |
+| `CLI_SPEC.md`(1043 行) | 重定位到 [INTERNAL.md](./INTERNAL.md)(精简 50%+) | 删除(已重命名为 INTERNAL.md) |
+| `ARCHITECTURE.md` | 更新:新增 §2.2.2 入口层 / §4.1 UI 模块 / §4.2 内部 CLI / §5.2 模式分发 | 保留 + 增量更新 |
+| `SECURITY.md` | 更新:§11.6 重新定位为"内部 CLI 审计清单" | 保留 + 增量更新 |
+| `OKV_FORMAT.md` | 更新:cross-ref 替换 | 保留 + 轻量更新 |
+| `PLATFORM_TEMPLATES.md` | 更新:cross-ref 替换 | 保留 + 轻量更新 |
+| `BUILD.md` | 更新:§1 / §4 / §9 / §11 / §12 强调 GUI 主形态 | 保留 + 增量更新 |
+| `ROADMAP.md` | 更新:v0.1 / v0.2 标记已交付;v0.3 Sprint 5 任务重组 | 保留 + 增量更新 |
+| `TEST_REPORT.md` | 更新:§6.1 新增 GUI 烟测段落;§9 偏差项标记落地 | 保留 + 增量更新 |
+| (无) | 新建 [docs/README.md](./README.md) | 新建 |
+
+**主要决策**:
+- **GUI 为主入口**:14 个 XAML 视图已在 v0.2 落地,`okv`(无参数)启动 GUI;`okv <subcommand>` 启动内部 CLI。
+- **CLI 重新定位**:`CLI_SPEC.md` 改名为 `INTERNAL.md`,明确标注"非产品用户接口",仅供集成测试 / CI 流水线 / 调试。
+- **二进制名统一**:`OmniKeyVault.exe` → `okv.exe`(实际代码名,v0.2 已切)。
+- **Single Manual 策略**:原 PRD + UI_UX_SPEC 合并为 [MANUAL.md](./MANUAL.md),消除两份用户面向文档的重复内容(退出码、命令清单、UI 流程等)。
+
+### 4.4 0.1 / 0.2(2026-06-17 ~ 2026-06-23)— 历史
+
+各文档独立演进(部分为"草案"状态),由 Sisyphus 单独维护。详见各文档末尾的"修订记录"。

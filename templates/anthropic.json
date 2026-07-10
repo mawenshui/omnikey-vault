@@ -1,0 +1,66 @@
+{
+  "id": "anthropic",
+  "platform_id": "anthropic",
+  "name": "Anthropic (Claude)",
+  "category": "ai_llm",
+  "icon": "anthropic",
+  "official_docs_url": "https://docs.anthropic.com/en/api/overview",
+  "auth_header": "x-api-key: <api_key>",
+  "default_base_url": "https://api.anthropic.com",
+  "mvp_included": false,
+  "introduced_in": "v0.2",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "anthropic",
+  "notes": "Authentication header is x-api-key (NOT Bearer). Admin API keys cannot invoke /v1/messages.",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk-ant-api03-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^sk-ant-api03-[A-Za-z0-9_-]{20,}$", "hint": "Must start with sk-ant-api03-" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "Sent via x-api-key header. Can be configured with an expiration date."
+    },
+    {
+      "key": "admin_api_key",
+      "label": "Admin API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "sk-ant-admin\u2022-\u2022\u2022\u2022",
+      "validation": { "regex": "^sk-ant-admin[A-Za-z0-9_-]{10,}-[A-Za-z0-9_-]{20,}$", "hint": "Admin API keys: sk-ant-admin..." },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced",
+      "description": "Admin API only (org/workspace/user/key management). Cannot invoke /v1/messages."
+    },
+    {
+      "key": "workspace_id",
+      "label": "Workspace ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "wrkspc_\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^wrkspc_[A-Za-z0-9]{10,}$", "hint": "Must start with wrkspc_" },
+      "group": "primary",
+      "description": "Workspace scope. Admin API uses ?workspace_id= query parameter."
+    },
+    {
+      "key": "service_account_id",
+      "label": "Service Account ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "default_mask": "svac_\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+      "validation": { "regex": "^svac_[A-Za-z0-9]{10,}$", "hint": "Must start with svac_" },
+      "group": "advanced",
+      "description": "Workload Identity Federation identity, not a direct key."
+    }
+  ]
+}

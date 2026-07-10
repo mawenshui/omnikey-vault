@@ -1,0 +1,1210 @@
+# OmniKey Vault — 项目手册
+
+| 文档版本 | 日期 | 作者 | 状态 |
+|---|---|---|---|
+| 1.0 | 2026-06-25 | Sisyphus | v1.0 候选:GUI 全部主流程 + 性能压测就绪 |
+| **1.1** | **2026-07-07** | **Sisyphus** | **v1.1 优化进行中:Phase 1-2 已完成,Phase 3 部分完成(OKV0001 + OKV0003 分析器);467/467 测试通过** |
+
+> **本手册定位**:OmniKey Vault 的**单一用户面向入口**。包含产品定位、用户画像、需求、安全概述、UI/UX 规范、路线图。
+>
+> **技术细节(密码学原语、文件格式字节布局、服务接口契约)** 拆分为独立规范文档,链接见 [docs/README.md](./README.md)。
+>
+> **应用名称缩写**:本文中"OmniKey Vault" / "OmniKey" / "本应用" 含义相同;`okv.exe` 是 Windows 平台上的可执行文件名称,Linux/macOS 上同名(无扩展名)。
+
+---
+
+## 第一部分 · 产品
+
+### 1. 概述
+
+#### 1.1 一句话定位
+
+**OmniKey Vault** 是一款面向开发者与运维人员的本地优先、E2EE(端到端加密)的多平台凭据管理工具。它把分散在各 SaaS / 云厂商中的 API Key、Secret、Account ID、Token、证书指纹等信息收纳进一个加密保险库,并通过加密文件级同步在多设备间无缝流转。
+
+#### 1.2 命名与部署
+
+| 项 | 值 |
+|---|---|
+| **产品名** | OmniKey Vault |
+| **可执行文件** | `okv.exe`(Windows)/ `okv`(Linux/macOS) |
+| **进程类型** | GUI 桌面应用(Avalonia 11,单进程)|
+| **应用配置目录** | `%APPDATA%\OmniKeyVault\`(Windows)/ `~/.config/OmniKeyVault/`(Linux/macOS) |
+| **保险库文件后缀** | `.okv`(OmniKey Vault) |
+| **种子文件后缀** | `.okv.dev`(Dev 模式专用,见 §7) |
+| **同步目录** | 用户指定的任意目录(可指向 OneDrive / Dropbox / iCloud / S3 挂载点 / 自托管 NAS) |
+
+#### 1.3 解决什么问题
+
+| 现存痛点 | 现状 | OmniKey Vault 方案 |
+|---|---|---|
+| API Key 散落各处 | 记事本、Excel、浏览器收藏夹、聊天记录 | 统一保险库,集中存储 |
+| 凭据泄露 | 同步盘文件明文、误传到代码仓库 | 客户端零知识,服务端(若有)只见密文 |
+| 多设备一致性 | 多个 .txt 散落各处,无法确定最新 | 版本化加密文件 + 向量时钟合并 |
+| 平台字段各异 | 有的需要 Key+Secret,有的需要 Account+Tenant+Region | 模板 + 自定义字段,每个条目独立加密 |
+| 备份难恢复 | 备份文件泄露即等于裸奔 | 强 KDF + 自有信封格式,泄露也无法离线爆破 |
+
+#### 1.4 核心价值主张
+
+> **就算同步过程或云端备份文件整体泄露,只要主密码不丢,攻击者拿到密文也无法在合理时间内还原明文。**
+>
+> 而要做到这一点,不仅要密码学强度足够,还需要**自定义的、不被通用工具(KeePass / hashcat / John)识别的信封格式**——攻击者甚至无法判断这是不是 KeePass 数据库,更无法套用现成的攻击模板。
+
+---
+
+### 2. 目标与非目标
+
+#### 2.1 目标(Goals)
+
+1. **本地优先(Local-First)**:核心 CRUD 不依赖网络,无网也能用。
+2. **真正的零知识**:服务端(或云盘)只能见到密文;主密码永不出设备。
+3. **多设备同步**:在 ≥2 台 Windows 设备之间自动同步,延迟 ≤5s。
+4. **Dev 备份**:为开发者提供与生产数据**完全隔离**的测试 / 种子 / 快照机制。
+5. **不依赖单一厂商**:不绑定某个云、不绑定某个密钥管理服务;用户可自带存储。
+6. **可审计的密码学**:所有密码学原语公开、参数明示,代码可被外部审查。
+
+#### 2.2 非目标(Non-Goals)
+
+- ❌ **不是**通用密码管理器(不发浏览器扩展、不抢 LastPass 用户、不接管 Web 表单填充)。
+- ❌ **不**做团队 / 企业级 RBAC、SSO、审计日志转发(SOC2 / SIEM 对接)。这类需求建议接 Vaultwarden / Bitwarden Enterprise。
+- ❌ **不**做密钥共享 / 多用户协同解密(无解密就无共享是零知识模型的硬约束)。
+- ❌ **v1 不**做 macOS / Linux / iOS / Android 客户端(预留同步格式兼容性)。
+- ❌ **不**内置密码生成策略服务、不发送遥测。
+
+---
+
+### 3. 用户画像与场景
+
+#### 3.1 主要用户
+
+| 画像 | 描述 | 核心诉求 |
+|---|---|---|
+| **DevOps / SRE** | 同时维护多家云(AWS / 阿里云 / 腾讯云),手握几十个 AccessKey | 按平台分组、按项目标签、GUI 快速取出复制 |
+| **全栈开发者** | 接入各种 SaaS(Stripe / OpenAI / Anthropic / Supabase / GitHub PAT) | 区分工作/个人/客户的 key,新人轮换时不混乱 |
+| **数据 / AI 工程师** | 各种模型 API、向量数据库、Webhook secret | 自定义字段多,经常需要把整个 JSON 凭据贴进来 |
+| **独立开发者 / 极客** | 自己做 SaaS,自己接支付/邮件/SMS 网关 | 跨设备同步要稳,不想为同步再开一台服务器 |
+
+#### 3.2 典型场景
+
+1. **创建新条目**:在主窗口点击"新建凭据" → 选择"OpenAI"模板 → 自动填充平台 URL、占位字段 → 用户填入 `sk-...` → Ctrl+S 保存 → 1 秒内第二台设备收到通知并显示。
+2. **跨设备取用**:工作站 + 笔记本两台设备全部解锁,在工作站新建一个临时测试 key,笔记本上 5 秒内可见。
+3. **Dev 备份与隔离**:开发者要在沙箱环境测试一套完整 mock 数据 → 切换到 `dev` Profile → 一键导入种子库 → 测试导出脚本 → 切回 `prod` Profile 不污染生产数据。
+4. **泄露演练**:把本地 `.okv` 文件复制到 U 盘交给安全同事审计 → 他们没有任何工具能识别或破解 → 只能向本人索要主密码。
+5. **应急恢复**:主密码忘记 → 使用本地存储的"恢复密钥 (Recovery Key)"在任意一台新设备上重建保险库。
+
+---
+
+### 4. 功能需求(用户面向)
+
+#### 4.1 保险库管理
+
+- **多 Profile**:每个 Vault 可包含多个 Profile,典型为 `prod` / `dev` / `test` / `client-A`。
+- **Profile 完全隔离**:不同 Profile 的密钥材料独立(各自 DEK),解密互不影响。
+- **Profile 切换**:无需重新输入主密码(主密码已解锁 Vault),但切换 Profile 需要确认。
+- **Profile 创建 / 删除**:可创建空 Profile、从模板克隆、从 `.okv.dev-seed` 文件导入。
+- **GUI 入口**:侧边栏"配置文件"chip → 弹出切换面板;创建 Vault 时默认创建 `prod`,可勾选同时创建 `dev`。
+
+#### 4.2 条目管理(Entries)
+
+每条条目是一个 JSON 对象,字段包括:
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `id` | UUIDv7 | 是 | 排序友好 |
+| `type` | enum | 是 | `api_key` / `oauth` / `certificate` / `ssh_key` / `note` / `custom` |
+| `name` | string | 是 | 人类可读名称 |
+| `platform_id` | string | 否 | 平台标识(github / aws / openai …) |
+| `tags` | string[] | 否 | 用户自定义标签 |
+| `folder` | UUID | 否 | 所属文件夹 |
+| `fields` | Field[] | 是 | 自定义字段(见下) |
+| `notes` | string | 否 | 富文本(可选,默认纯文本) |
+| `created_at` | timestamp | 是 | UTC |
+| `updated_at` | timestamp | 是 | UTC |
+| `expires_at` | timestamp | 否 | 用于证书 / Token 过期提醒 |
+| `version` | uint32 | 是 | 单条目的版本号,用于乐观锁 |
+
+##### 4.2.1 Field(自定义字段)
+
+```json
+{
+  "key": "secret_key",
+  "value": "sk-...",
+  "kind": "secret" | "text" | "url" | "number" | "date" | "totp_uri" | "file_ref",
+  "sensitive": true,
+  "mask": "********",
+  "validation": { "regex": "^sk-.*", "hint": "应以 sk- 开头" }
+}
+```
+
+- `sensitive=true` 的字段在 UI 上默认掩码,鼠标悬停 0.5s 后才显示明文。
+- `kind=totp_uri` 字段会自动展开为 6 位 TOTP(可关闭)。
+- `kind=file_ref` 引用一个附件 Blob(图片 / 证书 / 私钥),存于附件池。
+
+#### 4.3 平台模板(Platform Templates)
+
+为常见平台预置模板,用户新建条目时一键填充。模板完整字段定义、正则校验、掩码规则、官方文档引用见 [TEMPLATES.md](./PLATFORM_TEMPLATES.md)。
+
+##### 4.3.1 模板覆盖范围
+
+| 阶段 | 模板数 | 包含 |
+|---|---|---|
+| **v0.1 MVP** | 5 | GitHub / OpenAI / AWS / Stripe / Supabase |
+| **v0.2** | +6 | Anthropic / GCP / Azure / AWS STS / Aliyun / Cloudflare / Slack |
+| **v0.3** | +8 | GitLab / Gemini / Azure OpenAI / Vercel / Firebase / Auth0 / Bitbucket / Netlify / Twilio / Sentry |
+| **v1.0 远期** | +15 | 腾讯云 / 华为云 / Hugging Face / DeepSeek / xAI / Alipay / WeChat Pay / MongoDB Atlas / Neon / SendGrid / Mailgun / Datadog / 飞书 / 钉钉 等 |
+| **v1.x 远期** | +40 | 完整 70+ 平台,索引见 [TEMPLATES.md §6-§7](./PLATFORM_TEMPLATES.md#6-v04--v10-扩展模板摘要) |
+
+##### 4.3.2 模板行为
+
+- **存储位置**:内置模板随应用发布;用户自定义模板位于 `%APPDATA%\OmniKeyVault\templates\`,覆盖内置。
+- **加载优先级**:用户自定义 > 内置 > 同 `id` 时新版本覆盖旧版本。
+- **校验策略**:`validation.regex` 软校验(失败警告但不阻止保存);严格模式下拒绝保存(仅供内部测试)。
+- **轮换支持**:部分模板标记为 `rotation_supported`,支持"一键轮换"调用平台 API(首批 v0.4:OpenAI / GitHub PAT)。
+
+#### 4.4 多设备同步
+
+- 用户配置一个**同步目录**(普通文件夹即可)。该目录可被任何同步软件(OneDrive、Dropbox、Syncthing、坚果云、S3 挂载点、rsync、git annex 等)接管。
+- 客户端在该目录维护:
+  - `vault.okv` — 加密主文件(可拆分 + 压缩)。
+  - `manifest.json` — 明文元数据:{ vault_uuid, last_modified, devices, profiles, version }。
+  - `.okv.lock` — 文件锁(防止同进程 / 同设备并发写)。
+- 后台 watcher 监听目录变化,检测到变化后:
+  1. 验证签名 → 验证向量时钟 → 合并或回退。
+  2. 触发 UI 提示"来自其他设备的更新"。
+- **冲突处理**:见 [§15.2 同步合并规则](#152-同步合并规则)。
+
+#### 4.5 Dev 备份(开发模式)
+
+> 这是 OmniKey Vault 的差异化亮点之一——为开发者提供与生产数据**完全隔离**的测试机制。
+
+##### 4.5.1 Profile 隔离
+
+- 在 `prod` Profile 中绝对不允许引用 / 复制 / 写入 `dev` Profile 的任何条目。
+- 切换 Profile 时,UI 顶部有明显的彩色 banner 警告(dev=黄、test=蓝)+ 半透明水印。
+- **强警告**:导入 `seed.okv.dev` 后,banner 持续显示红色 `DEV` 标记,直到切换 Profile。
+
+##### 4.5.2 快照(Snapshot)
+
+- 在 Profile 内任何条目变更前,可手动打 snapshot(每次自动保存也是 snapshot)。
+- snapshot 存为 `.okv.snapshots/<profile>/<entry-id>/<version>.entry.enc`。
+- 还原:右键条目 → "查看历史" → 选择版本 → 还原。
+
+##### 4.5.3 种子库(Seed)
+
+- 用户可在 `dev` Profile 下,把当前 Profile 导出为 `seed.okv.dev`(已加密,但用一个独立的 dev-master-key)。
+- 该文件可在团队内 / CI / 测试环境分发,导入到新的 Vault 时不需要主密码(因为它自带 dev-master-key)。
+- **`--strip-secrets` 模式**:导出时把所有 `sensitive=true` 的字段值替换为 `REDACTED-***`,既能让 dev 数据在团队间流转(结构、字段、Tag 一致),又不真正泄露任何 secret。
+- **重要安全声明**:`seed.okv.dev` 必须与 `vault.okv` 视觉上明显不同,文件头带 `OKVD` magic,导出时弹出强警告:"此文件不再受主密码保护,等同于明文分发,请勿用于生产凭据"。
+
+#### 4.6 导入 / 导出
+
+| 来源 | 导入支持(GUI 入口) | 备注 |
+|---|---|---|
+| KeePass KDBX 3.1 / 4.x | ✅ | 需要用户输入 KDBX 主密码,客户端解密后转 `.okv` |
+| Bitwarden JSON 导出 | ✅ | 解析后转 `.okv`(v0.1 已支持) |
+| Chrome 密码导出 CSV | ✅ | 仅字段映射,需用户确认 |
+| LastPass CSV | ✅ | — |
+| 自定义 JSON | ✅ | 字段映射向导 |
+| `seed.okv.dev` | ✅ | 仅允许导入到 `dev` / `test` Profile,强警告 |
+
+| 目标 | 导出支持(GUI 入口) |
+|---|---|
+| `.okv`(加密,主密码保护) | ✅ |
+| `.okv.dev`(加密,无主密码,仅 dev 用) | ✅ |
+| Bitwarden JSON | ✅(用于跨工具迁移) |
+| .env(明文,**强烈警告**) | ⚠️ 需双确认 + 显示明文预览 |
+
+#### 4.7 搜索与筛选
+
+- 全文索引(基于加密的倒排索引,索引本身加密存于 `.okv` 内部)。
+- 字段级搜索:`tags:dev AND platform:openai AND field:secret_key:sk-*`。
+- 快捷筛选:最近使用 / 最近创建 / 即将过期(证书、Token) / 收藏夹。
+- 顶栏全局搜索框 + 侧边栏文件夹树 + 标签 chip 多选(AND / OR 切换)。
+
+#### 4.8 TOTP / 2FA
+
+- 条目中 `kind=totp_uri` 字段自动计算 6 位 TOTP(时间窗口 ±1)。
+- 可关闭自动计算,避免被截屏泄露。
+- 编辑器内联显示当前 TOTP + 倒计时环 + "复制当前 TOTP"按钮。
+
+#### 4.9 自动锁定
+
+- 空闲 N 分钟(默认 15)后自动锁定。
+- 系统休眠 / 锁屏时立即锁定。
+- 锁定后再次进入需要主密码(可选 Windows Hello / PIN 作为便利解锁,但**不**作为唯一解锁因子)。
+
+#### 4.10 剪贴板与外部交互
+
+- "复制"按钮:仅复制掩码下的字段到剪贴板,**8 秒后自动清空剪贴板**。
+- **不**支持"全局热键唤起"(避免被恶意软件滥用)。
+- **不**接管 Web 表单(见 §2.2 非目标)。
+
+---
+
+### 5. 非功能需求
+
+| 维度 | 指标 |
+|---|---|
+| **启动时间** | 冷启动 ≤2s,SATA SSD,中等规模 Vault(1000 条目) |
+| **解锁时间** | 主密码输入后 ≤1.5s(Argon2id 256MB 内存) |
+| **搜索延迟** | 全文搜索 ≤200ms |
+| **同步延迟** | 本地写入 → 其他设备可见 ≤5s(假设云盘无延迟) |
+| **内存占用** | 空闲 ≤150 MB;1 万条目全加载 ≤500 MB(流式按需解密) |
+| **磁盘占用** | 1 万条目 ≈ 3–5 MB(加密压缩后) |
+| **剪贴板** | 复制后默认 8 秒自动清空;可在设置中延长至 30 秒 |
+| **依赖** | .NET 8 Runtime(自包含部署可选,无依赖);无外部 native deps(libsodium 通过 .NET 包装) |
+| **审计性** | 所有密码学原语 + 信封格式 + 同步协议均有公开规范文档 |
+| **国际化** | v1 仅中文 + 英文 UI;模板 ID 与字段 key 始终英文 |
+
+---
+
+### 6. 风险与缓解
+
+| 风险 | 等级 | 缓解 |
+|---|---|---|
+| 自定义信封格式被逆向 → 攻击成本降低 | 中 | 公开规范文档 + 开源代码,靠审计生态;每年小幅迭代字段布局 |
+| Argon2id 参数被现代 GPU 加速 | 低-中 | 默认 256MB 内存 + t=3 已让消费级 GPU 难以并行;首次解锁后测量,动态上调 |
+| 量子计算破解对称加密 | 远期(10+ 年) | 数据格式预留版本号字段,可在 v2 引入混合 PQ 加密;`OKV1` 格式在文档中标注"非 PQ 安全" |
+| 团队 Leader 要求把生产 key 共享给下属 | 社会工程 | **不做共享功能**;唯一可分发的形式是 `seed.okv.dev`,且只能用于 dev |
+| Windows 剪贴板被其他进程读取 | 中 | 8 秒后清空 + 设置中可延长到 30 秒 |
+| 同步云盘版本回滚(旧 vault.okv 覆盖新) | 中 | 启动时若检测到本地 vector_clock < 远端,提示用户;若远端向量落后本地,直接拒绝覆盖 |
+| 用户忘记主密码 | 用户风险 | 提供 Recovery Key(256 bit,首次创建 Vault 时强制打印/下载);提示"无主密码即无恢复" |
+| 主机时间不准导致 TOTP 错误 | 低 | TOTP 服务使用本地时间,但窗口容忍 ±1 |
+
+---
+
+## 第二部分 · 安全(产品视角)
+
+> **本节是产品面向的安全摘要**——告诉用户"我们防御什么、不防御什么"。完整的密码学套件、密钥层级、内存安全、审计清单见 [SECURITY.md](./SECURITY.md)。
+
+### 7. 安全模型
+
+#### 7.1 核心安全主张
+
+> **就算同步过程或云端备份文件整体泄露,只要主密码不丢,攻击者拿到密文也无法在合理时间内还原明文。**
+>
+> 而要做到这一点,不仅要密码学强度足够,还需要**自定义的、不被通用工具(KeePass / hashcat / John)识别的信封格式**。
+
+#### 7.2 威胁模型(摘要)
+
+我们**防御**的威胁(详细见 [SECURITY.md §2](./SECURITY.md#2-威胁模型)):
+
+| ID | 威胁 | 防御手段(产品视角) |
+|---|---|---|
+| T1 | 同步云盘被入侵,攻击者拿到 `.okv` 文件 | 客户端零知识加密 + 强 KDF |
+| T2 | 攻击者用 hashcat / John / KeeCracker 等通用工具离线爆破 | **自定义信封格式**(`OKV1` magic + 非默认 Argon2id 参数) |
+| T3 | 设备被植入恶意软件,运行时内存被 dump | 进程内最小暴露 + 自动锁定 + 安全擦除 |
+| T4 | 同事 / 家人短暂接触设备 | 自动锁屏 + 主密码 + 可选生物识别二次确认 |
+| T5 | 备份介质(U 盘 / 网盘)丢失 | 主密码不写入设备 + 强 KDF;`seed.okv.dev` 强警告 + strip-secrets |
+| T6 | 社交工程(诱导主密码) | 不显示"上次输入" / 无云端找回 |
+| T7 | 重放攻击:旧版本 `.okv` 被回放 | 向量时钟单调递增,客户端拒绝回退 |
+| T8 | 供应链攻击:某次同步引入篡改过的文件 | AEAD 认证加密 + 客户端签名校验 |
+
+我们**不防御**的威胁(明确告知用户):
+
+- ⚠️ 设备上已运行的、拥有 SYSTEM / 管理员权限的恶意软件(键盘记录器、内存取证)。
+- ⚠️ 用户主密码被窃(钓鱼、肩窥、密码本被拍照)。
+- ⚠️ 物理接触设备 + 已知主密码(这是合理的合法访问)。
+- ⚠️ 未来量子计算对 XChaCha20-Poly1305 的影响(预留后量子升级路径)。
+
+#### 7.3 关键安全交互(用户可见)
+
+- **主密码永不落盘**:不存于 `settings.json`,无"记住密码"选项,无云端找回。
+- **Recovery Key**:创建 Vault 时强制要求导出/打印,是忘记主密码时的最后手段(等同主密码,务必离线保存)。
+- **种子文件 `seed.okv.dev`**:不受主密码保护,导出/导入都有强警告。
+- **同步云盘只见密文**:`.okv` 文件即便被云盘管理员读取,也只能得到 Argon2id 加密的密文。
+- **崩溃转储不含密钥**:应用崩溃时不生成可能含 MK 的 dump 文件。
+
+#### 7.4 密码学套件速览
+
+| 用途 | 算法 | 默认参数 |
+|---|---|---|
+| 密钥派生 | Argon2id | t=3, m=256 MiB, p=4;首次解锁后动态调整到 ≥500ms |
+| 对称加密 | XChaCha20-Poly1305 | 每条记录独立 24 字节随机 nonce |
+| 容器签名 | Ed25519 | 本地设备密钥,签名前面所有字节 |
+| 随机数 | OS CSPRNG(`BCryptGenRandom` / `getrandom`) | — |
+
+详细密码学原语、密钥层级、内存安全、审计清单见 [SECURITY.md](./SECURITY.md)。
+
+---
+
+## 第三部分 · UI / UX
+
+### 8. 设计原则
+
+1. **零摩擦的主密码输入**:打开应用 = 输入主密码 = 进入主界面,解锁后 15 分钟内不需再输入。
+2. **复制即清空**:任何敏感字段复制后,8 秒倒计时 + 自动清空。
+3. **显示即警告**:`sensitive` 字段默认掩码;鼠标悬停 0.5s 后才显示,显示时旁边红点提示"明文已暴露"。
+4. **Profile 切换彩条**:dev Profile 顶部黄色 banner + 水印。
+5. **同步状态可视**:底部状态栏显示"上次同步:3 秒前,来自设备 'mbp-dev'"。
+6. **键盘优先**:所有常用操作有键盘快捷键,鼠标可选。
+7. **错误明确**:不暴露内部细节(密码学错误统一"解密失败"),但提供可操作建议。
+8. **中文优先**:UI 文案默认简体中文;模板 ID / 字段 key / Profile 名等"技术标识符"始终英文。
+
+### 9. 信息架构
+
+#### 9.1 顶层导航
+
+```
+主窗口
+├── 侧边栏
+│   ├── Profile 切换器
+│   ├── 文件夹树
+│   ├── 标签云
+│   └── 设置入口
+├── 主内容区
+│   ├── 搜索栏 + 筛选器
+│   ├── 条目列表
+│   └── 条目详情面板(选中时)
+└── 状态栏
+    ├── 同步状态
+    ├── 锁定状态
+    └── 当前 Profile 标识
+```
+
+#### 9.2 关键页面清单
+
+| 页面 | 触发 | MVP 版本 |
+|---|---|---|
+| 启动 / 创建 Vault 向导 | 首次启动 | v0.1 |
+| 解锁页面 | 应用启动(Vault 已存在) | v0.1 |
+| 主窗口(条目列表) | 解锁后 | v0.1 |
+| 条目编辑器 | 新建 / 编辑条目 | v0.1 |
+| Profile 切换器 | 点击侧边栏 Profile | v0.2 |
+| 搜索结果 | 搜索框输入 | v0.1(简单)/ v0.3(全文) |
+| 设置 | 点击 ⚙ 图标 | v0.1 |
+| 导入向导 | 菜单"导入" | v0.1 |
+| 导出向导 | 菜单"导出" | v0.1 / v0.2 |
+| 同步冲突解决 | 检测到冲突 | v0.2 |
+| Recovery Key 展示 | 创建 Vault 时 | v0.1 |
+| 历史快照查看 | 条目右键"查看历史" | v0.4 |
+| 关于 / 版本 | 菜单"关于" | v0.1 |
+
+### 10. 主窗口布局
+
+#### 10.1 总体布局
+
+```
+┌────────────────────────────────────────────────────────┐
+│ OmniKey Vault          [🔍 Search]  [⚙] [🔒]          │  ← 顶部工具栏
+├──────────┬─────────────────────────────────────────────┤
+│ Profile  │  Entry List            [+ New]  [⇅ Sort]   │
+│  • prod  │ ┌─────────────────────────────────────────┐ │
+│  • dev   │ │ 🟢 OpenAI prod        Tags: ai, work    │ │  ← 主列表
+│  • test  │ │    api_key: sk-•••••••••  [Copy]        │ │
+│          │ │ ──────────────────────────────────────── │ │
+│ Folders  │ │ 🟡 AWS prod           Tags: cloud        │ │
+│  • AI    │ │    access_key_id: AKIA•••••  [Copy]      │ │
+│  • Cloud │ └─────────────────────────────────────────┘ │
+│  • Pay   │                                              │
+│          │  (选中条目时下方显示详情面板)                │
+│ Tags     │                                              │
+│  # ai    │                                              │
+│  # work  │                                              │
+│  # cloud │                                              │
+│          │                                              │
+│ [⚙ Sett] │                                              │
+├──────────┴─────────────────────────────────────────────┤
+│ ☁️ Synced 3s ago from mbp-dev  │  🔒 Unlocked 12m left │  ← 状态栏
+└────────────────────────────────────────────────────────┘
+```
+
+> **视觉参考**:HTML 静态原型见 [docs/UI/](./UI/)(设计稿与最终 Avalonia 实现可能略有差异,以代码为准)。
+
+#### 10.2 侧边栏(左)
+
+- **宽度**:可调,默认 220px,最小 180px,最大 320px。
+- **内容**(自上而下):
+  1. **Profile 切换器**:列表显示所有 Profile,当前 Profile 高亮;dev / test Profile 名旁有彩色圆点。
+  2. **文件夹树**:树形结构,支持拖拽条目到文件夹;右键菜单"新建子文件夹" / "重命名" / "删除"。
+  3. **标签云**:按字母排序,点击筛选;多选(Ctrl+点击)支持 AND / OR 切换。
+  4. **设置按钮**:底部 ⚙ 图标。
+
+#### 10.3 主内容区(中)
+
+- **顶部**:搜索栏(支持 [§4.7](#47-搜索与筛选) 字段级语法)+ 筛选器(平台、过期、收藏)+ 排序 + `[+ New]` 按钮。
+- **中部**:条目列表,每行显示:
+  - 平台图标 / 类型图标
+  - 条目名(粗体)
+  - 主要字段(掩码)+ [Copy] 按钮
+  - 标签(chip)
+  - 更新时间(相对时间:"3 天前")
+- **底部**(选中条目时):详情面板,显示所有字段、附件、notes、历史版本入口。
+
+#### 10.4 状态栏(底)
+
+- **左侧**:同步状态图标 + "上次同步:3 秒前,来自 'mbp-dev'"。
+- **中间**:当前 Profile 标识 + 彩色条(prod=绿 / dev=黄 / test=蓝)。
+- **右侧**:锁定状态 + 倒计时("Unlocked, 12m left")+ 手动锁定按钮(🔒)。
+
+### 11. 关键页面与流程
+
+#### 11.1 启动 / 创建 Vault 向导
+
+```
+启动应用
+  │
+  ▼
+检测 %APPDATA%\OmniKeyVault\ 是否有 Vault
+  │
+  ├── 有 ──► 解锁页面(§11.2)
+  │
+  └── 无 ──► 创建 Vault 向导
+                │
+                ├── Step 1: 欢迎页
+                │   "欢迎使用 OmniKey Vault。本工具本地优先、零知识。
+                │    您的主密码不会上传任何服务器。"
+                │
+                ├── Step 2: 选择 Vault 位置
+                │   默认:%USERPROFILE%\OmniKeyVault\
+                │   可选:自定义目录(指向 OneDrive / Dropbox 等)
+                │
+                ├── Step 3: 设置主密码
+                │   输入框 x 2(确认)
+                │   强度指示器(弱 / 中 / 强)
+                │   警告:"主密码丢失即无法恢复(除非使用 Recovery Key)"
+                │
+                ├── Step 4: 生成 Recovery Key
+                │   展示 32 组字符
+                │   按钮:[打印] [保存到文件] [我已保存]
+                │   强制:必须点击 [我已保存] 才能继续
+                │
+                ├── Step 5: 创建默认 Profile
+                │   默认创建 "prod"(绿色)
+                │   可选:勾选"同时创建 dev Profile"
+                │
+                └── Step 6: 完成 → 进入主窗口
+```
+
+**设计约束**:
+
+- **主密码强度指示器**:基于长度 + 字符多样性 + 常见密码黑名单;不发送任何内容到网络。
+- **Recovery Key 强制展示**:不可跳过;[我已保存] 按钮需长按 1 秒(防止随手点击)。
+- **位置选择**:目录非空时警告;若目录已有 `vault.okv`,提示"该目录已包含 Vault,是否打开?"。
+
+#### 11.2 解锁页面
+
+```
+┌──────────────────────────────────────┐
+│                                      │
+│         [Vault Icon]                 │
+│                                      │
+│    OmniKey Vault                     │
+│                                      │
+│    Vault: 01H7XGK1... (My Vault)     │
+│    Last modified: 3 days ago         │
+│                                      │
+│    ┌────────────────────────────┐    │
+│    │ Master Password            │    │
+│    │ ••••••••••••••••••••       │    │
+│    └────────────────────────────┘    │
+│                                      │
+│    [Unlock]   [Use Recovery Key]     │
+│                                      │
+│    ☐ Remember 15 minutes             │
+│                                      │
+└──────────────────────────────────────┘
+```
+
+**交互**:
+
+- **主密码输入框**:关闭回显(默认掩码);右侧"眼睛"图标可临时显示明文(0.5s 后自动隐藏);无"记住密码"选项(只有"Remember 15 minutes",即解锁窗口期)。
+- **[Unlock] 按钮**:Enter 键触发;验证失败时震动输入框 + 错误提示"主密码错误"。
+- **[Use Recovery Key]**:展开 Recovery Key 输入区,32 组字符框 + 校验位提示。
+- **错误处理**:主密码错误 / Recovery Key 错误统一提示"凭据错误",不区分(防枚举)。
+- **超时**:连续 5 次错误后,UI 锁定 30 秒(防爆破);但本地 KDF 本身已慢,实际攻击成本高。
+
+#### 11.3 主窗口(条目列表)
+
+**空状态**:
+
+```
+┌────────────────────────────────────────┐
+│                                        │
+│         [Empty Vault Icon]             │
+│                                        │
+│    Your vault is empty                 │
+│                                        │
+│    Click [+ New] to create your first  │
+│    credential entry.                   │
+│                                        │
+│    [+ New]  [Import]                   │
+│                                        │
+└────────────────────────────────────────┘
+```
+
+**列表状态**:
+
+- 加载中:骨架屏(skeleton),不显示"loading..."文字(避免闪烁)。
+- 空结果:显示"No entries match your search"+ 清空筛选按钮。
+- 错误:显示错误消息 + 重试按钮;密码学错误不暴露内部细节。
+
+**条目行**:
+
+```
+┌────────────────────────────────────────────────────┐
+│ 🟢 OpenAI prod                          [⋯] [Copy] │
+│    api_key: sk-•••••••••••••••••••••               │
+│    Tags: ai, work, prod     Updated: 3 days ago    │
+└────────────────────────────────────────────────────┘
+```
+
+- **悬停**:整行高亮;显示 `[Copy]`(主字段)与 `[⋯]`(更多操作)。
+- **选中**:整行高亮(主题色);详情面板在下方展开。
+- **双击**:打开编辑器。
+- **右键菜单**:Copy Field / Edit / Duplicate / Delete / View History / Rotate(若支持)。
+
+#### 11.4 条目编辑器
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ← Back    Edit Entry: OpenAI prod           [Save] │
+├──────────────────────────────────────────────────────┤
+│  Name:    [OpenAI prod                          ]    │
+│  Type:    [api_key ▼]                                │
+│  Platform:[openai ▼]  (apply template: [openai])     │
+│  Folder:  [AI ▼]   Tags: [ai] [work] [+]            │
+│  Expires: [            ] (optional)                  │
+├──────────────────────────────────────────────────────┤
+│  Fields                                              │
+│  ┌────────────────────────────────────────────────┐  │
+│  │ api_key (secret)           [Reveal] [Copy]    │  │
+│  │ [sk-••••••••••••••••••••••••••••••••] [✎]    │  │
+│  ├────────────────────────────────────────────────┤  │
+│  │ organization_id (text)                         │  │
+│  │ [org-abc123                          ]        │  │
+│  ├────────────────────────────────────────────────┤  │
+│  │ project_id (text)                              │  │
+│  │ [proj-xyz                            ]        │  │
+│  └────────────────────────────────────────────────┘  │
+│  [+ Add Field]                                       │
+├──────────────────────────────────────────────────────┤
+│  Notes                                               │
+│  [Multiline text area                              ] │
+│  [                                                  ] │
+├──────────────────────────────────────────────────────┤
+│  History (3 versions)  [View]                        │
+├──────────────────────────────────────────────────────┤
+│  Created: 2026-05-01  Updated: 2026-06-15  v3       │
+└──────────────────────────────────────────────────────┘
+```
+
+**字段编辑**:
+
+- **secret 字段**:
+  - 默认掩码 `sk-••••••••••`
+  - [Reveal] 按钮按住显示明文,松开隐藏(0.5s 延迟);显示时旁边红点提示"明文已暴露"
+  - [Copy] 按钮复制明文,触发 8 秒倒计时
+  - [✎] 按钮进入编辑模式,编辑时临时显示明文
+- **totp_uri 字段**:自动展开为 6 位 TOTP 显示器 + 倒计时环;"复制当前 TOTP"按钮。
+- **file_ref 字段**:显示文件名 + 大小 + [Download] + [Replace]。
+- **新增字段**:[+ Add Field] 打开字段类型选择器 + key 输入。
+
+**保存与取消**:
+
+- **[Save]**:Ctrl+S;校验字段(regex)→ 确认 expires_at(若过去)→ 保存 → 关闭编辑器。
+- **[Cancel]**:Esc;若有未保存修改,弹确认"Discard changes?"。
+- **自动保存**:不启用(避免中间状态被持久化);用户必须显式保存。
+- **冲突检测**:保存前检查 `entry.version`;若版本号变化,提示"该条目已被其他设备修改,是否查看差异?"。
+
+#### 11.5 Profile 切换器
+
+```
+点击侧边栏 Profile
+  │
+  ▼
+弹出 Profile 切换面板(模态)
+  ┌──────────────────────────┐
+  │ Switch Profile           │
+  │                          │
+  │ ● prod     42 entries   │  ← 当前(高亮)
+  │ ○ dev       8 entries   │
+  │ ○ test      3 entries   │
+  │                          │
+  │ [+ New Profile]          │
+  └──────────────────────────┘
+  │
+  ▼ 点击目标 Profile
+  │
+  ├── 目标 == 当前 ──► 关闭面板
+  │
+  ├── 目标 != 当前 ──► 确认切换
+  │     │
+  │     ▼
+  │   切换 Profile,更新 UI banner
+```
+
+**Profile banner**:
+- **dev Profile**:顶部黄色 banner,"DEV — 非生产数据" + 半透明"DEV"水印覆盖主内容区。
+- **test Profile**:顶部蓝色 banner,"TEST — 测试数据" + 半透明"TEST"水印。
+- **prod Profile**:无 banner(默认状态)。
+- **切换效果**:banner 滑入动画 200ms;水印渐显 500ms。
+
+#### 11.6 设置页面
+
+```
+设置
+├── 通用
+│   ├── 语言:[zh-CN ▼] / [en-US]
+│   ├── 主题:[system ▼] / [light] / [dark]
+│   └── 启动时:[打开上次 Vault ▼]
+├── 安全
+│   ├── 自动锁定:空闲 [15] 分钟
+│   ├── ☑ 系统锁屏时立即锁定
+│   ├── 剪贴板清空:[8] 秒
+│   ├── ☑ TOTP 自动计算
+│   └── [修改主密码] [轮换 Recovery Key]
+├── 同步
+│   ├── 同步目录:[C:\Users\me\OmniKeyVault\] [Browse]
+│   ├── ☑ 监听文件变化
+│   └── [立即同步] [暂停同步]
+├── Profiles
+│   ├── [Profile 列表 + 编辑 / 删除]
+│   └── [+ New Profile]
+├── 导入 / 导出
+│   ├── [Import Bitwarden] [Import KDBX] [Import CSV]
+│   └── [Export Vault] [Export Seed] [Export Bitwarden]
+├── 设备
+│   ├── 当前设备:laptop-abc
+│   └── [设备列表 + 吊销]
+└── 关于
+    ├── 版本:v0.2.0
+    ├── [查看文档] [查看源码] [报告问题]
+    └── [检查更新]
+```
+
+**危险操作确认**:
+
+- **修改主密码**:需输入旧密码 + 新密码两次。
+- **轮换 Recovery Key**:需输入主密码 + 展示新 Key + 强制保存。
+- **删除 Profile**:需输入 Profile 名确认 + 主密码。
+- **吊销设备**:需输入主密码 + 提示"该设备将无法再写入"。
+
+#### 11.7 同步冲突解决
+
+当 `SyncService` 检测到向量时钟并发冲突且 `entry.version` 相同但内容不同,弹出冲突解决向导:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Sync Conflict Detected                              │
+├──────────────────────────────────────────────────────┤
+│  Entry: OpenAI prod                                  │
+│  Conflict: 2 versions modified concurrently          │
+│                                                      │
+│  ┌────────────────────┬────────────────────────┐    │
+│  │ Local (laptop-abc) │ Remote (workstation)   │    │
+│  │ Version: 3         │ Version: 3             │    │
+│  │ Updated: 2026-06-17│ Updated: 2026-06-17    │    │
+│  │                    │                        │    │
+│  │ api_key: sk-new1   │ api_key: sk-new2       │    │
+│  │ tags: ai, work     │ tags: ai, work, prod   │    │
+│  └────────────────────┴────────────────────────┘    │
+│                                                      │
+│  (●) Keep local                                     │
+│  ( ) Keep remote                                    │
+│  ( ) Merge manually (open editor)                   │
+│  ( ) Keep both (create duplicate)                   │
+│                                                      │
+│  [Apply]                              [Cancel]       │
+└──────────────────────────────────────────────────────┘
+```
+
+**默认策略**:若用户 30 秒无操作,默认选 "Keep local"(local-side wins)。
+
+### 12. 交互原则
+
+#### 12.1 剪贴板管理
+
+```
+点击 [Copy]
+  │
+  ▼
+复制明文到剪贴板(覆盖原内容)
+  │
+  ▼
+状态栏显示倒计时:"Clipboard cleared in 8s... 7s... 6s..."
+  │
+  ▼
+8 秒后:
+  - 调用 OpenClipboard + SetClipboardData 覆盖为空
+  - 或设置剪贴板为空字符串(确保其他进程看到空)
+  │
+  ▼
+状态栏:"Clipboard cleared"
+```
+
+- 默认 8 秒;可在设置中延长到 30 秒(`clipboard.clear_seconds` 配置项)。
+- **不提供"永不清空"选项**(安全约束)。
+- **倒计时期间用户再次复制**:重置倒计时为 8 秒。
+- **倒计时期间用户手动清空剪贴板**:状态栏立即更新为"Clipboard cleared"。
+
+#### 12.2 掩码显示
+
+- `sensitive=true` 字段:默认显示 `sk-••••••••••`(前 3 字符 + • + 后 4 字符可选)。
+- `mask` 字段定义自定义掩码模板:`"sk-••••"` 或 `"********"`。
+- **悬停 0.5s**:显示明文;旁边红点提示"明文已暴露";鼠标离开立即恢复。
+- **触摸设备**:长按 0.5s 显示明文,松开恢复。
+- **编辑模式**:进入编辑时临时显示明文(便于修改);编辑期间不触发"明文已暴露"红点;退出编辑后恢复掩码。
+
+#### 12.3 Profile banner
+
+| Profile | Banner 色 | 水印 | 文案 |
+|---|---|---|---|
+| prod | 无 | 无 | — |
+| dev | 黄色 (#FFC107) | "DEV" 半透明 | "DEV — 非生产数据" |
+| test | 蓝色 (#2196F3) | "TEST" 半透明 | "TEST — 测试数据" |
+| 自定义 | 用户选色 | 可选 | 用户定义 |
+
+- Banner 持续显示,不可关闭(直到切换 Profile)。
+- 水印覆盖主内容区,半透明(0.1 alpha),不影响阅读。
+- 截图时 banner + 水印保留(防止误把 dev 数据当 prod)。
+
+#### 12.4 同步状态
+
+| 状态 | 图标 | 颜色 |
+|---|---|---|
+| 已同步 | ☁️ (实心) | 绿色 |
+| 同步中 | ⏳ | 蓝色(旋转) |
+| 离线 / 暂停 | ☁️ (带斜线) | 灰色 |
+| 冲突 | ⚠️ | 黄色 |
+| 错误 | ❌ | 红色 |
+
+- "Synced 3s ago from mbp-dev"
+- "Syncing... (1/3 files)"
+- "Sync paused"
+- "Sync conflict detected — click to resolve"
+- "Sync error: permission denied — click for details"
+
+点击状态栏同步区域:展开同步详情面板(最近 10 次同步事件 + 设备列表)。
+
+#### 12.5 自动锁定
+
+**触发**:
+- **空闲超时**:用户无任何输入(键盘 / 鼠标)达 `lock.idle_minutes`(默认 15 分钟)。
+- **系统锁屏**:`SessionSwitchReason.SessionLock` 触发立即锁定。
+- **系统休眠**:`PowerModeChanged`,休眠时锁定。
+- **手动锁定**:点击状态栏 🔒 按钮或按 Ctrl+L。
+
+**锁定动作**:
+1. 清零 MK / KEK / DEK 内存。
+2. 清空 Entry 缓存。
+3. 清空搜索索引缓存。
+4. 关闭条目编辑器(未保存修改自动保存,见 §12.6)。
+5. UI 切换到解锁页面。
+6. 释放文件锁。
+
+#### 12.6 未保存修改处理
+
+- **自动锁定时**:若有未保存修改的编辑器,自动保存(避免数据丢失);但锁定后无法继续编辑。
+- **手动锁定时**:若有未保存修改,弹确认"Save changes before locking?"。
+
+### 13. 键盘快捷键
+
+#### 13.1 全局快捷键
+
+| 快捷键 | 动作 |
+|---|---|
+| `Ctrl+N` | 新建条目 |
+| `Ctrl+S` | 保存当前编辑 |
+| `Ctrl+F` | 聚焦搜索框 |
+| `Ctrl+L` | 锁定 Vault |
+| `Ctrl+W` | 关闭当前标签 / 编辑器 |
+| `Ctrl+,` | 打开设置 |
+| `Ctrl+Q` | 退出应用 |
+| `F1` | 帮助 |
+| `F5` | 强制同步 |
+| `Esc` | 关闭模态 / 取消编辑 |
+
+#### 13.2 条目列表快捷键
+
+| 快捷键 | 动作 |
+|---|---|
+| `↑` / `↓` | 上下选择条目 |
+| `Enter` | 打开选中条目编辑器 |
+| `Delete` | 删除选中条目(需确认) |
+| `Ctrl+D` | 复制选中条目(Duplicate) |
+| `Ctrl+C` | 复制主字段到剪贴板 |
+| `Ctrl+E` | 编辑选中条目 |
+| `Ctrl+H` | 查看条目历史 |
+| `Ctrl+R` | 轮换字段(若支持) |
+
+#### 13.3 编辑器快捷键
+
+| 快捷键 | 动作 |
+|---|---|
+| `Ctrl+S` | 保存 |
+| `Esc` | 取消(若有修改弹确认) |
+| `Tab` / `Shift+Tab` | 字段间切换 |
+| `Ctrl+Enter` | 保存并关闭 |
+
+#### 13.4 Profile 切换快捷键
+
+| 快捷键 | 动作 |
+|---|---|
+| `Ctrl+1` | 切换到第 1 个 Profile |
+| `Ctrl+2` | 切换到第 2 个 Profile |
+| `Ctrl+3` | 切换到第 3 个 Profile |
+| `Ctrl+Shift+P` | 打开 Profile 切换器 |
+
+#### 13.5 禁用全局热键
+
+- **不提供"全局热键唤起"**(避免被恶意软件滥用)。
+- 所有快捷键仅在 OmniKey Vault 窗口聚焦时生效。
+
+### 14. 可访问性
+
+#### 14.1 键盘可达
+
+- 所有操作可通过键盘完成(无鼠标依赖)。
+- `Tab` 顺序遵循视觉顺序(左到右、上到下)。
+- 焦点可见(焦点轮廓清晰)。
+
+#### 14.2 屏幕阅读器
+
+- 所有控件有可访问性 Name / HelpText。
+- 列表项有描述性标签(包含条目名 + 主要字段 + 标签)。
+- 状态变化通过 LiveSetting 通知屏幕阅读器。
+
+#### 14.3 对比度
+
+- 文本对比度 ≥ 4.5:1(WCAG AA)。
+- 大文本(≥18pt)对比度 ≥ 3:1。
+- 焦点指示器对比度 ≥ 3:1。
+
+#### 14.4 字体大小
+
+- 最小 12px(中文)/ 11px(英文)。
+- 用户可在设置中调整缩放(90% / 100% / 110% / 125% / 150%)。
+
+#### 14.5 动画
+
+- 尊重系统"减少动画"设置:
+  - 开启动画:200-300ms 过渡
+  - 关闭动画:瞬间切换
+
+#### 14.6 色盲友好
+
+- 不依赖纯颜色传达状态(配合图标 + 文字)。
+- dev / test banner 除颜色外有"DEV" / "TEST" 文字 + 水印。
+
+### 15. 国际化与语言策略
+
+#### 15.1 中文优先原则(核心策略)
+
+> **OmniKey Vault 是中文优先的产品。除非属于下述"技术标识符"豁免清单,所有面向用户的文本必须使用简体中文显示。**
+
+此原则覆盖:
+
+- **UI 文案**:按钮、菜单、标签、表头、空状态、提示语、向导步骤。
+- **状态与通知**:状态栏文案、Toast 通知、同步状态、锁定倒计时。
+- **错误消息**:校验错误、密码学错误、网络错误、权限错误。
+- **帮助文档**:用户手册、快速入门、内置帮助、Tooltip。
+- **配置项的显示名**:设置页中各项的中文标签(配置键本身仍英文,见 §15.3)。
+- **日期 / 时间**:相对时间("3 天前")、本地化格式("2026-06-17 08:00")。
+- **Profile banner 文案**:dev Profile 显示"DEV — 非生产数据";test Profile 显示"TEST — 测试数据"。
+- **详情面板字段类型显示名**:`kind=secret` 显示为"密文",`kind=text` 显示为"文本",`kind=url` 显示为"链接",以此类推;但字段 `key` 本身保留英文(见 §15.3)。
+
+#### 15.2 豁免清单(保留英文,不本地化)
+
+以下内容**始终使用英文**,任何 Locale 下都不翻译:
+
+| 类别 | 示例 | 理由 |
+|---|---|---|
+| 模板 ID | `github` / `openai` / `aws` / `stripe` / `supabase` | 跨工具互操作,代码与数据共用 |
+| 字段 key | `api_key` / `secret_access_key` / `organization_id` | 跨设备同步、JSON 导入导出一致性 |
+| Profile 名(prod/dev/test) | `prod` / `dev` / `test` / `ci-*` | 同步路径一致性 |
+| 文件名 / 路径 | `vault.okv` / `seed.okv.dev` / `manifest.json` | 文件系统互操作 |
+| Magic bytes / 格式版本 | `OKV1` / `OKVD` / `OKVS` | 二进制格式标识 |
+| 算法 / 参数名 | `Argon2id` / `XChaCha20-Poly1305` / `Ed25519` | 密码学标准名称 |
+| UUID / 设备 ID | `01H7XGK1...` / `laptop-abc` | 系统标识 |
+| 凭据值本身 | `sk-proj-...` / `ghp_...` / `AKIA...` | 用户数据,不应被本地化 |
+| 品牌名 | `OmniKey Vault` | 商标(但"OmniKey"与"Vault"之间可保留英文空格) |
+
+#### 15.3 双语对照表(关键 UI 文案)
+
+| 中文(默认) | 英文(v0.3+ 可选) | 出现位置 |
+|---|---|---|
+| 解锁保险库 | Unlock vault | 解锁按钮 |
+| 主密码 | Master password | 解锁页 |
+| 使用恢复密钥 | Use recovery key | 解锁页 |
+| 保持解锁 15 分钟 | Stay unlocked for 15 minutes | 解锁页勾选 |
+| 新建条目 | New entry | 主列表按钮 |
+| 全部条目 | All entries | 侧边栏文件夹 |
+| 排序 | Sort | 主列表按钮 |
+| 同步状态 | Sync status | 顶栏图标 tooltip |
+| 设置 | Settings | 顶栏图标 tooltip |
+| 立即锁定 | Lock now | 状态栏 |
+| 已解锁 · 剩余 14 分钟 | Unlocked · 14m left | 状态栏倒计时 |
+| 切换配置文件 | Switch profile | 切换器标题 |
+| 新建配置文件 | New profile | 切换器按钮 |
+| 编辑条目 | Edit entry | 编辑器标题 |
+| 返回 | Back | 编辑器 |
+| 保存 | Save | 编辑器 |
+| 名称 / 类型 / 平台 / 文件夹 / 标签 | Name / Type / Platform / Folder / Tags | 编辑器字段 |
+| 字段 / 备注 / 历史 | Fields / Notes / History | 编辑器分区 |
+| 显示 / 复制 | Reveal / Copy | 字段行操作 |
+| 添加字段 | Add field | 编辑器 |
+| 清除筛选 | Clear filters | 空状态 |
+| 选择一个条目 | Select an entry | 详情面板空态 |
+| 已复制 · 8 秒后自动清空 | Copied · auto-clears in 8s | Toast |
+| 剪贴板已清空 | Clipboard cleared | Toast |
+| 保险库已锁定 · 内存已清空 | Vault locked · memory cleared | Toast |
+| 保险库已解锁 · 已加载 5 个条目 | Vault unlocked · 5 entries loaded | Toast |
+| 已切换到 dev 配置文件 | Switched to dev profile | Toast |
+
+#### 15.4 支持语言与版本
+
+| 语言 | Locale | 默认 | MVP 版本 |
+|---|---|---|---|
+| 简体中文 | `zh-CN` | ✅ 默认 | v0.1 |
+| English | `en-US` | 否 | v0.3 |
+
+- **默认 Locale**:`zh-CN`。首次启动无条件使用中文,无需检测系统 Locale(避免新用户被英文界面劝退)。
+- **切换**:用户可在设置中切换至 `en-US`(v0.3 起提供)。
+- **切换范围**:仅 UI 文案与错误消息切换;技术标识符(§15.2)始终英文。
+
+#### 15.5 资源文件
+
+- `Resources/Strings.zh-CN.resx`(主资源,完整)
+- `Resources/Strings.en-US.resx`(v0.3,完整)
+- 缺失翻译回退到 `zh-CN`(因中文是默认)。
+- 资源文件键使用英文 snake_case(如 `btn.unlock_vault`),便于代码引用。
+
+#### 15.6 日期 / 时间
+
+- **显示**:相对时间("3 天前"、"刚刚"、"5 秒前")或本地化格式("2026-06-17 08:00")。
+- **内部**:UTC ISO 8601。
+- **用户可在设置中选择格式**:`相对时间` / `ISO 8601` / `本地化`。
+
+#### 15.7 字体与中文
+
+- **中文**:`Microsoft YaHei UI`(Windows 自带,默认)+ `Noto Sans CJK SC`(可选,设计师推荐)。
+- **英文(技术标识符)**:`IBM Plex Mono`(等宽,密钥 / ID)+ `IBM Plex Sans`(UI)。
+- **展示字(标题)**:`Fraunces`(英文衬线,可变字体)+ 中文用 `Source Han Serif SC`(思源宋体)或 `Noto Serif CJK SC` 配合。
+- **混排**:中文与英文技术标识符混排时,英文两侧自动加空格(排版惯例)。
+- **行高**:中文行高 1.6(略高于英文 1.5),便于阅读。
+
+#### 15.8 不变测试
+
+| 用例 | 验证 |
+|---|---|
+| `UI-I18N-01` | zh-CN 默认启动,全 UI 文案为中文 |
+| `UI-I18N-02` | zh-CN 下,技术标识符(模板 ID、字段 key、Profile 名)仍英文 |
+| `UI-I18N-03` | zh-CN 下,Toast 与错误消息为中文 |
+| `UI-I18N-04` | zh-CN 下,Profile banner 文案为"DEV — 非生产数据" |
+| `UI-I18N-05` | 切换到 en-US(v0.3+)后,UI 文案切换为英文,技术标识符不变 |
+| `UI-I18N-06` | zh-CN 下,日期显示为相对时间或本地化格式(非 ISO 8601 默认) |
+
+---
+
+## 第四部分 · 路线图
+
+### 16. 已交付里程碑
+
+#### 16.1 v0.1 MVP(已交付,2026-06-22)
+
+- 本地 Vault 创建 / 解锁 / 锁定
+- 条目 CRUD(单 Profile)
+- 平台模板 5 个(GitHub / OpenAI / AWS / Stripe / Supabase)
+- 剪贴板复制 + 自动清空
+- 导入 Bitwarden JSON
+- `.okv` 格式第一版
+- 170 / 170 测试通过(0 flaky)
+
+#### 16.2 v0.2(已交付,2026-06-23)— 多 Profile + Dev 备份 + 同步
+
+- 多 Profile(prod / dev / test),DEK 独立
+- Dev 备份 / `seed.okv.dev` 导出 / 导入
+- 文件系统级同步(OneDrive / Dropbox / Syncthing)
+- 向量时钟合并(含 SEC-T7-01 重放攻击防御)
+- TOTP 字段(RFC 6238 完整支持,31 测试含 6 个标准向量)
+- 6 个新平台模板(Anthropic / GCP / Azure / AWS STS / Aliyun / Slack)
+- **GUI 全部主流程落地**(Avalonia 11,14 个 XAML 视图):
+  - 解锁 / 创建 Vault 向导 / Recovery Key 展示
+  - 主窗口 + 条目编辑器
+  - Profile 切换器(带 banner + 水印)
+  - 设置页 / 导入 / 导出
+  - 同步冲突解决向导
+  - 设备信任 / 历史快照对话框
+- 357 / 357 测试通过(0 flaky)
+
+#### 16.3 v0.3(已交付,2026-06-24)— 富功能 + 国际化
+
+- 全文 + 字段级搜索(`SearchService`,支持 `tags:` / `platform:` / `field:` / `expired` 语法)
+- 附件 Blob 加密存储(`AttachmentService`,SHA-256 寻址 + per-blob DEK + Profile KEK 包装)
+- KeePass 2.x XML 导入(`KeePassXmlImporter`)
+- 国际化(en-US 资源文件 + `UIStrings` 统一入口)
+- **GUI 新增**:`SearchWindow` / `KeePassImportWindow`
+- 73 个新测试(搜索 13 + 附件 10 + 导入 7 + 国际化 5 + V02GUI 5 + V03GUI 4 + ...)
+
+#### 16.4 v0.4(已交付,2026-06-25)— 一键轮换 + 历史 + 性能
+
+- **自动锁屏 / 空闲定时器**(`IdleTimer`,默认 15 分钟)
+- **历史快照 GUI + 还原**(`HistoryWindow` + `BackupService.Restore`)
+- **一键轮换**(平台 API 集成首批):`OpenAiRotator` / `GitHubPatRotator`
+- `entry rotate` / `entry history` / `entry search` 内部 CLI 命令
+- `sync pause` / `sync resume` 内部 CLI 命令
+- `config get` / `config set` / `config list` 内部 CLI 命令
+- 1 万条目性能压测工具(`tools/OmniKeyVault.Benchmark`):
+  - 创建 1万 Vault:0.7s(目标 ≤ 60s)
+  - 解锁:0.1s(目标 ≤ 1.5s)
+  - 搜索:1.5ms(目标 ≤ 200ms)
+  - 同步:0.0s(目标 ≤ 5s)
+- **GUI 新增 demo 入口**:`OKV_GUI_DEMO_EDITOR` / `OKV_GUI_DEMO_SEARCH` / `OKV_GUI_DEMO_HISTORY` / `OKV_GUI_DEMO_PROFILE` / `OKV_GUI_DEMO_SYNC_CONFLICT` / `OKV_GUI_DEMO_DEVICE_TRUST` / `OKV_GUI_DEMO_SEED_EXPORT` / `OKV_GUI_DEMO_SEED_IMPORT` / `OKV_GUI_DEMO_KEEPASS_IMPORT`
+- 21 个新测试(V1 CLI 14 + V03 GUI 4 + V04 GUI 3)
+- **累计 451 / 451 测试通过**
+
+#### 16.5 v1.1 优化(进行中,2026-07-04 → )
+
+- **Phase 1 紧急止血(已交付)**:`vault change-password` CLI 子命令、`.gitignore` 创建、sync 退出码修复、主密码 Debug.WriteLine 删除。
+- **Phase 2 安全合规(已交付)**:`CliContainer.Dispose` 幂等性(ProcessExit + CancelKeyPress 钩子)、陈旧 .trx 清理、SECURITY.md 分析器承诺标注。
+- **Phase 3 Roslyn 分析器(部分交付)**:`tools/OmniKeyVault.Analyzers/` 项目落地;OKV0001(禁止 string 密码参数)+ OKV0003(禁止 == 比较密钥)分析器实现并注入所有 src/ 项目;10 个分析器测试。OKV0002 + OKV0004 待实现。
+- **待完成 Phase 4-12**:正确性修复、文档对齐功能(BackupService 磁盘版)、Field.Value → byte[] 重构、架构拆分、GUI MVVM 全量重构、SearchService 索引、测试补全等。
+- **累计 467 / 467 测试通过**(457 单元/集成 + 10 分析器)
+- 详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md)
+
+### 17. v1.0 候选(下一步)— 公开发布准备
+
+> **注**:v1.1 优化工作正在进行中(Phase 1-2 已完成,Phase 3 部分完成)。v1.0 RC 公开发布需在 v1.1 优化完成后进行。
+
+#### 17.1 v1.0 RC(2026-06-25 → 2026-07-15)— 4 周
+
+- **Sprint 9(W17-W18):外部审计 + 文档定稿**
+  - 外部安全审计公司对接 + 提供材料
+  - 审计配合 + 漏洞修复(目标:Critical / High 漏洞全修复)
+  - 密码学白皮书(基于 [SECURITY.md](./SECURITY.md) 扩展)
+  - 协议规范文档(同步协议独立)
+  - 威胁模型文档独立化
+  - 用户手册 + 快速入门(基于 [MANUAL.md](./MANUAL.md) 提取面向新用户版本)
+- **Sprint 10(W19-W20):签名 + 分发 + 发布**
+  - EV 代码签名证书申请 + 签名流程(SmartScreen 无警告)
+  - MSIX 打包 + Microsoft Store 提交
+  - 单文件可执行 + Portable ZIP 构建
+  - 官网 / 下载页 + GitHub Release
+  - 视频教程(5 分钟快速入门 + 10 分钟深度)
+  - v1.0 公开发布 + 监控漏洞报告渠道
+  - v1.x 规划会议 + 跨平台评估
+
+#### 17.2 v1.0 验收标准
+
+| 类别 | 标准 |
+|---|---|
+| 安全 | 外部审计无 Critical / High 漏洞 |
+| 文档 | 6 份开发文档 + 白皮书 + 用户手册公开 |
+| 分发 | MSIX + 单文件 + Portable 三种形态可用 |
+| 签名 | EV 代码签名 + SmartScreen 无警告 |
+| 性能 | v0.4 性能标准 + 1 万条目压测 |
+| 视频 | 快速入门 + 深度教程发布 |
+
+### 18. 远期(v1.x,需 v1 成功验证后再决定)
+
+| 方向 | 价值 | 估计工作量 |
+|---|---|---|
+| macOS / Linux 客户端 | 扩大用户群 | 12 周(Avalonia 复用 70%) |
+| 浏览器扩展(只读) | Web 场景便利 | 6 周 |
+| Web 端(只读 + WebAuthn 解锁) | 跨设备便利 | 12 周 |
+| 后量子加密升级(OKV2) | 长期安全 | 8 周 |
+| 官方托管 E2EE 同步服务 | 降低用户配置成本 | 16 周(含服务端) |
+| 团队共享(零知识 + 安全聚合) | 企业市场 | 20 周 |
+
+详细 sprint 任务分解见 [ROADMAP.md](./ROADMAP.md)。
+
+### 19. 待定问题
+
+需要在评审时确认:
+
+1. **同步目录默认位置**:是否默认放到 `%USERPROFILE%\Documents\OmniKeyVault\`(用户最熟悉但同步软件不一定默认同步)? 还是 `%APPDATA%\OmniKeyVault\`(标准但用户不可见)?
+2. **Recovery Key 是否强制**:v1 是否在创建 Vault 时强制要求导出/打印 Recovery Key? 还是只强烈建议?(已倾向:强制)
+3. **TOTP 自动计算默认开启还是关闭**:开启方便但增加被截屏风险?(已倾向:默认开启,设置中可关闭)
+4. **License**:MIT / Apache 2.0 / AGPL(开源)还是闭源商业?
+5. **签名与公证**:v1 是否申请 EV 代码签名证书(避免 SmartScreen 警告)?
+
+---
+
+## 第五部分 · 附录
+
+### 附录 A · 术语表
+
+| 术语 | 定义 |
+|---|---|
+| Vault | 一个保险库(对应一个 `.okv` 文件或一组),由主密码保护 |
+| Profile | Vault 内的独立命名空间,有独立的 DEK,用于隔离 prod / dev / test |
+| Entry | 一条凭据记录(对应一个平台的全部字段) |
+| Field | 条目下的单个字段(如 api_key / secret_key) |
+| MK(Master Key) | 由主密码 + Argon2id 派生的 32B 密钥,内存中驻留 |
+| KEK(Key Encryption Key) | 由 MK 派生的 32B 密钥,用于包装 Profile DEK |
+| DEK(Data Encryption Key) | 每个 Profile 独立的 32B 密钥,用于加密条目 |
+| Vector Clock | 设备 → 计数器 的映射,用于检测并发与冲突 |
+| Recovery Key | 创建 Vault 时生成的 256 bit 随机密钥,作为忘记主密码时的最后手段 |
+| Seed(`.okv.dev`) | Dev 模式专用的种子文件,不受主密码保护 |
+
+### 附录 B · 同步合并规则(摘要)
+
+```
+vector_clock = { device_id → counter }
+
+规则:
+1. 每个设备在本地每次成功写后,递增自己的 counter。
+2. 同步时拉取远端 vector_clock,与本地对比:
+   - 如果远端所有 counter ≤ 本地 → 本地领先,丢弃远端。
+   - 如果本地所有 counter ≤ 远端 → 远端领先,直接采用远端。
+   - 否则存在并发,需要合并:
+     a. 对每条 Entry,对比 entry.version:
+        - 版本号大者获胜。
+        - 版本号相同但内容不同 → 用户手动选择(local-side wins 默认)。
+     b. 合并后 vector_clock = max(local, remote) 各分量。
+3. 合并完成后产生新 vector_clock,签名写回。
+```
+
+详细同步协议实现见 [ARCHITECTURE.md §10](./ARCHITECTURE.md#10-同步协议)。
+
+### 附录 C · 同步写入原子性
+
+```
+1. 写入 vault.okv.tmp
+2. fsync(vault.okv.tmp)
+3. rename(vault.okv.tmp, vault.okv)  // Windows MoveFileEx / POSIX rename
+4. 更新 manifest.json (同上)
+5. 释放 .okv.lock
+```
+
+任意步骤崩溃后,下次启动自动检测 `.okv.tmp` 是否存在,清理或恢复。
+
+### 附录 D · 参考资料
+
+- RFC 9106 — Argon2 Memory-Hard Function
+- RFC 8439 — ChaCha20-Poly1305
+- draft-irtf-cfrg-xchacha — XChaCha20-Poly1305
+- RFC 8032 — Ed25519
+- NIST SP 800-63B — Digital Identity Guidelines
+- OWASP Password Storage Cheat Sheet
+- 1Password Security Design(架构参考)
+- Bitwarden Cryptography(架构参考)
+
+### 附录 E · 文档交叉引用
+
+| 关注点 | 见 |
+|---|---|
+| 详细密码学原语 / 审计清单 | [SECURITY.md](./SECURITY.md) |
+| 服务层 / 分层架构 / ADR | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| `.okv` / `.okv.dev` 二进制字节布局 | [OKV_FORMAT.md](./OKV_FORMAT.md) |
+| 平台模板完整 JSON schema | [TEMPLATES.md](./PLATFORM_TEMPLATES.md) |
+| 编译 / 打包 / 发布 | [BUILD.md](./BUILD.md) |
+| 测试策略与现状 | [TEST_REPORT.md](./TEST_REPORT.md) |
+| Sprint 任务分解 | [ROADMAP.md](./ROADMAP.md) |
+| 内部 CLI / CI 调试接口 | [INTERNAL.md](./INTERNAL.md) |
+| GUI 视觉参考(HTML 原型) | [docs/UI/](./UI/) |
+| 版本变更日志(v0.1 → v1.0) | [CHANGELOG.md](./CHANGELOG.md) |
+
+### 附录 F · 修订记录
+
+| 版本 | 日期 | 修订 |
+|---|---|---|
+| 0.1 (草案) | 2026-06-17 | 初稿(原 [PRD.md](./PRD.md)) |
+| 0.2 | 2026-06-18 | 加入 v0.2 交付项;加入同步合并与原子写入附录(原 §10 PRD) |
+| 0.3 | 2026-06-24 | 合并 UI_UX_SPEC.md 与 PRD.md 为单一手册;统一二进制名 `okv.exe`;删除 CLI 相关章节(改入 [INTERNAL.md](./INTERNAL.md));GUI 实际落地状态补全;文档目录重构,详见 [README.md](./README.md) |
+| **1.0** | **2026-06-25** | **v1.0 候选:** §16 新增 16.3 v0.3(富功能 + 国际化)与 16.4 v0.4(轮换 + 历史 + 性能)章节,标记全部已交付; §17 改为 v1.0 RC 计划(外部审计 + 签名 + MSIX + 视频); 新增 17.2 v1.0 验收标准;累计 **451 / 451 测试通过**,1 万条目性能压测全部达标 |
+| **1.1** | **2026-07-07** | **v1.1 优化进行中:** §16 新增 16.5 v1.1 优化章节(Phase 1-2 已完成,Phase 3 部分完成);§17 加入 v1.1 优化前置说明;累计 **467 / 467 测试通过**(457 单元/集成 + 10 分析器);v1.1 优化计划详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md) |
+
+---
+
+**审阅请关注**:§7 安全模型摘要、§10 主窗口布局、§15 国际化豁免清单。这三块是 OmniKey Vault 与同类产品的差异化核心,也是后续安全审计与外部评审的重点。

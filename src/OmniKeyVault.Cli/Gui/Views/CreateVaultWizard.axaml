@@ -109,6 +109,117 @@
                         <LineBreak /><LineBreak />
                         <Run Text="下一步您将设置主密码并生成恢复密钥。请准备纸笔。" />
                     </TextBlock>
+                    <Button Classes="ghost"
+                            HorizontalAlignment="Center"
+                            Padding="16,10"
+                            Margin="0,12,0,0"
+                            Click="OnPullFromCloudClick">
+                        <TextBlock Text="☁  从云端拉取已有金库 →" FontSize="12" />
+                    </Button>
+                </StackPanel>
+
+                <!-- Pull from cloud panel -->
+                <StackPanel x:Name="PullPanel" IsVisible="False" Spacing="8">
+                    <TextBlock Text="从云端拉取金库"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17" FontWeight="Medium"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock TextWrapping="Wrap"
+                               FontSize="11"
+                               Foreground="{DynamicResource FgMutedBrush}"
+                               Text="输入 WebDAV 配置，从云端拉取已有金库到本地文件夹，跳过新建直接解锁。" />
+
+                    <TextBlock Text="WebDAV 服务器地址"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="10" LetterSpacing="1"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               Margin="0,4,0,0" />
+                    <TextBox Classes="field"
+                             x:Name="PullWebDavUrlBox"
+                             Watermark="https://dav.example.com/dav/" />
+
+                    <Grid ColumnDefinitions="*,8,*" Margin="0,2,0,0">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="用户名"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                            <TextBox Classes="field"
+                                     x:Name="PullWebDavUserBox"
+                                     Watermark="username" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="4">
+                            <TextBlock Text="密码"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                            <TextBox Classes="field"
+                                     x:Name="PullWebDavPassBox"
+                                     PasswordChar="•"
+                                     Watermark="password" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="远端文件路径"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="10" LetterSpacing="1"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               Margin="0,2,0,0" />
+                    <TextBox Classes="field"
+                             x:Name="PullWebDavPathBox"
+                             Watermark="vault.okv"
+                             Text="vault.okv" />
+
+                    <TextBlock Text="本地保存文件夹"
+                               FontFamily="{DynamicResource FontMono}"
+                               FontSize="10" LetterSpacing="1"
+                               Foreground="{DynamicResource FgDimBrush}"
+                               Margin="0,2,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Classes="field"
+                                 x:Name="PullFolderBox"
+                                 FontSize="12"
+                                 Watermark="点击右侧「选择…」浏览文件夹" />
+                        <Button Grid.Column="1"
+                                Classes="ghost"
+                                Margin="6,0,0,0"
+                                Padding="12,6"
+                                Click="OnPullBrowseFolderClick">
+                            <TextBlock Text="📁  选择…" FontSize="12" />
+                        </Button>
+                    </Grid>
+
+                    <Border Background="{DynamicResource BgCardBrush}"
+                            BorderBrush="{DynamicResource BorderBrightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,6"
+                            Margin="0,2,0,0">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="完整路径"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="9" LetterSpacing="1"
+                                       Foreground="{DynamicResource FgDimBrush}" />
+                            <TextBlock x:Name="PullFullPathText"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <Button Classes="ghost" Padding="14,6" Click="OnPullTestConnectionClick">
+                            <TextBlock x:Name="PullTestButtonText" Text="🔗 测试连接" FontSize="12" />
+                        </Button>
+                    </StackPanel>
+
+                    <TextBlock x:Name="PullErrorText"
+                               FontSize="12"
+                               Foreground="{DynamicResource DangerBrush}"
+                               IsVisible="False"
+                               TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Step 2: Master password + location -->
@@ -268,6 +379,31 @@
                                Foreground="{DynamicResource FgBrush}" />
                     <TextBlock x:Name="CompleteDetail"
                                Text="派生 Argon2id 256 MiB…"
+                               FontSize="11"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource FgDimBrush}" />
+                </StackPanel>
+
+                <!-- Step 5: Pull complete -->
+                <StackPanel x:Name="PullCompletePanel" IsVisible="False" Spacing="16" VerticalAlignment="Center" Margin="0,40,0,0">
+                    <Border Width="64" Height="64"
+                            HorizontalAlignment="Center"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="2"
+                            CornerRadius="32">
+                        <TextBlock x:Name="PullCompleteIcon" Text="⋯"
+                                   FontSize="28"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentBrush}" />
+                    </Border>
+                    <TextBlock x:Name="PullCompleteText"
+                               Text="正在拉取金库…"
+                               FontFamily="{DynamicResource FontDisplay}"
+                               FontSize="17" FontWeight="Medium"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource FgBrush}" />
+                    <TextBlock x:Name="PullCompleteDetail"
+                               Text="正在从 WebDAV 服务器下载…"
                                FontSize="11"
                                TextAlignment="Center"
                                Foreground="{DynamicResource FgDimBrush}" />

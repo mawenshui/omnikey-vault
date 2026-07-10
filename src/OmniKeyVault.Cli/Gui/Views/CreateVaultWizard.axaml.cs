@@ -1,12 +1,15 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using OmniKeyVault.Application;
+using OmniKeyVault.Contracts;
 using OmniKeyVault.Domain;
+using OmniKeyVault.Infrastructure;
 
 namespace OmniKeyVault.Cli.Gui.Views;
 
@@ -25,9 +28,16 @@ public partial class CreateVaultWizard : Window
     private int _step = 1;
     private string? _generatedRecoveryKey;
     private string _vaultPath = string.Empty;
+    private bool _pullMode;
+    private string _pullVaultPath = string.Empty;
 
     /// <summary>Emitted with the unlocked container after a successful create + unlock flow.</summary>
     public event EventHandler<CliContainer>? VaultCreated;
+
+    /// <summary>Emitted with the local file path after a successful WebDAV pull.
+    /// The host (GuiShell) uses this to show the UnlockWindow pointing at the
+    /// downloaded vault, skipping the create-new-vault flow entirely.</summary>
+    public event EventHandler<string>? VaultPulled;
 
     public CreateVaultWizard(CliContainer container, string defaultVaultPath)
     {
@@ -54,6 +64,18 @@ public partial class CreateVaultWizard : Window
         PasswordBox.TextChanged += (_, _) => UpdateStrength();
         ConfirmBox.TextChanged += (_, _) => UpdateStrength();
         UpdateFullPathPreview();
+
+        // Pre-fill WebDAV config from SettingsStore (if previously configured)
+        PullWebDavUrlBox.Text = SettingsStore.WebDavServerUrl ?? "";
+        PullWebDavUserBox.Text = SettingsStore.WebDavUsername ?? "";
+        PullWebDavPassBox.Text = SettingsStore.WebDavPassword ?? "";
+        PullWebDavPathBox.Text = string.IsNullOrWhiteSpace(SettingsStore.WebDavRemoteFilePath)
+            ? "vault.okv" : SettingsStore.WebDavRemoteFilePath!;
+        PullFolderBox.Text = defaultFolder;
+        PullFolderBox.TextChanged += (_, _) => UpdatePullPathPreview();
+        PullWebDavPathBox.TextChanged += (_, _) => UpdatePullPathPreview();
+        UpdatePullPathPreview();
+
         ShowStep(1);
     }
 
@@ -65,11 +87,14 @@ public partial class CreateVaultWizard : Window
 
     internal void ShowStep(int step)
     {
+        _pullMode = false;
         _step = step;
         Step1Panel.IsVisible = step == 1;
         Step2Panel.IsVisible = step == 2;
         Step3Panel.IsVisible = step == 3;
         Step4Panel.IsVisible = step == 4;
+        PullPanel.IsVisible = false;
+        PullCompletePanel.IsVisible = false;
 
         // Update stepper dots
         Dot1.Background = step >= 1 ? Res.Brush("AccentBrush") : Res.Brush("BorderBrightBrush");
@@ -103,11 +128,21 @@ public partial class CreateVaultWizard : Window
 
     private void OnBackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_pullMode)
+        {
+            ShowStep(1);
+            return;
+        }
         if (_step > 1 && _step < 4) ShowStep(_step - 1);
     }
 
     private async void OnNextClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_pullMode)
+        {
+            await PullVaultAsync();
+            return;
+        }
         if (_step == 1) { ShowStep(2); PasswordBox.Focus(); return; }
         if (_step == 2)
         {
@@ -500,6 +535,319 @@ public partial class CreateVaultWizard : Window
             var elapsed = (DateTimeOffset.UtcNow - step4ShownAt).TotalSeconds;
             if (elapsed > 30 && CompleteText.Text == "正在创建金库…")
                 CompleteDetail.Text += $"  (已耗时 {elapsed:F0} 秒)";
+        }
+    }
+
+    // ==================== WebDAV Pull ====================
+
+    /// <summary>Shows the WebDAV pull panel, hiding all step panels.</summary>
+    private void ShowPullPanel()
+    {
+        _pullMode = true;
+        _step = 0;
+        Step1Panel.IsVisible = false;
+        Step2Panel.IsVisible = false;
+        Step3Panel.IsVisible = false;
+        Step4Panel.IsVisible = false;
+        PullCompletePanel.IsVisible = false;
+        PullPanel.IsVisible = true;
+
+        // Reset stepper dots to inactive
+        Dot1.Background = Res.Brush("BorderBrightBrush");
+        Dot2.Background = Res.Brush("BorderBrightBrush");
+        Dot3.Background = Res.Brush("BorderBrightBrush");
+        Dot4.Background = Res.Brush("BorderBrightBrush");
+        Line1.Background = Res.Brush("BorderBrightBrush");
+        Line2.Background = Res.Brush("BorderBrightBrush");
+        Line3.Background = Res.Brush("BorderBrightBrush");
+
+        StepLabel.Text = "从云端拉取";
+        BackButton.IsVisible = true;
+        BackButton.Content = "← 返回";
+        NextButton.Content = "拉取金库 →";
+        NextButton.IsEnabled = true;
+        PullErrorText.IsVisible = false;
+
+        PullWebDavUrlBox.Focus();
+    }
+
+    /// <summary>Shows the pull complete panel (loading / success / error state).</summary>
+    private void ShowPullComplete(string icon, string title, string detail)
+    {
+        PullPanel.IsVisible = false;
+        PullCompletePanel.IsVisible = true;
+        PullCompleteIcon.Text = icon;
+        PullCompleteText.Text = title;
+        PullCompleteDetail.Text = detail;
+        BackButton.IsVisible = false;
+    }
+
+    internal void OnPullFromCloudClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ShowPullPanel();
+    }
+
+    private async void OnPullBrowseFolderClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider == null)
+            {
+                ShowPullError("当前环境不支持文件夹选择器,请手动输入路径");
+                return;
+            }
+            var currentFolder = (PullFolderBox.Text ?? "").Trim();
+            Avalonia.Platform.Storage.IStorageFolder? startFolder = null;
+            if (System.IO.Directory.Exists(currentFolder))
+            {
+                try { startFolder = await top.StorageProvider.TryGetFolderFromPathAsync(new System.Uri(currentFolder)); } catch { }
+            }
+            var folders = await top.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "选择本地保存文件夹",
+                AllowMultiple = false,
+                SuggestedStartLocation = startFolder,
+            });
+            if (folders.Count > 0)
+            {
+                PullFolderBox.Text = folders[0].Path.LocalPath;
+                UpdatePullPathPreview();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowPullError("打开文件夹选择器失败:" + ex.Message);
+        }
+    }
+
+    private void UpdatePullPathPreview()
+    {
+        var folder = (PullFolderBox.Text ?? "").Trim();
+        var remotePath = (PullWebDavPathBox.Text ?? "").Trim();
+        if (string.IsNullOrEmpty(remotePath)) remotePath = "vault.okv";
+        var fileName = System.IO.Path.GetFileName(remotePath);
+        if (string.IsNullOrEmpty(fileName)) fileName = "vault.okv";
+        if (string.IsNullOrEmpty(folder))
+        {
+            PullFullPathText.Text = "(请选择文件夹)";
+            _pullVaultPath = string.Empty;
+            return;
+        }
+        try
+        {
+            _pullVaultPath = System.IO.Path.Combine(folder, fileName);
+            PullFullPathText.Text = _pullVaultPath;
+        }
+        catch (Exception ex)
+        {
+            PullFullPathText.Text = "(路径无效:" + ex.Message + ")";
+            _pullVaultPath = string.Empty;
+        }
+    }
+
+    private async void OnPullTestConnectionClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var serverUrl = (PullWebDavUrlBox.Text ?? "").Trim();
+        var username = (PullWebDavUserBox.Text ?? "").Trim();
+        var password = PullWebDavPassBox.Text ?? "";
+        var remotePath = (PullWebDavPathBox.Text ?? "").Trim();
+        if (string.IsNullOrEmpty(remotePath)) remotePath = "vault.okv";
+
+        if (string.IsNullOrEmpty(serverUrl))
+        {
+            ShowPullError("请输入 WebDAV 服务器地址");
+            return;
+        }
+
+        PullErrorText.IsVisible = false;
+        PullTestButtonText.Text = "🔗 测试中…";
+
+        try
+        {
+            var config = new RemoteSyncConfig
+            {
+                ServerUrl = serverUrl,
+                Username = username,
+                Password = password,
+                RemoteFilePath = remotePath,
+                Enabled = true,
+            };
+            using var provider = new WebDavSyncProvider(config);
+            var error = await provider.TestConnectionAsync();
+            if (error != null)
+            {
+                ShowPullError(error);
+                PullTestButtonText.Text = "🔗 测试连接";
+                return;
+            }
+            // Check if the remote file actually exists
+            var tempPath = Path.Combine(Path.GetTempPath(), $"okv-pull-test-{Guid.NewGuid():N}.okv");
+            try
+            {
+                var exists = await provider.DownloadAsync(tempPath);
+                PullTestButtonText.Text = exists
+                    ? "✓ 连接成功,金库文件存在"
+                    : "⚠ 连接成功,远端无金库文件";
+            }
+            finally
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowPullError($"连接失败:{ex.Message}");
+            PullTestButtonText.Text = "🔗 测试连接";
+            return;
+        }
+        await Task.Delay(2500);
+        await Dispatcher.UIThread.InvokeAsync(() => PullTestButtonText.Text = "🔗 测试连接");
+    }
+
+    private void ShowPullError(string msg)
+    {
+        PullErrorText.Text = msg;
+        PullErrorText.IsVisible = true;
+    }
+
+    private async Task PullVaultAsync()
+    {
+        var serverUrl = (PullWebDavUrlBox.Text ?? "").Trim();
+        var username = (PullWebDavUserBox.Text ?? "").Trim();
+        var password = PullWebDavPassBox.Text ?? "";
+        var remotePath = (PullWebDavPathBox.Text ?? "").Trim();
+        var folder = (PullFolderBox.Text ?? "").Trim();
+
+        if (string.IsNullOrEmpty(serverUrl))
+        {
+            ShowPullError("请输入 WebDAV 服务器地址");
+            return;
+        }
+        if (string.IsNullOrEmpty(remotePath)) remotePath = "vault.okv";
+        if (string.IsNullOrEmpty(folder))
+        {
+            ShowPullError("请选择本地保存文件夹");
+            return;
+        }
+        if (!System.IO.Directory.Exists(folder))
+        {
+            ShowPullError($"文件夹不存在:{folder}");
+            return;
+        }
+
+        var fileName = System.IO.Path.GetFileName(remotePath);
+        if (string.IsNullOrEmpty(fileName)) fileName = "vault.okv";
+        var localPath = System.IO.Path.Combine(folder, fileName);
+        if (System.IO.File.Exists(localPath))
+        {
+            ShowPullError($"目标文件已存在:{localPath}\n请删除后重试或选择其他文件夹。");
+            return;
+        }
+
+        PullErrorText.IsVisible = false;
+        NextButton.IsEnabled = false;
+        NextButton.Content = "正在拉取…";
+        ShowPullComplete("⋯", "正在拉取金库…", "正在从 WebDAV 服务器下载…");
+
+        var stepShownAt = DateTimeOffset.UtcNow;
+        try
+        {
+            var config = new RemoteSyncConfig
+            {
+                ServerUrl = serverUrl,
+                Username = username,
+                Password = password,
+                RemoteFilePath = remotePath,
+                Enabled = true,
+            };
+            using var provider = new WebDavSyncProvider(config);
+
+            // Download the remote vault to the local path
+            var success = await provider.DownloadAsync(localPath);
+            if (!success)
+            {
+                ShowPullComplete("✕", "拉取失败", "远端没有金库文件,请检查 WebDAV 配置和远端文件路径。");
+                BackButton.IsVisible = true;
+                BackButton.Content = "← 返回";
+                NextButton.IsEnabled = true;
+                NextButton.Content = "拉取金库 →";
+                _pullMode = true; // stay in pull mode for retry
+                PullPanel.IsVisible = true;
+                PullCompletePanel.IsVisible = false;
+                ShowPullError("远端没有金库文件,请检查 WebDAV 配置和远端文件路径。");
+                return;
+            }
+
+            // Verify the downloaded file is a valid .okv file
+            try
+            {
+                var fmt = new VaultFormat();
+                var record = await fmt.ReadAsync(localPath);
+                ShowPullComplete("⋯", "正在拉取金库…", $"UUID: {record.VaultUuid}");
+            }
+            catch (Exception ex)
+            {
+                try { if (File.Exists(localPath)) File.Delete(localPath); } catch { }
+                ShowPullComplete("✕", "拉取失败", $"下载的文件不是有效的金库文件:{ex.Message}");
+                BackButton.IsVisible = true;
+                BackButton.Content = "← 返回";
+                NextButton.IsEnabled = true;
+                NextButton.Content = "拉取金库 →";
+                _pullMode = true;
+                PullPanel.IsVisible = true;
+                PullCompletePanel.IsVisible = false;
+                ShowPullError($"下载的文件不是有效的金库文件:{ex.Message}");
+                return;
+            }
+
+            // Save WebDAV config to SettingsStore for future use
+            SettingsStore.WebDavServerUrl = serverUrl;
+            SettingsStore.WebDavUsername = username;
+            SettingsStore.WebDavPassword = password;
+            SettingsStore.WebDavRemoteFilePath = remotePath;
+            SettingsStore.WebDavEnabled = true;
+            SettingsStore.Save();
+
+            // Persist the pulled vault path as the last opened vault
+            OmniKeyVault.Cli.Gui.GuiShell.SaveLastVaultPath(localPath);
+
+            ShowPullComplete("✓", "拉取成功", $"已保存到:{localPath}");
+            NextButton.Content = "前往解锁 →";
+            NextButton.IsEnabled = true;
+
+            // Fire event on UI thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                try
+                {
+                    VaultPulled?.Invoke(this, localPath);
+                }
+                catch (Exception evtEx)
+                {
+                    LogCrash("VaultPulled event handler threw", evtEx);
+                }
+                try { Close(); } catch { }
+            });
+        }
+        catch (Exception ex)
+        {
+            LogCrash("PullVaultAsync failed", ex);
+            ShowPullComplete("✕", "拉取失败", ex.Message);
+            BackButton.IsVisible = true;
+            BackButton.Content = "← 返回";
+            NextButton.IsEnabled = true;
+            NextButton.Content = "拉取金库 →";
+            _pullMode = true;
+            PullPanel.IsVisible = true;
+            PullCompletePanel.IsVisible = false;
+            ShowPullError($"拉取失败:{ex.Message}");
+        }
+        finally
+        {
+            var elapsed = (DateTimeOffset.UtcNow - stepShownAt).TotalSeconds;
+            if (elapsed > 30 && PullCompleteText.Text == "正在拉取金库…")
+                PullCompleteDetail.Text += $"  (已耗时 {elapsed:F0} 秒)";
         }
     }
 

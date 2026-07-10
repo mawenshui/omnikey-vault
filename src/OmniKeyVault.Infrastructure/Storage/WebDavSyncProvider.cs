@@ -107,9 +107,11 @@ public sealed class WebDavSyncProvider : IRemoteSyncProvider
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
         // PUT may need to create parent collections first (MKCOL) on some servers.
-        // We try PUT directly first; if 409 Conflict, create parent dirs then retry.
+        // We try PUT directly first; if 409 Conflict or 404 Not Found (some
+        // servers like Jianguoyun return 404 instead of 409 when the parent
+        // collection doesn't exist), create parent dirs then retry.
         using var resp = await _client.PutAsync(FullUrl, content, ct);
-        if (resp.StatusCode == HttpStatusCode.Conflict)
+        if (resp.StatusCode == HttpStatusCode.Conflict || resp.StatusCode == HttpStatusCode.NotFound)
         {
             // Try creating parent directory
             await EnsureParentCollectionsAsync(ct);

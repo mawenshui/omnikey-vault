@@ -2,6 +2,7 @@
 
 | 文档集版本 | 日期 | 状态 |
 |---|---|---|
+| 1.5 | 2026-07-10 | v1.5 发布:创建金库向导新增 WebDAV 拉取功能 + WebDavSyncProvider 404 处理修复 + 561/561 测试通过 |
 | 1.4 | 2026-07-10 | v1.4 发布:代码质量改进（SettingsStore 提取、demo 路由重构、SourceLink/CPM/Coverlet）+ CI/CD + OKV_TEST_MODE Release 防护 + 557/557 测试通过 |
 | 1.3 | 2026-07-10 | v1.3 发布:UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 557/557 测试通过 |
 | 1.2 | 2026-07-10 | v1.2 发布:WebDAV 云同步 + 跨设备同步修复 + 557/557 测试通过 |
@@ -29,7 +30,7 @@ dotnet run --project src/OmniKeyVault.Cli
 dotnet run --project src/OmniKeyVault.Cli -- vault --help
 
 # 5. 跑测试
-dotnet test                                      # → 557/557 通过 (548 单元/集成 + 9 WebDAV 集成)
+dotnet test                                      # → 561/561 通过 (548 单元/集成 + 13 WebDAV 集成)
 
 # 6. 跑性能压测(1万条目)
 dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0.1s, search 1.5ms, sync 0.0s
@@ -148,7 +149,7 @@ dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0
 | 0.3 | v0.2(实际 357/357) | 与 v0.2 代码完全同步,GUI 已落地 |
 | 0.4(从未发版) | v0.4(实际 430/430) | 在 v0.2 之上增量交付,GUI demo 入口新增 |
 | 1.0 | v1.0(实际 451/451) | v0.1-v0.4 全部已交付;1 万条目性能压测达标 |
-| 1.4(当前) | **v1.4(实际 557/557)** | **代码质量改进 + CI/CD + SourceLink/CPM/Coverlet + OKV_TEST_MODE Release 防护;详见 [使用手册.md](./使用手册.md)** |
+| 1.5（当前） | **v1.5（实际 561/561）** | **创建金库向导新增 WebDAV 拉取功能 + WebDavSyncProvider 404 处理修复;详见 [使用手册.md](./使用手册.md)** |
 | 1.3 | v1.3(实际 557/557) | UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 新增 PullAsync/PushAsync 方法;详见 [使用手册.md](./使用手册.md) |
 | 1.2 | v1.2(实际 557/557) | WebDAV 云同步实现 + 跨设备同步 UUID 匹配修复 + 坚果云集成测试验证;详见 [使用手册.md](./使用手册.md) |
 | 1.1 | v1.1(实际 467/467) | Phase 1-2 已完成(紧急止血 + 安全合规);Phase 3 部分完成(OKV0001 + OKV0003 分析器已落地,10 分析器测试);Phase 4-12 待开始;详见 [plan-v1.1-optimization.md](./plan-v1.1-optimization.md) |
@@ -157,7 +158,18 @@ dotnet run --project tools/OmniKeyVault.Benchmark    # → create 0.7s, unlock 0
 
 ## 4. 历史与变更
 
-### 4.0 1.4(2026-07-10)— 当前
+### 4.0 1.5（2026-07-10）— 当前
+
+**v1.5 发布**:在创建金库向导中新增 WebDAV 云端拉取功能，新设备无需创建空金库再同步，可直接从云端拉取已有金库到本地并解锁。修复 WebDavSyncProvider 对 404 状态码的处理（某些 WebDAV 服务器如坚果云返回 404 而非 409 表示父目录不存在）。
+
+**主要变更**:
+- **创建向导 WebDAV 拉取**:在 `CreateVaultWizard` 的欢迎页面新增「☁ 从云端拉取已有金库」按钮，用户可填写 WebDAV 配置（服务器地址/用户名/密码/远端路径/本地保存文件夹），直接下载云端金库到本地，跳过新建流程直接进入解锁。
+- **WebDavSyncProvider 404 修复**:`UploadAsync` 方法新增对 404 Not Found 状态码的处理（此前仅处理 409 Conflict），自动创建父目录后重试上传。修复坚果云等 WebDAV 服务器的兼容性问题。
+- **测试新增**:新增 4 项 WebDAV 拉取功能集成测试（PullFromCloud_NewDevice_CanUnlockWithOriginalPassword / PullFromCloud_NoRemoteVault_ReturnsFalse / PullFromCloud_DownloadedVault_PassesHeaderValidation / PullFromCloud_InvalidFile_FailsHeaderValidation）。
+- **版本测试修复**:`CLI_EXIT_01_Version_ExitsZero` 测试从硬编码版本号改为正则匹配，避免每次版本升级都需修改测试。
+- **测试总数**:561/561 通过（548 单元/集成 + 13 WebDAV 集成）。
+
+### 4.0 1.4（2026-07-10）
 
 **v1.4 发布**:代码质量改进与工程化升级。解决 8 项代码审计发现的问题，提升项目可维护性和安全性。
 

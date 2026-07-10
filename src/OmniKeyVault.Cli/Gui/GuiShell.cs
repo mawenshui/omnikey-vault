@@ -203,6 +203,17 @@ public sealed class GuiShell
             try { ShowMain(); } catch (Exception ex) { CreateVaultWizard.LogCrash("ShowMain() after VaultCreated threw", ex); throw; }
             try { wiz.Close(); } catch (Exception ex) { CreateVaultWizard.LogCrash("wiz.Close() after VaultCreated threw", ex); }
         };
+        wiz.VaultPulled += (_, vaultPath) =>
+        {
+            // User pulled a vault from WebDAV — show the UnlockWindow pointing
+            // at the downloaded file so they can unlock it with their master
+            // password. This skips the create-new-vault flow entirely.
+            _vaultPath = vaultPath;
+            try { _unlock?.Close(); } catch { }
+            _unlock = null;
+            ShowUnlock();
+            try { wiz.Close(); } catch (Exception ex) { CreateVaultWizard.LogCrash("wiz.Close() after VaultPulled threw", ex); }
+        };
         wiz.Closed += (_, _) =>
         {
             // If the wizard was closed without success, re-show unlock

@@ -398,6 +398,179 @@ public class WebDavIntegrationTests : IDisposable
         vaultB.Dispose();
     }
 
+    // ==================== Pull-from-cloud tests ====================
+    // These tests exercise the same flow as CreateVaultWizard.PullVaultAsync:
+    //   1. Create a vault on "Device A" and upload to WebDAV
+    //   2. "Device B" downloads (pulls) the vault to a local path
+    //   3. Verify the pulled vault is valid and can be unlocked with Device A's password
+
+    /// <summary>
+    /// Simulates the full new-device pull flow: Device A uploads a vault with
+    /// entries, Device B downloads it (via WebDavSyncProvider.DownloadAsync,
+    /// same as CreateVaultWizard.PullVaultAsync) and unlocks it with Device A's
+    /// password. This is the end-to-end test of the v1.5.0 feature.
+    /// </summary>
+    [Fact]
+    public async Task PullFromCloud_NewDevice_CanUnlockWithOriginalPassword()
+    {
+        if (SkipIfNotConfigured()) return;
+
+        // --- Device A: create a vault with entries, upload to WebDAV ---
+        var cryptoA = new SodiumCryptoProvider();
+        var formatA = new VaultFormat();
+        var lockA = new LockService(cryptoA);
+        var codecA = new ProfilePayloadCodec();
+        var deviceA = "device-a-pull";
+        var vaultA = new VaultService(cryptoA, formatA, lockA, codecA, deviceA, new DeviceKeystore());
+
+        var vaultPathA = Path.Combine(_tempDir, "pull-device-a.okv");
+        var pwA = Encoding.UTF8.GetBytes("PullFromCloudP@ss2026");
+        await vaultA.CreateAsync(vaultPathA, "pull-from-cloud", pwA, Argon2Params.ForTests(64 * 1024 * 1024));
+
+        // Add entries
+        vaultA.PutEntry("prod", new Entry
+        {
+            Id = Guid.NewGuid(),
+            Name = "GitHub PAT",
+            PlatformId = "github",
+            Type = EntryType.ApiKey,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Version = 1,
+            Fields = new List<Field>
+            {
+                new() { Key = "token", Value = FieldCodec.Encode("ghp_pull_from_cloud_test"), Kind = FieldKind.Secret, Sensitive = true },
+            },
+            Tags = new List<string> { "pull-test" },
+            Notes = "Created for pull-from-cloud test",
+        });
+        await vaultA.SaveAsync();
+
+        // Upload to WebDAV
+        await _provider.UploadAsync(vaultPathA);
+        vaultA.Lock();
+        vaultA.Dispose();
+
+        // --- Device B: pull the vault from WebDAV (same as CreateVaultWizard.PullVaultAsync) ---
+        var pullPath = Path.Combine(_tempDir, "pull-device-b.okv");
+
+        // File should not exist before pull
+        File.Exists(pullPath).Should().BeFalse("target path should be clean before pull");
+
+        // Download (pull) the vault
+        var success = await _provider.DownloadAsync(pullPath);
+        success.Should().BeTrue("pull should succeed when remote vault exists");
+
+        // Verify the downloaded file exists and has content
+        File.Exists(pullPath).Should().BeTrue("pulled vault file should exist");
+        new FileInfo(pullPath).Length.Should().BeGreaterThan(0, "pulled vault should have content");
+
+        // Validate the downloaded file is a real .okv file (same as PullVaultAsync does)
+        var formatB = new VaultFormat();
+        var record = await formatB.ReadAsync(pullPath);
+        record.Should().NotBeNull("pulled vault should have a valid header");
+        record.VaultUuid.Should().NotBeEmpty("pulled vault should have a UUID");
+
+        // Verify the pulled vault can be unlocked with Device A's password
+        var cryptoB = new SodiumCryptoProvider();
+        var lockB = new LockService(cryptoB);
+        var codecB = new ProfilePayloadCodec();
+        var deviceB = "device-b-pull";
+        var vaultB = new VaultService(cryptoB, formatB, lockB, codecB, deviceB, new DeviceKeystore());
+
+        await vaultB.UnlockAsync(pullPath, pwA);
+        vaultB.IsUnlocked.Should().BeTrue("pulled vault must be unlockable with the original password");
+
+        // Verify the entries are present
+        var entries = vaultB.ListEntries("prod");
+        entries.Should().HaveCount(1, "pulled vault should have the same entries as the original");
+        entries[0].Name.Should().Be("GitHub PAT");
+
+        vaultB.Lock();
+        vaultB.Dispose();
+    }
+
+    /// <summary>
+    /// When the remote file doesn't exist, DownloadAsync should return false
+    /// (not throw). This is the "no vault on cloud" scenario for new users.
+    /// </summary>
+    [Fact]
+    public async Task PullFromCloud_NoRemoteVault_ReturnsFalse()
+    {
+        if (SkipIfNotConfigured()) return;
+
+        // Use a unique non-existent remote file (already set in constructor)
+        var pullPath = Path.Combine(_tempDir, "pull-nonexistent.okv");
+        var success = await _provider.DownloadAsync(pullPath);
+        success.Should().BeFalse("pull should return false when remote file doesn't exist");
+        File.Exists(pullPath).Should().BeFalse("no local file should be created on failed pull");
+    }
+
+    /// <summary>
+    /// After pulling a vault, the downloaded file should pass VaultFormat.ReadAsync
+    /// validation. This is the same check that CreateVaultWizard.PullVaultAsync
+    /// performs to reject non-.okv files downloaded from a misconfigured WebDAV.
+    /// </summary>
+    [Fact]
+    public async Task PullFromCloud_DownloadedVault_PassesHeaderValidation()
+    {
+        if (SkipIfNotConfigured()) return;
+
+        // Create and upload a real vault
+        var crypto = new SodiumCryptoProvider();
+        var format = new VaultFormat();
+        var lockSvc = new LockService(crypto);
+        var codec = new ProfilePayloadCodec();
+        var deviceId = "device-validate";
+        var vault = new VaultService(crypto, format, lockSvc, codec, deviceId, new DeviceKeystore());
+
+        var vaultPath = Path.Combine(_tempDir, "validate-vault.okv");
+        var pw = Encoding.UTF8.GetBytes("ValidateP@ss2026");
+        await vault.CreateAsync(vaultPath, "validate-vault", pw, Argon2Params.ForTests(64 * 1024 * 1024));
+        await _provider.UploadAsync(vaultPath);
+        vault.Lock();
+        vault.Dispose();
+
+        // Pull and validate
+        var pullPath = Path.Combine(_tempDir, "validate-pulled.okv");
+        var success = await _provider.DownloadAsync(pullPath);
+        success.Should().BeTrue();
+
+        // ReadAsync should succeed (same validation as PullVaultAsync)
+        var record = await format.ReadAsync(pullPath);
+        record.VaultUuid.Should().NotBeEmpty();
+        record.Profiles.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Non-.okv files uploaded to the WebDAV server should fail the
+    /// VaultFormat.ReadAsync validation (same as PullVaultAsync catches).
+    /// This ensures the wizard doesn't silently accept garbage data.
+    /// </summary>
+    [Fact]
+    public async Task PullFromCloud_InvalidFile_FailsHeaderValidation()
+    {
+        if (SkipIfNotConfigured()) return;
+
+        // Upload a non-.okv file to the remote
+        var garbagePath = Path.Combine(_tempDir, "garbage.okv");
+        await File.WriteAllBytesAsync(garbagePath, new byte[] { 0x00, 0x01, 0x02, 0x03, 0xFF });
+        await _provider.UploadAsync(garbagePath);
+
+        // Pull it back
+        var pullPath = Path.Combine(_tempDir, "garbage-pulled.okv");
+        var success = await _provider.DownloadAsync(pullPath);
+        success.Should().BeTrue("download should succeed even for invalid files");
+
+        // ReadAsync should fail (this is the validation PullVaultAsync performs)
+        var format = new VaultFormat();
+        var act = () => format.ReadAsync(pullPath).GetAwaiter().GetResult();
+        act.Should().Throw<Exception>("invalid file should fail header validation");
+
+        // Clean up the invalid remote file
+        try { await _provider.UploadAsync(garbagePath); } catch { }
+    }
+
     public void Dispose()
     {
         // Clean up remote test file

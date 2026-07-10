@@ -76,7 +76,8 @@ public class CliIntegrationTests : IClassFixture<TempVaultDir>
         {
             var exit = await h.HandleAsync(Parse(h, "version"));
             exit.Should().Be(0);
-            stdout.ToString().Should().Contain("OmniKey Vault v1.1.0");
+            stdout.ToString().Should().Contain("OmniKey Vault v");
+            stdout.ToString().Should().MatchRegex(@"OmniKey Vault v\d+\.\d+\.\d+");
         }
     }
 

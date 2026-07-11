@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using System.Security.Cryptography;
+﻿﻿﻿﻿﻿﻿﻿﻿using System.Security.Cryptography;
 using System.Text;
 using OmniKeyVault.Contracts;
 using OmniKeyVault.Domain;
@@ -31,6 +31,7 @@ public sealed class VaultService : IDisposable
     private byte[] _verifyTag = Array.Empty<byte>();
     private VectorClock _vectorClock = new();
     private string _vaultPath = string.Empty;
+    private ushort _headerVersion = 2;  // v1.6: tracks whether the loaded vault uses v1 (single KDF) or v2 (double KDF)
     private bool _disposed;
 
     public VaultService(ICryptoProvider crypto, IVaultFormat format, LockService lockService, ProfilePayloadCodec codec, string deviceId, DeviceKeystore? keystore = null)
@@ -64,9 +65,8 @@ public sealed class VaultService : IDisposable
             throw new ValidationException("Argon2id memory cost must be >= 32 MiB (INV-06 production requirement).");
 
         // 1. Salt + device keypair + vault UUID
-        // Salt: 16 bytes for the KDF (libsodium constraint) + 16 bytes reserved (per OKV_FORMAT.md §4.1
-        // salt slot is 32B; remaining 16B reserved for future PQ-upgrade pepper). Both halves are
-        // random for v0.1 (the reserved half is unused but stored).
+        // Salt slot is 32B: first 16B = KDF salt (round 1), second 16B = KDF salt (round 2, v1.6 double Argon2id).
+        // v1 vaults used the second 16B as "reserved"; v2 vaults use it as the second KDF salt.
         var saltHalf = _crypto.RandomBytes((int)args.SaltLength);
         var saltReserved = _crypto.RandomBytes(16);
         _salt = new byte[32];
@@ -81,13 +81,17 @@ public sealed class VaultService : IDisposable
         // Persist device private key to local keystore so subsequent CLI invocations can sign updates.
         _keystore.Save(vaultUuid, deviceKeys.PrivateKey.Span.ToArray());
 
-        // 2. Derive MK + KEK (using the 16-byte KDF salt half).
+        // 2. Derive MK + KEK using v1.6 Double Argon2id key stretching.
+        // Round 1: MK1 = Argon2id(password, salt1, args)  — full memory cost
+        // Round 2: MK2 = Argon2id(MK1, salt2, argsRound2) — reduced 64 MiB
+        // KEK = HKDF(MK2, "okv-kek-v2", salt1)
         // NOTE: do not wrap these in `using` — ownership is transferred to LockService via
         // ActivateKeys. If we `using` them, the Dispose at end-of-method would zero the
         // material while LockService still holds a reference, leading to "DEK unwrap failed"
         // (zeroed KEK can no longer unwrap the on-disk DEK).
-        var mk = _crypto.DeriveMasterKey(masterPassword, _salt.AsSpan(0, 16), args);
-        var kek = _crypto.DeriveKek(mk, Encoding.UTF8.GetBytes("okv-kek-v1"), _salt.AsSpan(0, 16));
+        var argsRound2 = Argon2Params.ForTests(64 * 1024 * 1024); // 64 MiB round 2 (production-safe: >= 32 MiB)
+        var mk = _crypto.DeriveMasterKeyV2(masterPassword, _salt.AsSpan(0, 16), _salt.AsSpan(16, 16), args, argsRound2);
+        var kek = _crypto.DeriveKek(mk, Encoding.UTF8.GetBytes("okv-kek-v2"), _salt.AsSpan(0, 16));
         var verifyTag = _crypto.ComputeVerifyTag(kek, Array.Empty<byte>());
         _verifyTag = verifyTag;
 
@@ -191,13 +195,29 @@ public sealed class VaultService : IDisposable
         if (!_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
             throw new CryptoException("Vault signature verification failed — file may have been tampered with.");
 
-        // The salt slot is 32B; only the first 16B are the actual KDF salt (per v0.1 deviation note).
-        var kdfSalt = record.Salt.AsSpan(0, 16);
+        // The salt slot is 32B: first 16B = KDF salt (round 1), second 16B = KDF salt (round 2 for v2 vaults).
+        var kdfSalt1 = record.Salt.AsSpan(0, 16);
+        var kdfSalt2 = record.Salt.AsSpan(16, 16);
 
-        // Derive MK + KEK from the supplied password.
+        // v1.6: Detect header version to select the correct KDF path.
+        // v1 (HeaderVersion == 1): single Argon2id — MK = Argon2id(password, salt1, args), KEK = HKDF(MK, "okv-kek-v1")
+        // v2 (HeaderVersion == 2): double Argon2id — MK = Argon2idV2(password, salt1, salt2, args, argsRound2), KEK = HKDF(MK, "okv-kek-v2")
         // NOTE: do not wrap in `using` — ownership transfers to LockService via ActivateKeys.
-        var mk = _crypto.DeriveMasterKey(masterPassword, kdfSalt, record.Argon2Params);
-        var kek = _crypto.DeriveKek(mk, Encoding.UTF8.GetBytes("okv-kek-v1"), kdfSalt);
+        MasterKey mk;
+        KeyEncryptionKey kek;
+        if (record.HeaderVersion <= 1)
+        {
+            // v1 backward compatibility: single Argon2id KDF
+            mk = _crypto.DeriveMasterKey(masterPassword, kdfSalt1, record.Argon2Params);
+            kek = _crypto.DeriveKek(mk, Encoding.UTF8.GetBytes("okv-kek-v1"), kdfSalt1);
+        }
+        else
+        {
+            // v2: Double Argon2id key stretching
+            var argsRound2 = Argon2Params.ForTests(64 * 1024 * 1024); // 64 MiB round 2
+            mk = _crypto.DeriveMasterKeyV2(masterPassword, kdfSalt1, kdfSalt2, record.Argon2Params, argsRound2);
+            kek = _crypto.DeriveKek(mk, Encoding.UTF8.GetBytes("okv-kek-v2"), kdfSalt1);
+        }
 
         // Verify the master password via the stored verify tag (constant-time per INV-07)
         var computed = _crypto.ComputeVerifyTag(kek, Array.Empty<byte>());
@@ -237,6 +257,7 @@ public sealed class VaultService : IDisposable
         _verifyTag = record.VerifyTag;
         _vectorClock = record.VectorClock;
         _vaultPath = path;
+        _headerVersion = record.HeaderVersion;
 
         // Load the device private key from the local keystore (created by CreateAsync in this
         // device). If absent (e.g., the vault was first created on another device, or the
@@ -311,8 +332,20 @@ public sealed class VaultService : IDisposable
         if (_vaultPath == null) throw new InvalidOperationException("No vault loaded.");
 
         // 1. Verify old password against the stored verify tag.
-        var oldMk = _crypto.DeriveMasterKey(oldPassword, _salt.AsSpan(0, 16), _argon2Params);
-        var oldKek = _crypto.DeriveKek(oldMk, Encoding.UTF8.GetBytes("okv-kek-v1"), _salt.AsSpan(0, 16));
+        // v1.6: Use the correct KDF path based on the vault's header version.
+        MasterKey oldMk;
+        KeyEncryptionKey oldKek;
+        if (_headerVersion <= 1)
+        {
+            oldMk = _crypto.DeriveMasterKey(oldPassword, _salt.AsSpan(0, 16), _argon2Params);
+            oldKek = _crypto.DeriveKek(oldMk, Encoding.UTF8.GetBytes("okv-kek-v1"), _salt.AsSpan(0, 16));
+        }
+        else
+        {
+            var argsR2 = Argon2Params.ForTests(64 * 1024 * 1024);
+            oldMk = _crypto.DeriveMasterKeyV2(oldPassword, _salt.AsSpan(0, 16), _salt.AsSpan(16, 16), _argon2Params, argsR2);
+            oldKek = _crypto.DeriveKek(oldMk, Encoding.UTF8.GetBytes("okv-kek-v2"), _salt.AsSpan(0, 16));
+        }
         var computed = _crypto.ComputeVerifyTag(oldKek, Array.Empty<byte>());
         if (!_crypto.FixedTimeEquals(computed, _verifyTag))
         {
@@ -326,12 +359,23 @@ public sealed class VaultService : IDisposable
         oldMk.Dispose();
         oldKek.Dispose();
 
-        // 2. Derive new MK + KEK.
+        // 2. Derive new MK + KEK (same header version as the original vault).
         // P4-T2: Do NOT use `using` — ownership transfers to LockService via
         // ActivateKeysAsync on the success path. On the exception path, the
         // catch block disposes them to prevent key material leakage.
-        var newMk = _crypto.DeriveMasterKey(newPassword, _salt.AsSpan(0, 16), _argon2Params);
-        var newKek = _crypto.DeriveKek(newMk, Encoding.UTF8.GetBytes("okv-kek-v1"), _salt.AsSpan(0, 16));
+        MasterKey newMk;
+        KeyEncryptionKey newKek;
+        if (_headerVersion <= 1)
+        {
+            newMk = _crypto.DeriveMasterKey(newPassword, _salt.AsSpan(0, 16), _argon2Params);
+            newKek = _crypto.DeriveKek(newMk, Encoding.UTF8.GetBytes("okv-kek-v1"), _salt.AsSpan(0, 16));
+        }
+        else
+        {
+            var argsR2 = Argon2Params.ForTests(64 * 1024 * 1024);
+            newMk = _crypto.DeriveMasterKeyV2(newPassword, _salt.AsSpan(0, 16), _salt.AsSpan(16, 16), _argon2Params, argsR2);
+            newKek = _crypto.DeriveKek(newMk, Encoding.UTF8.GetBytes("okv-kek-v2"), _salt.AsSpan(0, 16));
+        }
         try
         {
         var newVerifyTag = _crypto.ComputeVerifyTag(newKek, Array.Empty<byte>());
@@ -340,10 +384,10 @@ public sealed class VaultService : IDisposable
         //    The DEK is read from the lock service (still keyed on the OLD KEK).
         //    We re-wrap with the NEW KEK. The profile payload encryption is unchanged
         //    (still uses the same DEK), so we don't need to re-encrypt any payloads.
-        var newProfileRecords = new List<ProfileRecord>(_vault!.Profiles.Count);
+        var newProfileRecords = new List<ProfileRecord>(_profiles.Count);
         // Save the DEKs so we can re-cache them after ActivateKeys drops the cache.
         var deksToRecache = new Dictionary<string, DataEncryptionKey>(StringComparer.Ordinal);
-        foreach (var (name, profile) in _vault.Profiles)
+        foreach (var (name, profile) in _profiles)
         {
             if (!_lock.TryGetDek(name, out var dek) || dek == null)
                 throw new InvalidOperationException($"DEK for profile '{name}' is not in cache.");
@@ -369,14 +413,14 @@ public sealed class VaultService : IDisposable
         for (int i = 0; i < newProfileRecords.Count; i++)
         {
             var name = newProfileRecords[i].Name;
-            var profile = _vault.Profiles[name];
+            var profile = _profiles[name];
             var dek = deksToRecache[name];
             var tagsList = VaultCryptoHelpers.CollectTags(profile.Entries);
             var payloadBytes = _codec.Encode(
                 profile.Entries, profile.Folders,
                 tagsList,
                 profile.Templates);
-            var encrypted = _crypto.Encrypt(dek, payloadBytes, VaultCryptoHelpers.BuildProfileAad(_vault.Metadata.Uuid, profile.Id));
+            var encrypted = _crypto.Encrypt(dek, payloadBytes, VaultCryptoHelpers.BuildProfileAad(_vault!.Metadata.Uuid, profile.Id));
             CryptographicOperations.ZeroMemory(payloadBytes);
             newProfileRecords[i] = newProfileRecords[i] with
             {
@@ -389,8 +433,9 @@ public sealed class VaultService : IDisposable
         // 5. Build the updated VaultRecord.
         var updatedRecord = new VaultRecord
         {
+            HeaderVersion = _headerVersion,
             AppBuildHash = _format.ComputeBuildHash(),
-            VaultUuid = _vault.Metadata.Uuid,
+            VaultUuid = _vault!.Metadata.Uuid,
             Argon2Params = _argon2Params,
             Salt = _salt,
             VerifyTag = newVerifyTag,
@@ -470,6 +515,7 @@ public sealed class VaultService : IDisposable
 
         var record = new VaultRecord
         {
+            HeaderVersion = _headerVersion,
             AppBuildHash = _format.ComputeBuildHash(),
             VaultUuid = _vault.Metadata.Uuid,
             Argon2Params = _argon2Params,

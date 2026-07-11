@@ -9,6 +9,8 @@ namespace OmniKeyVault.Contracts;
 /// </summary>
 public sealed record VaultRecord
 {
+    /// <summary>Header version: 1 = single Argon2id KDF (v1.0-v1.5), 2 = double Argon2id key stretching (v1.6+).</summary>
+    public ushort HeaderVersion { get; init; } = 2;
     public required byte[] AppBuildHash { get; init; }      // 8 bytes
     public required Guid VaultUuid { get; init; }
     public required Argon2Params Argon2Params { get; init; }

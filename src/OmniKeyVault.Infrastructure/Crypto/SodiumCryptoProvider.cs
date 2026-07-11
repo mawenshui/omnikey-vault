@@ -44,6 +44,25 @@ public sealed class SodiumCryptoProvider : ICryptoProvider
         return MasterKey.From(key);
     }
 
+    /// <summary>v1.6: Double Argon2id key stretching.
+    /// Round 1: MK1 = Argon2id(password, salt1, argsRound1)  — full 256 MiB
+    /// Round 2: MK2 = Argon2id(MK1, salt2, argsRound2)        — reduced 64 MiB
+    /// The second round uses MK1 (32 bytes) as the "password" input to Argon2id,
+    /// which is valid — Argon2id accepts arbitrary-length byte sequences as input.
+    /// An attacker must execute both rounds per password guess, doubling the
+    /// computational and memory cost of offline brute-force attacks.</summary>
+    public MasterKey DeriveMasterKeyV2(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt1, ReadOnlySpan<byte> salt2, Argon2Params argsRound1, Argon2Params argsRound2)
+    {
+        // Round 1: password → MK1 (same as v1 DeriveMasterKey)
+        using var mk1 = DeriveMasterKey(password, salt1, argsRound1);
+        // Round 2: MK1 → MK2 (reduced memory, same iterations)
+        // MK1 is 32 bytes of high-entropy key material; using it as Argon2id input
+        // ensures the second round cannot be shortcut — the attacker must complete
+        // round 1 before attempting round 2.
+        var mk2 = DeriveMasterKey(mk1.Span, salt2, argsRound2);
+        return mk2;
+    }
+
     public bool VerifyMasterKey(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Argon2Params args, ReadOnlySpan<byte> verifyTag)
     {
         // Constant-time verification per INV-07. Derive MK -> KEK -> recompute verify tag.

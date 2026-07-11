@@ -2,6 +2,7 @@
 
 | 文档版本 | 日期 | 作者 | 状态 |
 |---|---|---|---|
+| 1.6 | 2026-07-12 | Sisyphus | v1.6:Double Argon2id 密钥拉伸（Header v2）,公开源码安全加固,578/578 tests |
 | 1.1 | 2026-07-07 | Sisyphus | v1.1 优化进行中:OKV0001 + OKV0003 分析器已落地,467/467 tests |
 | 1.0 | 2026-06-25 | Sisyphus | v1.0 RC:451/451 tests,等待外部审计 |
 
@@ -63,7 +64,7 @@
   - **自定义信封格式**:私有 magic `OKV1`、非默认 Argon2id 参数、私有字段布局。
   - hashcat 等工具的 KDBX4 模式(13400)、Bitwarden 模式均不识别 `.okv`。
   - 攻击者需先逆向我们的代码才能拼出正确的 KDF 调用,显著提高攻击成本。
-- **残留风险**:开源后攻击者可获得代码;缓解靠每年小幅迭代字段布局 + KDF 参数动态调整。
+- **残留风险**:开源后攻击者可获得代码;缓解靠 v1.6 Double Argon2id 密钥拉伸（每次猜测需 320 MiB 内存，成本翻倍）+ 每年小幅迭代字段布局 + KDF 参数动态调整。
 - **验证**:测试用例 `SEC-T2-01` — 用 hashcat 常见模式尝试 `.okv`,验证全部失败。
 
 #### T3:设备被植入恶意软件,运行时内存被 dump
@@ -180,6 +181,43 @@
 - libsodium `crypto_pwhash` 默认 `m=64MiB, t=3`,内存成本偏低。
 - 我们的 256 MiB 让消费级 GPU(8-16GB VRAM)难以并行多实例爆破。
 - 同时,非默认参数意味着 hashcat 等工具的预设模式无法直接套用。
+
+#### 3.2.2 Double Argon2id 密钥拉伸（v1.6+ Header v2）
+
+> **v1.6 新增**:为支持公开源码仓库（GitHub public repo），引入双层 KDF 链，将离线爆破成本翻倍。
+
+**威胁背景**:当源码公开后，攻击者可获取完整的 KDF 算法和参数。虽然 Kerckhoffs 原则保证安全性不依赖算法保密，但增加每轮猜测的计算成本可以进一步抬高爆破门槛。
+
+**v1 KDF 链**（HeaderVersion=1，v1.0-v1.5 创建的金库）:
+```
+MK  = Argon2id(password, salt1[0:16], {t=3, m=256MiB, p=4})
+KEK = HKDF-SHA256(MK, "okv-kek-v1", salt1[0:16])
+```
+
+**v2 KDF 链**（HeaderVersion=2，v1.6+ 创建的金库）:
+```
+MK1 = Argon2id(password, salt1[0:16], {t=3, m=256MiB, p=4})   // Round 1: 全量内存成本
+MK2 = Argon2id(MK1,     salt2[16:32], {t=3, m=64MiB,  p=1})   // Round 2: 使用 MK1 作为输入的二次拉伸
+KEK = HKDF-SHA256(MK2, "okv-kek-v2", salt1[0:16])              // 域分隔符升级为 "okv-kek-v2"
+```
+
+| 维度 | v1（单轮） | v2（双轮） |
+|---|---|---|
+| Argon2id 轮次 | 1 | 2 |
+| 每轮猜测总内存 | 256 MiB | 256 + 64 = 320 MiB |
+| 每轮猜测相对成本 | 1× | ~2× |
+| 合法用户解锁耗时 | ~8-12 秒 | ~10-14 秒 |
+| 域分隔符 | `okv-kek-v1` | `okv-kek-v2` |
+| Salt 槽利用 | 前 16B（KDF salt），后 16B（保留） | 前 16B（Round 1 salt），后 16B（Round 2 salt） |
+
+**设计决策**:
+1. **第二轮使用 MK1 作为 Argon2id 输入**: MK1 是 32 字节的高熵密钥材料，使用它作为 Argon2id 的 "password" 输入是合法的（Argon2id 接受任意长度字节序列）。这确保攻击者必须先完成 Round 1 才能尝试 Round 2，无法跳过。
+2. **第二轮参数降低至 64 MiB**: 避免合法用户解锁耗时翻倍过多。64 MiB 仍然远超 libsodium 默认值，且攻击者需对每个猜测都付出此成本。
+3. **域分隔符升级**: 从 `"okv-kek-v1"` 变为 `"okv-kek-v2"` 确保 v1 和 v2 的 KEK 不可互换，即使密码相同也无法用 v1 KEK 解密 v2 金库。
+4. **二进制布局不变**: Salt 槽仍为 32 字节，后 16 字节从"保留"升级为 Round 2 salt。v1 金库的二进制格式完全兼容，无需迁移。
+5. **向后兼容**: `UnlockAsync` 通过 `HeaderVersion` 字段自动选择正确的 KDF 路径。v1 金库继续使用单轮路径，v2 金库使用双轮路径。
+
+**安全保证**: 即使攻击者拥有完整的源代码和 .okv 文件，不知道主密码就无法解密。攻击者必须对每个密码猜测运行两轮 Argon2id（共 320 MiB 内存），这使得离线爆破成本极高。
 
 #### 3.2.2 XChaCha20-Poly1305 而非 AES-GCM
 

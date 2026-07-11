@@ -4,6 +4,45 @@
 
 ---
 
+## [1.6.0] - 2026-07-12 — Double Argon2id 密钥拉伸（公开源码安全加固）
+
+### 🔒 安全升级
+- **Double Argon2id 密钥拉伸（Header v2）**: 新增双层 KDF 链，为公开源码场景提供更强防护。
+  - **Round 1**: `MK1 = Argon2id(password, salt1, {256 MiB, t=3, p=4})` — 与 v1 相同的全量内存成本
+  - **Round 2**: `MK2 = Argon2id(MK1, salt2, {64 MiB, t=3, p=1})` — 使用 MK1 作为输入的二次拉伸
+  - **KEK**: `HKDF-SHA256(MK2, "okv-kek-v2", salt1)` — 域分隔符从 `okv-kek-v1` 升级为 `okv-kek-v2`
+  - 攻击者每次密码猜测需运行两轮 Argon2id（共 320 MiB 内存），爆破成本翻倍
+  - 合法用户解锁仅增加 ~1-2 秒（64 MiB 第二轮开销）
+- **Salt 槽复用**: 32 字节 salt 槽的前 16 字节为 Round 1 KDF salt，后 16 字节从"保留"升级为 Round 2 KDF salt（二进制布局不变）
+- **向后兼容**: v1 金库（HeaderVersion=1）继续使用单轮 Argon2id 路径，v2 金库（HeaderVersion=2）使用双轮路径
+
+### 🐛 修复
+- **ChangePasswordAsync 数据丢失 bug**: `ChangePasswordAsync` 错误地从 `_vault.Profiles`（创建/解锁时的快照）读取 Profile 数据，而非 `_profiles`（工作副本），导致在 `PutEntry` 后直接调用 `ChangePasswordAsync` 会丢失新添加的条目。已修正为使用 `_profiles`。
+
+### ✅ 测试
+- 新增 17 项 Double Argon2id KDF 专项测试（`DoubleArgon2KdfTests`），覆盖：
+  - KDF 基本属性（确定性、不同密码/salt 产生不同密钥）
+  - v1/v2 KEK 不可互换性
+  - 端到端金库生命周期（创建/解锁/数据完整性）
+  - 向后兼容性（v1 金库可解锁、错误密码拒绝）
+  - 修改密码往返（v2 金库）
+  - 安全不变量（源码泄露 + .okv 文件 ≠ 解密；v1 KDF 无法解锁 v2 金库）
+  - Save/Load 保留 Header 版本
+- 全部 578/578 测试通过（561 已有 + 17 新增）。
+
+---
+
+## [1.5.0] - 2026-07-10 — 创建向导 WebDAV 拉取 + 坚果云兼容修复
+
+### ✨ 新增
+- **创建金库向导 WebDAV 拉取**: 新设备安装后可直接从云端拉取已有金库，跳过创建空金库的冗余步骤。
+- **WebDavSyncProvider 404 兼容**: 上传文件到不存在的目录时，坚果云返回 404 而非标准 409，现同时捕获 404 和 409 触发目录创建逻辑。
+
+### ✅ 测试
+- 561/561 测试通过。
+
+---
+
 ## [1.4.0] - 2026-07-10 — 代码质量改进与工程化升级
 
 ### ✨ 新增

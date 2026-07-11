@@ -29,13 +29,15 @@ namespace OmniKeyVault.Infrastructure;
 public sealed class VaultFormat : IVaultFormat
 {
     public static readonly byte[] Magic = { 0x4F, 0x4B, 0x56, 0x01 };
-    public const ushort HeaderVersion = 0x0001;
+    public const ushort HeaderVersion1 = 0x0001;
+    public const ushort HeaderVersion2 = 0x0002;  // v1.6: Double Argon2id key stretching
+    public const ushort HeaderVersion = HeaderVersion2;  // latest version for new vaults
 
     public byte[] ComputeBuildHash()
     {
         // Per OKV_FORMAT.md §4.3: SHA-256(git_commit_hash + dotnet_version + libsodium_version), first 8 bytes.
         // For v0.1 MVP we use a stable build identifier derived from assembly + runtime version.
-        var buildId = $"okv-0.1.0;.NET-{Environment.Version};bc-2.4.0";
+        var buildId = $"okv-1.6.0;.NET-{Environment.Version};bc-2.4.0";
         var full = SHA256.HashData(Encoding.UTF8.GetBytes(buildId));
         var result = new byte[8];
         Buffer.BlockCopy(full, 0, result, 0, 8);
@@ -49,7 +51,7 @@ public sealed class VaultFormat : IVaultFormat
         {
             // Header (everything except signature)
             bw.Write(Magic);
-            bw.Write((ushort)HeaderVersion); // LE ushort
+            bw.Write(record.HeaderVersion); // LE ushort (1 = v1 KDF, 2 = v2 double KDF)
             bw.Write(record.AppBuildHash);   // 8 bytes
             WriteGuid(bw, record.VaultUuid);
             bw.Write(record.Argon2Params.Memory); // uint32 LE
@@ -93,8 +95,8 @@ public sealed class VaultFormat : IVaultFormat
         if (!magic.SequenceEqual(Magic))
             throw new FileCorruptException($"Invalid magic bytes. Expected 'OKV1', got 0x{Convert.ToHexString(magic)}.");
         var headerVer = br.ReadUInt16();
-        if (headerVer != HeaderVersion)
-            throw new FileCorruptException($"Unsupported header version: {headerVer >> 8}.{headerVer & 0xFF}; expected 1.0.");
+        if (headerVer != HeaderVersion1 && headerVer != HeaderVersion2)
+            throw new FileCorruptException($"Unsupported header version: {headerVer >> 8}.{headerVer & 0xFF}; expected 1.0 or 2.0.");
 
         var buildHash = br.ReadBytes(8);
         var uuid = ReadGuid(br);
@@ -121,6 +123,7 @@ public sealed class VaultFormat : IVaultFormat
 
         return new VaultRecord
         {
+            HeaderVersion = headerVer,
             AppBuildHash = buildHash,
             VaultUuid = uuid,
             Argon2Params = new Argon2Params { Time = t, Memory = m, Parallelism = p, KeyLength = 32, SaltLength = (uint)salt.Length },

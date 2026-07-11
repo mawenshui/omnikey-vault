@@ -2,6 +2,7 @@
 
 | 文档版本 | 日期 | 作者 | 状态 |
 |---|---|---|---|
+| 1.1 | 2026-07-12 | Sisyphus | v1.6:Header v2 Double Argon2id 密钥拉伸,salt 槽后 16B 语义变更 |
 | 1.0 | 2026-06-25 | Sisyphus | v1.0 RC:451/451 tests,等待外部审计;与 v0.3 附件 Blob + 加密索引格式同步 |
 
 > 关联文档:[MANUAL.md §4.5-4.6 / §7-§8](./MANUAL.md) · [SECURITY.md](./SECURITY.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
@@ -243,14 +244,15 @@ public sealed class VectorClock {
 偏移  长度  字段                      说明
 ─────────────────────────────────────────────────────────────
 0     4     Magic                     "OKV1" (0x4F 0x4B 0x56 0x01)
-4     2     Header Version            0x01 0x00 (小端, v1)
+4     2     Header Version            0x01 0x00 (v1) 或 0x02 0x00 (v2, Double Argon2id)
 6     8     App Build Hash            前 8 字节 SHA-256(构建标识)
 14    16    Vault UUID                UUIDv7, 小端
 30    1     Argon2id m (uint32 高位)   实际为 4B uint32,见下
 30    4     Argon2id m                内存成本(字节),小端(默认 0x10000000 = 256 MiB)
 34    4     Argon2id t                迭代次数,小端(默认 3)
 38    1     Argon2id p                并行度(默认 4)
-39    32    KDF Salt                  随机盐
+39    32    KDF Salt                  v1: 前 16B = KDF salt, 后 16B = 保留
+                                      v2: 前 16B = Round 1 KDF salt, 后 16B = Round 2 KDF salt
 71    32    MK Verify Tag             加密全零验证主密码正确(见 §4.2)
 103   32    Device Ed25519 Public Key 当前签名设备公钥
 135   var   Encrypted Profiles        见 §5

@@ -2,6 +2,7 @@
 
 | 文档集版本 | 日期 | 状态 |
 |---|---|---|
+| 1.6 | 2026-07-12 | v1.6 发布:Double Argon2id 密钥拉伸（Header v2）+ 公开源码安全加固 + ChangePasswordAsync bug 修复 + 578/578 测试通过 |
 | 1.5 | 2026-07-10 | v1.5 发布:创建金库向导新增 WebDAV 拉取功能 + WebDavSyncProvider 404 处理修复 + 561/561 测试通过 |
 | 1.4 | 2026-07-10 | v1.4 发布:代码质量改进（SettingsStore 提取、demo 路由重构、SourceLink/CPM/Coverlet）+ CI/CD + OKV_TEST_MODE Release 防护 + 557/557 测试通过 |
 | 1.3 | 2026-07-10 | v1.3 发布:UI 改进（拆分同步按钮为拉取/推送/本地）+ WebDAV 配置布局优化 + 557/557 测试通过 |

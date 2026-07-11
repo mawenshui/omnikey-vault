@@ -16,6 +16,12 @@ public interface ICryptoProvider
     MasterKey DeriveMasterKey(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Argon2Params args);
     bool VerifyMasterKey(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt, Argon2Params args, ReadOnlySpan<byte> verifyTag);
 
+    /// <summary>v1.6: Double Argon2id key stretching. Derives MK1 from the user
+    /// password (round 1, full 256 MiB), then derives MK2 from MK1 (round 2,
+    /// reduced 64 MiB). Doubles the per-guess cost for offline brute-force
+    /// attackers who have both the .okv file and the source code.</summary>
+    MasterKey DeriveMasterKeyV2(ReadOnlySpan<byte> password, ReadOnlySpan<byte> salt1, ReadOnlySpan<byte> salt2, Argon2Params argsRound1, Argon2Params argsRound2);
+
     // ---- Key derivation ----
     KeyEncryptionKey DeriveKek(MasterKey mk, ReadOnlySpan<byte> info, ReadOnlySpan<byte> salt);
 

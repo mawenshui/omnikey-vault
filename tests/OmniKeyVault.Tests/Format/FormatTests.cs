@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+﻿﻿using System.Security.Cryptography;
 using System.Text;
 using FluentAssertions;
 using OmniKeyVault.Contracts;
@@ -208,15 +208,15 @@ public class FormatTests
         act.Should().Throw<FileCorruptException>();
     }
 
-    // ---- FMT-INTEG-03: invalid header version 鈫?exception ----
+    // ---- FMT-INTEG-03: invalid header version → exception ----
     [Fact]
     public void Decode_UnsupportedHeaderVersion_ThrowsFileCorruptException()
     {
         var deviceKeys = _crypto.GenerateDeviceKeyPair();
         var record = MakeRecord();
         var encoded = _format.Encode(record, deviceKeys.PrivateKey);
-        // Header version bytes are 4-5 (LE ushort). Change to major=2.
-        encoded[4] = 0x02;
+        // Header version bytes are 4-5 (LE ushort). Change to major=3 (unsupported).
+        encoded[4] = 0x03;
         var act = () => _format.Decode(encoded);
         act.Should().Throw<FileCorruptException>().WithMessage("*Unsupported header version*");
     }

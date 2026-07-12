@@ -1,0 +1,75 @@
+{
+  "id": "huawei_cloud",
+  "platform_id": "huawei_cloud",
+  "name": "华为云 (HUAWEI CLOUD)",
+  "category": "cloud",
+  "icon": "huawei",
+  "official_docs_url": "https://support.huaweicloud.com/usermanual-iam/iam_02_0003.html",
+  "auth_header": "Authorization: SDK-HMAC-SHA256 ...",
+  "default_base_url": "https://iam.myhuaweicloud.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "huawei_cloud",
+  "notes": "建议为 IAM 用户创建访问密钥，而非使用账号 token。每个用户最多 2 对访问密钥。推荐使用临时访问凭证 (STS)。",
+  "fields": [
+    {
+      "key": "ak",
+      "label": "Access Key (AK)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "••••••••••••••••••••",
+      "placeholder": "ABCDEFGH IJKLMNOP",
+      "validation": { "regex": "^[A-Za-z0-9]{16,20}$", "hint": "16-20 字符" },
+      "group": "primary",
+      "description": "华为云访问密钥 ID (AK)。"
+    },
+    {
+      "key": "sk",
+      "label": "Secret Access Key (SK)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,40}$", "hint": "32-40 字符，仅在创建时显示一次" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "华为云秘密访问密钥 (SK)，用于签名认证。创建后不可再次查看。"
+    },
+    {
+      "key": "region",
+      "label": "默认区域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "cn-north-4",
+      "validation": { "regex": "^(cn|ap|eu|af|la|na)-[a-z]+(-[0-9]+)?$", "hint": "如 cn-north-4, cn-east-3, ap-southeast-1" },
+      "group": "primary"
+    },
+    {
+      "key": "project_id",
+      "label": "项目 ID (Project ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "0a1234567890abcdef01234567890abc",
+      "validation": { "regex": "^[0-9a-f]{32}$", "hint": "32 位十六进制" },
+      "group": "secondary",
+      "description": "华为云项目 ID，部分服务调用需要。"
+    },
+    {
+      "key": "domain_id",
+      "label": "账号 ID (Domain ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "05a1234567890abcdef01234567890ab",
+      "validation": { "regex": "^[0-9a-f]{32}$", "hint": "32 位十六进制" },
+      "group": "secondary",
+      "description": "华为云账号 ID (Domain ID)。"
+    }
+  ]
+}

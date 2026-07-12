@@ -1,0 +1,41 @@
+{
+  "id": "jpush",
+  "platform_id": "jpush",
+  "name": "极光推送 (JPush)",
+  "category": "communication",
+  "icon": "jpush",
+  "official_docs_url": "https://docs.jiguang.cn/jpush/server/push/rest_api_v3_push",
+  "auth_header": "Authorization: Basic <base64(app_key:master_secret)>",
+  "default_base_url": "https://api.jpush.cn/v3",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "jpush",
+  "notes": "极光推送使用 App Key + Master Secret 进行 Basic Auth 认证。",
+  "fields": [
+    {
+      "key": "app_key",
+      "label": "App Key",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,32}$", "hint": "16-32 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "master_secret",
+      "label": "Master Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{24,32}$", "hint": "24-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "极光推送 Master Secret。"
+    }
+  ]
+}

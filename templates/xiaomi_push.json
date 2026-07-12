@@ -1,0 +1,50 @@
+{
+  "id": "xiaomi_push",
+  "platform_id": "xiaomi_push",
+  "name": "小米推送 (Xiaomi Push)",
+  "category": "communication",
+  "icon": "xiaomi",
+  "official_docs_url": "https://dev.mi.com/console/doc/detail?pId=1787",
+  "auth_header": "Authorization: key=<app_secret>",
+  "default_base_url": "https://api.xmpush.xiaomi.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "xiaomi_push",
+  "notes": "小米推送使用 App Secret 进行认证。Android 应用包名 + App ID 标识应用。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "2882303761517382290",
+      "validation": { "regex": "^\\d{19}$", "hint": "19 位数字" },
+      "group": "primary"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{24,32}$", "hint": "24-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "小米推送 App Secret。"
+    },
+    {
+      "key": "package_name",
+      "label": "应用包名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "com.example.app",
+      "group": "secondary"
+    }
+  ]
+}

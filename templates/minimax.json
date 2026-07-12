@@ -1,0 +1,43 @@
+{
+  "id": "minimax",
+  "platform_id": "minimax",
+  "name": "MiniMax",
+  "category": "ai_llm",
+  "icon": "minimax",
+  "official_docs_url": "https://platform.minimaxi.com/document",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://api.minimax.chat/v1",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "minimax",
+  "notes": "MiniMax 提供 abab 系列大模型及语音合成能力。API 需要携带 Group ID 参数。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{32,}$", "hint": "32+ 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "MiniMax API Key。"
+    },
+    {
+      "key": "group_id",
+      "label": "Group ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "1234567890",
+      "validation": { "regex": "^\\d{10,}$", "hint": "10+ 位数字" },
+      "group": "primary",
+      "description": "MiniMax Group ID，API 调用时需要作为 URL 参数。"
+    }
+  ]
+}

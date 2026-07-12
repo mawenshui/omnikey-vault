@@ -1,0 +1,62 @@
+{
+  "id": "volcengine",
+  "platform_id": "volcengine",
+  "name": "火山引擎 (Volcengine)",
+  "category": "cloud",
+  "icon": "volcengine",
+  "official_docs_url": "https://www.volcengine.com/docs/6291/65568",
+  "auth_header": "Authorization: VOLC-HMAC-SHA256 ...",
+  "default_base_url": "https://open.volcengineapi.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "volcengine",
+  "notes": "火山引擎是字节跳动旗下云服务平台。建议使用 IAM 用户密钥，而非主账号密钥。",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AK••••••••••••••••••••",
+      "placeholder": "AKLTxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^AKLT[A-Za-z0-9]{16,32}$", "hint": "以 AKLT 开头" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符，仅在创建时显示一次" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "火山引擎 Secret Access Key。"
+    },
+    {
+      "key": "region",
+      "label": "默认地域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "cn-beijing",
+      "validation": { "regex": "^cn-[a-z]+(-[0-9]+)?$", "hint": "如 cn-beijing, cn-shanghai, ap-singapore" },
+      "group": "primary"
+    },
+    {
+      "key": "account_id",
+      "label": "账号 ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "2000000001",
+      "validation": { "regex": "^\\d{10,12}$", "hint": "10-12 位数字" },
+      "group": "secondary"
+    }
+  ]
+}

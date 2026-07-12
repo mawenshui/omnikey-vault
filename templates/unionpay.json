@@ -1,0 +1,67 @@
+{
+  "id": "unionpay",
+  "platform_id": "unionpay",
+  "name": "银联支付 (UnionPay)",
+  "category": "payment",
+  "icon": "unionpay",
+  "official_docs_url": "https://open.unionpay.com/tjweb/acproduct/list",
+  "auth_header": "签名: SHA256 / RSA",
+  "default_base_url": "https://gateway.95516.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "notes": "银联在线支付使用商户号 + 签名证书认证。签名证书为 RSA 或 SM2 国密算法。",
+  "fields": [
+    {
+      "key": "mer_id",
+      "label": "商户号 (Mer ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "777290000000000",
+      "validation": { "regex": "^\\d{15}$", "hint": "15 位数字" },
+      "group": "primary",
+      "description": "银联商户号。"
+    },
+    {
+      "key": "cert_password",
+      "label": "签名证书密码",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••",
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "银联签名证书 (pfx) 密码。"
+    },
+    {
+      "key": "cert_file",
+      "label": "签名证书文件",
+      "kind": "file_ref",
+      "sensitive": false,
+      "required": false,
+      "group": "primary",
+      "description": "银联签名证书 (pfx 格式) 文件路径。"
+    },
+    {
+      "key": "acquirer_code",
+      "label": "收单机构代码",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "00010000",
+      "group": "secondary"
+    },
+    {
+      "key": "sandbox_url",
+      "label": "测试环境地址",
+      "kind": "url",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "https://gateway.test.95516.com",
+      "group": "secondary"
+    }
+  ]
+}

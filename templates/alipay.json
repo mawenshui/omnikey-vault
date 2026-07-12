@@ -1,0 +1,84 @@
+{
+  "id": "alipay",
+  "platform_id": "alipay",
+  "name": "支付宝 (Alipay)",
+  "category": "payment",
+  "icon": "alipay",
+  "official_docs_url": "https://opendocs.alipay.com/open/200/105304",
+  "auth_header": "签名: RSA2 (SHA256WithRSA)",
+  "default_base_url": "https://openapi.alipay.com/gateway.do",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "alipay",
+  "notes": "支付宝开放平台使用 RSA2 签名认证。应用私钥用于签名请求，支付宝公钥用于验证响应。证书模式为推荐方式。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID (应用 ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "2021000000000000",
+      "validation": { "regex": "^\\d{16}$", "hint": "16 位数字" },
+      "group": "primary",
+      "description": "支付宝开放平台应用 ID。"
+    },
+    {
+      "key": "app_private_key",
+      "label": "应用私钥 (App Private Key)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "MIIEv••••••••••••••••",
+      "placeholder": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKc...",
+      "validation": { "regex": "^MIIE[A-Za-z0-9+/=]{500,}$", "hint": "PKCS#8 格式 RSA 私钥（Base64）" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "应用私钥（PKCS#8 格式），用于对 API 请求进行 RSA2 签名。"
+    },
+    {
+      "key": "alipay_public_key",
+      "label": "支付宝公钥 (Alipay Public Key)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQE...",
+      "validation": { "regex": "^MIIB[A-Za-z0-9+/=]{200,}$", "hint": "支付宝公钥（Base64）" },
+      "group": "primary",
+      "description": "支付宝公钥，用于验证支付宝响应签名。"
+    },
+    {
+      "key": "app_cert_serial_number",
+      "label": "应用证书序列号",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "2021000000000000",
+      "validation": { "regex": "^[0-9A-Fa-f]{16,40}$", "hint": "16-40 位十六进制" },
+      "group": "secondary",
+      "description": "应用公钥证书序列号（证书模式必填）。"
+    },
+    {
+      "key": "alipay_root_cert",
+      "label": "支付宝根证书",
+      "kind": "file_ref",
+      "sensitive": false,
+      "required": false,
+      "group": "advanced",
+      "description": "支付宝根证书文件（证书模式必填）。"
+    },
+    {
+      "key": "gateway_url",
+      "label": "网关地址",
+      "kind": "url",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "https://openapi.alipay.com/gateway.do",
+      "group": "secondary",
+      "description": "沙箱环境: https://openapi-sandbox.dl.alipaydev.com/gateway.do"
+    }
+  ]
+}

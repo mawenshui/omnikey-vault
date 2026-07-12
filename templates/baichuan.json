@@ -1,0 +1,32 @@
+{
+  "id": "baichuan",
+  "platform_id": "baichuan",
+  "name": "百川智能 (Baichuan)",
+  "category": "ai_llm",
+  "icon": "baichuan",
+  "official_docs_url": "https://platform.baichuan-ai.com/docs",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://api.baichuan-ai.com/v1",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "baichuan",
+  "notes": "百川智能提供 Baichuan 系列大模型。API 兼容 OpenAI 接口格式。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk-••••••••••••••••••••",
+      "placeholder": "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^sk-[A-Za-z0-9]{16,}$", "hint": "sk- 开头" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "百川智能 API Key。"
+    }
+  ]
+}

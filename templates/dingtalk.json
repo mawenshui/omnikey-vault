@@ -1,0 +1,87 @@
+{
+  "id": "dingtalk",
+  "platform_id": "dingtalk",
+  "name": "钉钉 (DingTalk)",
+  "category": "communication",
+  "icon": "dingtalk",
+  "official_docs_url": "https://open.dingtalk.com/document/",
+  "auth_header": "x-acs-dingtalk-access-token: <access_token>",
+  "default_base_url": "https://oapi.dingtalk.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "dingtalk",
+  "notes": "钉钉开放平台使用 AppKey/AppSecret 获取 access_token。企业内部应用和第三方应用均可创建。access_token 有效期 2 小时。",
+  "fields": [
+    {
+      "key": "app_key",
+      "label": "App Key",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "dingxxxxxxxxxxxxxx",
+      "validation": { "regex": "^ding[A-Za-z0-9]{14,20}$", "hint": "以 ding 开头" },
+      "group": "primary",
+      "description": "钉钉应用 App Key。"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,}$", "hint": "32+ 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "钉钉应用 App Secret，用于获取 access_token。"
+    },
+    {
+      "key": "robot_webhook",
+      "label": "机器人 Webhook URL",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://oapi.dingtalk.com/robot/send?access_token=••••",
+      "validation": { "regex": "^https://oapi\\.dingtalk\\.com/robot/send\\?access_token=[A-Za-z0-9]+$", "hint": "钉钉机器人 Webhook 地址" },
+      "group": "secondary",
+      "description": "钉钉群机器人 Webhook 地址（URL 本身即为凭证）。"
+    },
+    {
+      "key": "robot_secret",
+      "label": "机器人加签密钥",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "SEC••••••••••••••••",
+      "validation": { "regex": "^SEC[A-Za-z0-9]{60,}$", "hint": "以 SEC 开头" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "钉钉机器人加签密钥（SEC 开头），用于 HMAC-SHA256 签名验证。"
+    },
+    {
+      "key": "agent_id",
+      "label": "Agent ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "1234567890",
+      "validation": { "regex": "^\\d{10,}$", "hint": "10+ 位数字" },
+      "group": "secondary",
+      "description": "钉钉应用 Agent ID。"
+    },
+    {
+      "key": "corp_id",
+      "label": "企业 ID (Corp ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "dingxxxxxxxxxxxxxx",
+      "group": "secondary",
+      "description": "钉钉企业 Corp ID。"
+    }
+  ]
+}

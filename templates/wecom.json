@@ -1,0 +1,89 @@
+{
+  "id": "wecom",
+  "platform_id": "wecom",
+  "name": "企业微信 (WeCom / WeChat Work)",
+  "category": "communication",
+  "icon": "wecom",
+  "official_docs_url": "https://developer.work.weixin.qq.com/document/",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://qyapi.weixin.qq.com/cgi-bin",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "wecom",
+  "notes": "企业微信使用 Corp ID + Secret 获取 access_token（有效期 2 小时）。每个应用有独立的 Secret。",
+  "fields": [
+    {
+      "key": "corp_id",
+      "label": "企业 ID (Corp ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "ww1234567890abcdef",
+      "validation": { "regex": "^ww[A-Za-z0-9]{16}$", "hint": "以 ww 开头，18 字符" },
+      "group": "primary",
+      "description": "企业微信企业 ID。"
+    },
+    {
+      "key": "agent_id",
+      "label": "应用 Agent ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "1000002",
+      "validation": { "regex": "^\\d{6,10}$", "hint": "6-10 位数字" },
+      "group": "primary",
+      "description": "企业微信应用 Agent ID。"
+    },
+    {
+      "key": "corp_secret",
+      "label": "应用 Secret (Corp Secret)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9_\\-]{32,43}$", "hint": "32-43 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "企业微信应用 Secret，用于获取 access_token。"
+    },
+    {
+      "key": "token",
+      "label": "回调 Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••",
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "回调接口验证 Token。"
+    },
+    {
+      "key": "encoding_aes_key",
+      "label": "回调 EncodingAESKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "•••••••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{43}$", "hint": "43 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "回调消息加解密密钥（43 字符）。"
+    },
+    {
+      "key": "bot_webhook",
+      "label": "群机器人 Webhook",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=••••",
+      "validation": { "regex": "^https://qyapi\\.weixin\\.qq\\.com/cgi-bin/webhook/send\\?key=[A-Za-z0-9\\-]{36}$", "hint": "企业微信群机器人 Webhook" },
+      "group": "secondary",
+      "description": "企业微信群机器人 Webhook 地址。"
+    }
+  ]
+}

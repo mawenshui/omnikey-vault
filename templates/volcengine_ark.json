@@ -1,0 +1,43 @@
+{
+  "id": "volcengine_ark",
+  "platform_id": "volcengine_ark",
+  "name": "火山方舟 (Volcengine Ark / 豆包)",
+  "category": "ai_llm",
+  "icon": "volcengine",
+  "official_docs_url": "https://www.volcengine.com/docs/82379",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "volcengine_ark",
+  "notes": "火山方舟是字节跳动旗下大模型推理平台，提供豆包系列模型。兼容 OpenAI 接口格式。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••-••••••••-••••••••-••••••••",
+      "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9\\-]{36}$", "hint": "UUID 格式" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "火山方舟 API Key。"
+    },
+    {
+      "key": "endpoint_id",
+      "label": "Endpoint ID (推理接入点)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "ep-20240xxxxxxxxx-xxxxx",
+      "validation": { "regex": "^ep-[0-9]{8}[A-Za-z0-9]{5,}-[A-Za-z0-9]{5,}$", "hint": "以 ep- 开头" },
+      "group": "secondary",
+      "description": "推理接入点 ID，用于指定具体模型版本。"
+    }
+  ]
+}

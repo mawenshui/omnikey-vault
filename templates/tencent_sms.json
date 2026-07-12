@@ -1,0 +1,60 @@
+{
+  "id": "tencent_sms",
+  "platform_id": "tencent_sms",
+  "name": "腾讯云短信 (Tencent SMS)",
+  "category": "communication",
+  "icon": "tencent",
+  "official_docs_url": "https://cloud.tencent.com/document/product/382/43196",
+  "auth_header": "Authorization: TC3-HMAC-SHA256 ...",
+  "default_base_url": "https://sms.tencentcloudapi.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "notes": "腾讯云短信使用 CAM 密钥认证。SDK AppID 和 App Key 用于短信发送签名。推荐使用 CAM 子账号密钥。",
+  "fields": [
+    {
+      "key": "sdk_app_id",
+      "label": "SDK AppID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "1400000000",
+      "validation": { "regex": "^1400\\d{6}$", "hint": "以 1400 开头，10 位数字" },
+      "group": "primary",
+      "description": "腾讯云短信 SDK AppID。"
+    },
+    {
+      "key": "app_key",
+      "label": "App Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "腾讯云短信 App Key。"
+    },
+    {
+      "key": "sign_name",
+      "label": "短信签名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "您的签名",
+      "group": "secondary"
+    },
+    {
+      "key": "template_id",
+      "label": "模板 ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "1234567",
+      "validation": { "regex": "^\\d+$", "hint": "纯数字" },
+      "group": "secondary"
+    }
+  ]
+}

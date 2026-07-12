@@ -1,0 +1,52 @@
+{
+  "id": "jd_cloud",
+  "platform_id": "jd_cloud",
+  "name": "京东云 (JD Cloud)",
+  "category": "cloud",
+  "icon": "jd",
+  "official_docs_url": "https://docs.jdcloud.com/cn/account-management/accesskey-management",
+  "auth_header": "Authorization: jcloud-cloud-v2/...",
+  "default_base_url": "https://www.jdcloud-api.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "jd_cloud",
+  "notes": "建议为子用户创建访问密钥，而非使用主账号密钥。",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "••••••••••••••••••••",
+      "placeholder": "ABCDEFGH IJKLMNOPQRST",
+      "validation": { "regex": "^[A-Za-z0-9]{20}$", "hint": "20 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{40}$", "hint": "40 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "京东云 Secret Access Key，仅在创建时显示一次。"
+    },
+    {
+      "key": "region",
+      "label": "默认地域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "cn-north-1",
+      "validation": { "regex": "^cn-[a-z]+(-[0-9]+)?$", "hint": "如 cn-north-1, cn-east-1, cn-south-1" },
+      "group": "primary"
+    }
+  ]
+}

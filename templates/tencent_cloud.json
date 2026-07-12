@@ -1,0 +1,75 @@
+{
+  "id": "tencent_cloud",
+  "platform_id": "tencent_cloud",
+  "name": "腾讯云 CAM (Tencent Cloud)",
+  "category": "cloud",
+  "icon": "tencent",
+  "official_docs_url": "https://cloud.tencent.com/document/product/598/40488",
+  "auth_header": "Authorization: TC3-HMAC-SHA256 ...",
+  "default_base_url": "https://cvm.tencentcloudapi.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "tencent_cloud",
+  "notes": "建议为子账号创建 API 密钥，而非使用主账号密钥。主账号密钥可操作所有资源，风险极高。每个子账号最多 2 对密钥。",
+  "fields": [
+    {
+      "key": "secret_id",
+      "label": "SecretId",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AKID••••••••",
+      "placeholder": "AKID<your-secret-id>",
+      "validation": { "regex": "^AKID[A-Za-z0-9]{32,36}$", "hint": "以 AKID 开头，36 字符" },
+      "group": "primary",
+      "description": "腾讯云 API 密钥 ID，用于标识用户身份。"
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,36}$", "hint": "32-36 字符，仅在创建时显示一次" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "腾讯云 API 密钥 Secret，用于签名认证。创建后不可再次查看，请妥善保管。"
+    },
+    {
+      "key": "region",
+      "label": "默认地域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "ap-guangzhou",
+      "validation": { "regex": "^(ap|na|eu|sa|me)-[a-z]+(-[0-9]+)?$", "hint": "如 ap-guangzhou, ap-shanghai, ap-beijing, na-toronto" },
+      "group": "primary"
+    },
+    {
+      "key": "account_id",
+      "label": "账号 ID (UIN)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "100012345678",
+      "validation": { "regex": "^\\d{10,12}$", "hint": "10-12 位数字" },
+      "group": "secondary",
+      "description": "腾讯云账号 ID，可在控制台右上角查看。"
+    },
+    {
+      "key": "app_id",
+      "label": "AppID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "1250000000",
+      "validation": { "regex": "^\\d{10}$", "hint": "10 位数字" },
+      "group": "secondary",
+      "description": "腾讯云 AppID，用于 COS、CVM 等服务。"
+    }
+  ]
+}

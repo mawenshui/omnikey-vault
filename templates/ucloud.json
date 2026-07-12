@@ -1,0 +1,50 @@
+{
+  "id": "ucloud",
+  "platform_id": "ucloud",
+  "name": "UCloud",
+  "category": "cloud",
+  "icon": "ucloud",
+  "official_docs_url": "https://docs.ucloud.cn/api/summary/privatekey",
+  "auth_header": "POST body with PublicKey + Signature",
+  "default_base_url": "https://api.ucloud.cn",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "notes": "UCloud API 使用 PublicKey/PrivateKey 认证，签名通过请求参数传递。",
+  "fields": [
+    {
+      "key": "public_key",
+      "label": "PublicKey",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9\\-]{36}$", "hint": "UUID 格式" },
+      "group": "primary"
+    },
+    {
+      "key": "private_key",
+      "label": "PrivateKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "UCloud PrivateKey，用于 API 签名。"
+    },
+    {
+      "key": "project_id",
+      "label": "项目 ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "org-xxxxxxxx",
+      "validation": { "regex": "^org-[A-Za-z0-9]{8,}$", "hint": "以 org- 开头" },
+      "group": "secondary"
+    }
+  ]
+}

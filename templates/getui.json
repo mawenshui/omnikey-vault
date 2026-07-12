@@ -1,0 +1,52 @@
+{
+  "id": "getui",
+  "platform_id": "getui",
+  "name": "个推 (GeTui / Getui)",
+  "category": "communication",
+  "icon": "getui",
+  "official_docs_url": "https://docs.getui.com/getui/server/rest_v2/",
+  "auth_header": "Authorization: <token>",
+  "default_base_url": "https://restapi.getui.com/v2",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "getui",
+  "notes": "个推使用 App Key + Master Secret + App ID 获取认证 token。token 有效期约 24 小时。",
+  "fields": [
+    {
+      "key": "app_key",
+      "label": "App Key",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "master_secret",
+      "label": "Master Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "个推 Master Secret。"
+    },
+    {
+      "key": "app_id",
+      "label": "App ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "group": "primary",
+      "description": "个推 App ID。"
+    }
+  ]
+}

@@ -10,7 +10,7 @@
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Tests](https://img.shields.io/badge/tests-578%2F578-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue)](docs/变更日志.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 
@@ -56,7 +56,7 @@
 - **本地文件夹同步**：OneDrive / Google Drive / Dropbox / USB
 - **多 Profile**：生产 / 开发 / 测试环境隔离，带视觉标识
 - **TOTP 验证码**：内置 RFC 6238 标准的 OTP 生成器
-- **平台模板**：内置 GitHub / OpenAI / AWS / Stripe / Supabase / Anthropic 等 11 个模板
+- **平台模板**：内置 50 个模板，覆盖国内外主流平台（GitHub / OpenAI / AWS / 腾讯云 / 华为云 / 百度千帆 / 通义千问 / DeepSeek / 支付宝 / 微信支付 / 钉钉 / 飞书等）
 - **全文搜索**：字段级搜索语法，1 万条目搜索 ≤ 2ms
 - **历史快照**：每次编辑自动保存版本，可随时回退
 - **一键轮换**：支持 OpenAI / GitHub API 密钥自动轮换

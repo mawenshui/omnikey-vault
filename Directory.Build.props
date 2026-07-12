@@ -10,10 +10,10 @@
     <Authors>Sisyphus</Authors>
     <Company>OmniKey Vault</Company>
     <Product>OmniKey Vault</Product>
-    <!-- v1.6.0: Double Argon2id key stretching for public-source-code hardening -->
-    <Version>1.6.0</Version>
-    <AssemblyVersion>1.6.0.0</AssemblyVersion>
-    <FileVersion>1.6.0.0</FileVersion>
+    <!-- v1.7.0: 39 new domestic (China) platform templates added -->
+    <Version>1.7.0</Version>
+    <AssemblyVersion>1.7.0.0</AssemblyVersion>
+    <FileVersion>1.7.0.0</FileVersion>
     <RepositoryUrl>https://github.com/mawenshui/omnikey-vault</RepositoryUrl>
 
     <!-- v1.4: SourceLink — enables "Go to Source" in debugger stack traces -->

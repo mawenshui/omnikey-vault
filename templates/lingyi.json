@@ -1,0 +1,32 @@
+{
+  "id": "lingyi",
+  "platform_id": "lingyi",
+  "name": "零一万物 (01.ai / Yi)",
+  "category": "ai_llm",
+  "icon": "lingyi",
+  "official_docs_url": "https://platform.lingyiwanwu.com/docs",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://api.lingyiwanwu.com/v1",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "lingyi",
+  "notes": "零一万物提供 Yi 系列大模型。API 兼容 OpenAI 接口格式。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{20,}$", "hint": "20+ 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "零一万物 API Key。"
+    }
+  ]
+}

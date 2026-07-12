@@ -1,0 +1,41 @@
+{
+  "id": "rongcloud",
+  "platform_id": "rongcloud",
+  "name": "融云 (RongCloud)",
+  "category": "communication",
+  "icon": "rongcloud",
+  "official_docs_url": "https://doc.rongcloud.cn/server/",
+  "auth_header": "Signature: <signature>, Nonce: <nonce>, Timestamp: <ts>",
+  "default_base_url": "https://api.rong-api.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "rongcloud",
+  "notes": "融云使用 App Key + App Secret 进行签名认证（SHA1）。签名通过 HTTP Header 传递。",
+  "fields": [
+    {
+      "key": "app_key",
+      "label": "App Key",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{16,32}$", "hint": "16-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "融云 App Secret，用于生成 API 请求签名。"
+    }
+  ]
+}

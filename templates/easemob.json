@@ -1,0 +1,59 @@
+{
+  "id": "easemob",
+  "platform_id": "easemob",
+  "name": "环信 (Easemob)",
+  "category": "communication",
+  "icon": "easemob",
+  "official_docs_url": "https://docs.easemob.com/",
+  "auth_header": "Authorization: Bearer <app_token>",
+  "default_base_url": "https://a1.easemob.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "easemob",
+  "notes": "环信使用 Client ID + Client Secret 获取 app token。app token 有效期约 6 天。",
+  "fields": [
+    {
+      "key": "client_id",
+      "label": "Client ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "YXAxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "client_secret",
+      "label": "Client Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{16,24}$", "hint": "16-24 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "环信 Client Secret。"
+    },
+    {
+      "key": "org_name",
+      "label": "企业唯一标识 (Org Name)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "your-org",
+      "group": "secondary"
+    },
+    {
+      "key": "app_name",
+      "label": "应用唯一标识 (App Name)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "your-app",
+      "group": "secondary"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "zhipu",
+  "platform_id": "zhipu",
+  "name": "智谱 AI (Zhipu / GLM)",
+  "category": "ai_llm",
+  "icon": "zhipu",
+  "official_docs_url": "https://open.bigmodel.cn/dev/api",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "zhipu",
+  "notes": "智谱 AI 提供 GLM-4 等大模型。API Key 在开放平台控制台创建。注意：API Key 可解码出 ID 和 Secret。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••.••••••••",
+      "placeholder": "xxxxxxxx.xxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{8,16}\\.[A-Za-z0-9]{8,16}$", "hint": "格式: ID.Secret（如 abc123.xyz789）" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "智谱 AI API Key，格式为 ID.Secret。"
+    }
+  ]
+}

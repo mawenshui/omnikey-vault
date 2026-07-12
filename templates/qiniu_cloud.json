@@ -1,0 +1,60 @@
+{
+  "id": "qiniu_cloud",
+  "platform_id": "qiniu_cloud",
+  "name": "七牛云 (Qiniu)",
+  "category": "cloud",
+  "icon": "qiniu",
+  "official_docs_url": "https://developer.qiniu.com/kodo/manual/1208/access-key",
+  "auth_header": "Authorization: QBox <AccessKey>:<EncodedSign>",
+  "default_base_url": "https://rs.qiniu.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "qiniu_cloud",
+  "notes": "AccessKey/SecretKey 用于 API 认证。建议使用最小权限的子账号。",
+  "fields": [
+    {
+      "key": "access_key",
+      "label": "AccessKey",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9_\\-]{40}$", "hint": "40 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9_\\-]{40}$", "hint": "40 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "七牛云 SecretKey。"
+    },
+    {
+      "key": "bucket_name",
+      "label": "默认 Bucket",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "my-bucket",
+      "group": "secondary"
+    },
+    {
+      "key": "storage_region",
+      "label": "存储区域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "z0",
+      "validation": { "regex": "^(z[0-9]|na0|as0)$", "hint": "z0=华东, z1=华北, z2=华南, na0=北美, as0=东南亚" },
+      "group": "secondary"
+    }
+  ]
+}

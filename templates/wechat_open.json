@@ -1,0 +1,76 @@
+{
+  "id": "wechat_open",
+  "platform_id": "wechat_open",
+  "name": "微信开放平台 (WeChat Open Platform)",
+  "category": "saas",
+  "icon": "wechat",
+  "official_docs_url": "https://developers.weixin.qq.com/doc/oplatform/Mobile_App/Resource_Center_Homepage.html",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://api.weixin.qq.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "wechat_open",
+  "notes": "微信开放平台用于管理移动应用、网站应用、公众号和小程序。App Secret 用于获取 access_token，有效期 2 小时。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "wx1234567890abcdef",
+      "validation": { "regex": "^wx[A-Za-z0-9]{16}$", "hint": "以 wx 开头，18 字符" },
+      "group": "primary",
+      "description": "微信 App ID（公众号/小程序/移动应用）。"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "微信 App Secret，用于获取 access_token。"
+    },
+    {
+      "key": "token",
+      "label": "服务端 Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "服务端验证 Token，用于验证消息来源。"
+    },
+    {
+      "key": "encoding_aes_key",
+      "label": "EncodingAESKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "•••••••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{43}$", "hint": "43 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "消息加解密密钥（43 字符）。"
+    },
+    {
+      "key": "mch_id",
+      "label": "商户号 (关联微信支付)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "1234567890",
+      "validation": { "regex": "^\\d{8,10}$", "hint": "8-10 位数字" },
+      "group": "advanced"
+    }
+  ]
+}

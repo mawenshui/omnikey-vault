@@ -1,0 +1,42 @@
+{
+  "id": "dashscope",
+  "platform_id": "dashscope",
+  "name": "阿里通义千问 (DashScope / Qwen)",
+  "category": "ai_llm",
+  "icon": "aliyun",
+  "official_docs_url": "https://help.aliyun.com/zh/dashscope/developer-reference/api-details",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://dashscope.aliyuncs.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "dashscope",
+  "notes": "DashScope 是阿里云旗下大模型服务平台，提供通义千问 (Qwen) 系列模型。API Key 在 DashScope 控制台创建。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "sk-••••••••••••••••••••",
+      "placeholder": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^sk-[A-Za-z0-9]{32}$", "hint": "sk- + 32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "DashScope API Key，以 sk- 开头。"
+    },
+    {
+      "key": "workspace_id",
+      "label": "工作空间 ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "llm-xxxxx",
+      "group": "secondary",
+      "description": "DashScope 工作空间 ID（多工作空间时使用）。"
+    }
+  ]
+}

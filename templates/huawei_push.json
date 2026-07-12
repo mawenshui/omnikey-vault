@@ -1,0 +1,50 @@
+{
+  "id": "huawei_push",
+  "platform_id": "huawei_push",
+  "name": "华为推送 (HMS Push)",
+  "category": "communication",
+  "icon": "huawei",
+  "official_docs_url": "https://developer.huawei.com/consumer/cn/doc/HMSCore-Guides/android-server-sdk-0000001050040175",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://push-api.cloud.hicloud.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "huawei_push",
+  "notes": "HMS Push 使用 App ID + App Secret 获取 access_token（有效期 1 小时）。OAuth 2.0 认证流程。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "100000000",
+      "validation": { "regex": "^\\d{8,10}$", "hint": "8-10 位数字" },
+      "group": "primary"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,40}$", "hint": "32-40 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "HMS Push App Secret。"
+    },
+    {
+      "key": "oauth_url",
+      "label": "OAuth 认证地址",
+      "kind": "url",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "https://oauth-login.cloud.huawei.com/oauth2/v3/token",
+      "group": "secondary"
+    }
+  ]
+}

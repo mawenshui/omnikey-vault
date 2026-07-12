@@ -1,0 +1,40 @@
+{
+  "id": "gitcode",
+  "platform_id": "gitcode",
+  "name": "GitCode (CSDN)",
+  "category": "code_hosting",
+  "icon": "gitcode",
+  "official_docs_url": "https://gitcode.com/docs",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://gitcode.com/api/v5",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "gitcode",
+  "notes": "GitCode 是 CSDN 旗下代码托管平台。API 兼容 Gitee/GitHub 接口。",
+  "fields": [
+    {
+      "key": "access_token",
+      "label": "访问令牌 (Access Token)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,40}$", "hint": "32-40 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "GitCode 访问令牌。"
+    },
+    {
+      "key": "username",
+      "label": "用户名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "your-username",
+      "group": "primary"
+    }
+  ]
+}

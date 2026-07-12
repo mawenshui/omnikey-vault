@@ -1,0 +1,57 @@
+{
+  "id": "baidu_qianfan",
+  "platform_id": "baidu_qianfan",
+  "name": "百度千帆 (Baidu Qianfan / ERNIE)",
+  "category": "ai_llm",
+  "icon": "baidu",
+  "official_docs_url": "https://cloud.baidu.com/doc/WENXINWORKSHOP/index.html",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://aip.baidubce.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "baidu_qianfan",
+  "notes": "千帆平台使用 API Key + Secret Key 换取 access_token（有效期 30 天）。应用 API Key 可在千帆控制台创建。",
+  "fields": [
+    {
+      "key": "api_key",
+      "label": "API Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "placeholder": "xxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,32}$", "hint": "16-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "千帆应用 API Key。"
+    },
+    {
+      "key": "secret_key",
+      "label": "Secret Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••",
+      "placeholder": "xxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{16,32}$", "hint": "16-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "千帆应用 Secret Key，用于换取 access_token。"
+    },
+    {
+      "key": "app_id",
+      "label": "AppID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "12345678",
+      "validation": { "regex": "^\\d{8,12}$", "hint": "8-12 位数字" },
+      "group": "secondary",
+      "description": "千帆应用 ID。"
+    }
+  ]
+}

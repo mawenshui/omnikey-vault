@@ -1,0 +1,48 @@
+{
+  "id": "upyun",
+  "platform_id": "upyun",
+  "name": "又拍云 (UPyun)",
+  "category": "cloud",
+  "icon": "upyun",
+  "official_docs_url": "https://help.upyun.com/knowledge-base/rest_api/",
+  "auth_header": "Authorization: UPYUN <Operator>:<Signature>",
+  "default_base_url": "https://v0.api.upyun.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "upyun",
+  "notes": "操作员账号用于 REST API 认证。建议创建专用操作员，不使用管理员账号。",
+  "fields": [
+    {
+      "key": "operator_name",
+      "label": "操作员用户名",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "operator_name",
+      "group": "primary"
+    },
+    {
+      "key": "operator_password",
+      "label": "操作员密码",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••",
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "又拍云操作员密码。"
+    },
+    {
+      "key": "service_name",
+      "label": "服务名称 (Bucket)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "my-service",
+      "group": "secondary"
+    }
+  ]
+}

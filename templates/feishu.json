@@ -1,0 +1,77 @@
+{
+  "id": "feishu",
+  "platform_id": "feishu",
+  "name": "飞书 (Feishu / Lark)",
+  "category": "communication",
+  "icon": "feishu",
+  "official_docs_url": "https://open.feishu.cn/document/",
+  "auth_header": "Authorization: Bearer <tenant_access_token>",
+  "default_base_url": "https://open.feishu.cn/open-apis",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "feishu",
+  "notes": "飞书开放平台使用 App ID/App Secret 获取 tenant_access_token（有效期 2 小时）。支持自建应用和商店应用。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "cli_xxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^cli_[A-Za-z0-9]{16}$", "hint": "以 cli_ 开头" },
+      "group": "primary",
+      "description": "飞书应用 App ID。"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "飞书应用 App Secret，用于获取 tenant_access_token。"
+    },
+    {
+      "key": "verification_token",
+      "label": "Verification Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,}$", "hint": "32+ 字符" },
+      "group": "secondary",
+      "description": "事件订阅验证 Token，用于验证事件来源。"
+    },
+    {
+      "key": "encrypt_key",
+      "label": "Encrypt Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{16,32}$", "hint": "16-32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "事件订阅加密密钥，用于解密事件数据。"
+    },
+    {
+      "key": "bot_webhook",
+      "label": "机器人 Webhook URL",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "https://open.feishu.cn/open-apis/bot/v2/hook/••••",
+      "validation": { "regex": "^https://open\\.feishu\\.cn/open-apis/bot/v2/hook/[A-Za-z0-9\\-]{36}$", "hint": "飞书机器人 Webhook 地址" },
+      "group": "secondary",
+      "description": "飞书群机器人 Webhook 地址（URL 本身即为凭证）。"
+    }
+  ]
+}

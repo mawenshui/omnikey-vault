@@ -1,0 +1,52 @@
+{
+  "id": "gitee",
+  "platform_id": "gitee",
+  "name": "Gitee (码云)",
+  "category": "code_hosting",
+  "icon": "gitee",
+  "official_docs_url": "https://gitee.com/help/articles/4191",
+  "auth_header": "Authorization: Bearer <token> / token <token>",
+  "default_base_url": "https://gitee.com/api/v5",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "gitee",
+  "notes": "Gitee 私人令牌用于 API 认证。可在「设置 → 私人令牌」中创建和管理。",
+  "fields": [
+    {
+      "key": "personal_access_token",
+      "label": "私人令牌 (Personal Access Token)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9]{32,40}$", "hint": "32-40 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "Gitee 私人令牌。"
+    },
+    {
+      "key": "username",
+      "label": "用户名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "your-username",
+      "group": "primary"
+    },
+    {
+      "key": "webhook_password",
+      "label": "Webhook 密码",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "Gitee Webhook 密码，用于验证推送请求来源。"
+    }
+  ]
+}

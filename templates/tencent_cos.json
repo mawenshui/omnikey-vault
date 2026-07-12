@@ -1,0 +1,61 @@
+{
+  "id": "tencent_cos",
+  "platform_id": "tencent_cos",
+  "name": "腾讯云 COS (对象存储)",
+  "category": "cloud",
+  "icon": "tencent",
+  "official_docs_url": "https://cloud.tencent.com/document/product/436/7778",
+  "auth_header": "Authorization: q-cloud-t5a6b0e7 ...",
+  "default_base_url": "https://cos.tencentcloudapi.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "tencent_cloud",
+  "notes": "腾讯云对象存储 COS 使用 CAM 密钥认证。推荐使用子账号密钥并配置最小权限策略。",
+  "fields": [
+    {
+      "key": "secret_id",
+      "label": "SecretId",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AKID••••••••",
+      "placeholder": "AKID<your-secret-id>",
+      "validation": { "regex": "^AKID[A-Za-z0-9]{32,36}$", "hint": "以 AKID 开头" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_key",
+      "label": "SecretKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32,36}$", "hint": "32-36 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary"
+    },
+    {
+      "key": "bucket",
+      "label": "Bucket 名称",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "my-bucket-1250000000",
+      "group": "primary",
+      "description": "格式: <名称>-<AppID>"
+    },
+    {
+      "key": "region",
+      "label": "地域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "ap-guangzhou",
+      "validation": { "regex": "^ap-[a-z]+(-[0-9]+)?$", "hint": "如 ap-guangzhou, ap-shanghai, ap-beijing" },
+      "group": "primary"
+    }
+  ]
+}

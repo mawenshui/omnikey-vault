@@ -1,0 +1,65 @@
+{
+  "id": "wechat_mp",
+  "platform_id": "wechat_mp",
+  "name": "微信公众平台 (WeChat MP / 公众号)",
+  "category": "saas",
+  "icon": "wechat",
+  "official_docs_url": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+  "auth_header": "Authorization: Bearer <access_token>",
+  "default_base_url": "https://api.weixin.qq.com/cgi-bin",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "wechat_mp",
+  "notes": "微信公众平台/小程序使用 App ID + App Secret 获取 access_token（有效期 2 小时）。",
+  "fields": [
+    {
+      "key": "app_id",
+      "label": "App ID (小程序/公众号)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "wx1234567890abcdef",
+      "validation": { "regex": "^wx[A-Za-z0-9]{16}$", "hint": "以 wx 开头，18 字符" },
+      "group": "primary"
+    },
+    {
+      "key": "app_secret",
+      "label": "App Secret",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "小程序/公众号 App Secret。"
+    },
+    {
+      "key": "token",
+      "label": "服务端 Token",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "消息验证 Token。"
+    },
+    {
+      "key": "encoding_aes_key",
+      "label": "EncodingAESKey",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "•••••••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{43}$", "hint": "43 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "secondary",
+      "description": "消息加解密密钥。"
+    }
+  ]
+}

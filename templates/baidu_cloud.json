@@ -1,0 +1,52 @@
+{
+  "id": "baidu_cloud",
+  "platform_id": "baidu_cloud",
+  "name": "百度智能云 (Baidu Cloud)",
+  "category": "cloud",
+  "icon": "baidu",
+  "official_docs_url": "https://cloud.baidu.com/doc/Reference/s/9jwvz2egb",
+  "auth_header": "Authorization: bce-auth-v1/...",
+  "default_base_url": "https://bce.baidu.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "baidu_cloud",
+  "notes": "Access Key ID 以 AK 开头。建议使用 STS 临时凭证替代长期密钥。",
+  "fields": [
+    {
+      "key": "access_key_id",
+      "label": "Access Key ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "default_mask": "AK••••••••••••••••••••",
+      "placeholder": "AKxxxxxxxxxxxxxxxxxxxxxxxx",
+      "validation": { "regex": "^AK[A-Za-z0-9]{16,32}$", "hint": "以 AK 开头" },
+      "group": "primary"
+    },
+    {
+      "key": "secret_access_key",
+      "label": "Secret Access Key",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "百度智能云 Secret Access Key，仅在创建时显示一次。"
+    },
+    {
+      "key": "region",
+      "label": "默认区域",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "bj",
+      "validation": { "regex": "^(bj|gz|su|hkg|fwh|bd)[a-z]*$", "hint": "如 bj, gz, su, hkg" },
+      "group": "primary"
+    }
+  ]
+}

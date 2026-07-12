@@ -1,0 +1,91 @@
+{
+  "id": "wechat_pay",
+  "platform_id": "wechat_pay",
+  "name": "微信支付 (WeChat Pay)",
+  "category": "payment",
+  "icon": "wechat",
+  "official_docs_url": "https://pay.weixin.qq.com/docs/merchant/apis/index.html",
+  "auth_header": "Authorization: WECHATPAY2-SHA256-RSA2048 ...",
+  "default_base_url": "https://api.mch.weixin.qq.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "wechat_pay",
+  "notes": "微信支付 V3 API 使用 SHA256-RSA2048 签名。需配置商户 API 证书和 APIv3 密钥。",
+  "fields": [
+    {
+      "key": "mch_id",
+      "label": "商户号 (Mch ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "1234567890",
+      "validation": { "regex": "^\\d{8,10}$", "hint": "8-10 位数字" },
+      "group": "primary",
+      "description": "微信支付商户号。"
+    },
+    {
+      "key": "api_v3_key",
+      "label": "APIv3 密钥",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "APIv3 密钥，用于解密回调报文中的敏感信息。"
+    },
+    {
+      "key": "mch_serial_number",
+      "label": "商户证书序列号",
+      "kind": "text",
+      "sensitive": false,
+      "required": true,
+      "placeholder": "2021000000000000",
+      "validation": { "regex": "^[0-9A-Fa-f]{16,40}$", "hint": "16-40 位十六进制" },
+      "group": "primary",
+      "description": "商户 API 证书序列号。"
+    },
+    {
+      "key": "mch_private_key",
+      "label": "商户 API 私钥",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "-----BEGIN PRIVATE KEY-----••••",
+      "placeholder": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg...",
+      "validation": { "regex": "^(-----BEGIN PRIVATE KEY-----)?[A-Za-z0-9+/=\\s]{500,}$", "hint": "RSA2048 私钥（PEM 格式）" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "商户 API 证书私钥（apiclient_key.pem 内容）。"
+    },
+    {
+      "key": "app_id",
+      "label": "App ID (应用 ID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "wx1234567890abcdef",
+      "validation": { "regex": "^wx[A-Za-z0-9]{16}$", "hint": "以 wx 开头，18 字符" },
+      "group": "secondary",
+      "description": "关联的公众号/小程序 App ID。"
+    },
+    {
+      "key": "api_v2_key",
+      "label": "APIv2 密钥 (旧版)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符（仅 V2 API 使用）" },
+      "rotatable": true,
+      "expires_at_supported": false,
+      "group": "advanced",
+      "description": "APIv2 密钥（旧版接口，建议迁移至 V3）。"
+    }
+  ]
+}

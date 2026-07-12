@@ -1,0 +1,65 @@
+{
+  "id": "bilibili",
+  "platform_id": "bilibili",
+  "name": "哔哩哔哩 (Bilibili)",
+  "category": "saas",
+  "icon": "bilibili",
+  "official_docs_url": "https://github.com/SocialSisterYi/bilibili-API-collect",
+  "auth_header": "Cookie: SESSDATA=<sessdata>",
+  "default_base_url": "https://api.bilibili.com",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": false,
+  "notes": "B 站 API 使用 Cookie 认证。SESSDATA 是核心登录凭证，bili_jct 用于 POST 请求 CSRF 防护。均为敏感信息，泄露后可完全控制账号。",
+  "fields": [
+    {
+      "key": "sessdata",
+      "label": "SESSDATA (登录凭证)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••-••••-••••-••••-•••••••••",
+      "placeholder": "xxxx%2Cy-xxxx",
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "B 站 Cookie 中的 SESSDATA 字段，核心登录凭证。"
+    },
+    {
+      "key": "bili_jct",
+      "label": "bili_jct (CSRF Token)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••••••••••••••••••••••••••",
+      "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "B 站 Cookie 中的 bili_jct 字段，POST 请求的 CSRF Token。"
+    },
+    {
+      "key": "dedeuserid",
+      "label": "DedeUserID (用户 UID)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "12345678",
+      "validation": { "regex": "^\\d+$", "hint": "纯数字" },
+      "group": "secondary"
+    },
+    {
+      "key": "access_key",
+      "label": "Access Key (APP 端)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••••••••••••••••••",
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "advanced",
+      "description": "B 站 APP 端 Access Key，用于移动端 API 调用。"
+    }
+  ]
+}

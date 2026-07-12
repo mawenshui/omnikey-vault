@@ -1,0 +1,52 @@
+{
+  "id": "coding",
+  "platform_id": "coding",
+  "name": "CODING (腾讯)",
+  "category": "code_hosting",
+  "icon": "coding",
+  "official_docs_url": "https://help.coding.net/openapi",
+  "auth_header": "Authorization: token <access_token>",
+  "default_base_url": "https://e.coding.net/open-api",
+  "mvp_included": false,
+  "introduced_in": "v1.7",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "coding",
+  "notes": "CODING 是腾讯旗下 DevOps 平台。项目令牌可通过「项目设置 → 开发者选项 → 项目令牌」创建。",
+  "fields": [
+    {
+      "key": "access_token",
+      "label": "项目令牌 (Access Token)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••-••••-••••-••••-••••••••••••",
+      "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "validation": { "regex": "^[A-Za-z0-9\\-]{36}$", "hint": "UUID 格式" },
+      "rotatable": true,
+      "expires_at_supported": true,
+      "group": "primary",
+      "description": "CODING 项目访问令牌。"
+    },
+    {
+      "key": "team_domain",
+      "label": "团队域名",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "your-team",
+      "group": "primary",
+      "description": "CODING 团队域名前缀（your-team.coding.net 中的 your-team）。"
+    },
+    {
+      "key": "project_id",
+      "label": "项目 ID",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "123",
+      "validation": { "regex": "^\\d+$", "hint": "数字" },
+      "group": "secondary"
+    }
+  ]
+}

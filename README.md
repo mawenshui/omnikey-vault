@@ -70,9 +70,9 @@
 
 ### 安装
 
-1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-1.6.0-win-x64.zip`
-2. 解压后运行 `setup.bat` 或 `install.ps1`
-3. 安装完成后启动 `okv.exe`
+1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-1.7.0.exe`（安装包）或 `OmniKeyVault-1.7.0-win-x64.zip`（便携版）
+2. 安装包：双击运行，按向导完成安装
+3. 便携版：解压后直接运行 `okv.exe`
 
 > **系统要求**：Windows 10 1809 (17763) 或更高版本，.NET 8 运行时（安装包已内置）
 

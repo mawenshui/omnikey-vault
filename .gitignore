@@ -28,8 +28,10 @@ ehthumbs.db
 
 # Build output / publish
 publish/
-installer/
-installer_output/
+
+# Installer build output (keep .iss script and .exe installer)
+installer/installer_output/
+installer/*.zip
 
 # Agent / IDE working files
 .omo/

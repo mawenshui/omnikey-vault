@@ -125,12 +125,13 @@ public partial class ProfileSwitcherWindow : Window
         }
     }
 
-    private void DeleteProfile(string name)
+    /// <summary>v1.8: made async to avoid .GetAwaiter().GetResult() blocking the UI thread.</summary>
+    private async void DeleteProfile(string name)
     {
         try
         {
             _container.Vault.DeleteProfile(name);
-            _container.Profiles.DeleteAsync(name).GetAwaiter().GetResult();
+            await _container.Profiles.DeleteAsync(name);
             ProfilesChanged?.Invoke(this, EventArgs.Empty);
             BuildList();
         }

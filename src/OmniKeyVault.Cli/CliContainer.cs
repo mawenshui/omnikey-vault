@@ -73,6 +73,11 @@ public sealed class CliContainer : IDisposable
     /// <c>%APPDATA%/OmniKeyVault/attachments/&lt;sha256&gt;.bin</c> by default;
     /// can be reconfigured via <see cref="SettingsStore.AttachmentDirectory"/>.</summary>
     public AttachmentService Attachments { get; private set; }
+    /// <summary>v1.8: local audit log service. Records all critical operations
+    /// (unlock/lock/create/edit/delete/rotate/change-password/sync) to a
+    /// persistent JSON-lines file at %APPDATA%/OmniKeyVault/audit.log.</summary>
+    public AuditLogService AuditLog { get; } = new();
+
     /// <summary>v0.4 S8-T1: platform-specific credential rotators. Each
     /// rotator knows the platform's API + auth flow; the EditorWindow calls
     /// <c>RotateAsync</c> and stores the new value in the entry's field.</summary>
@@ -221,5 +226,6 @@ public sealed class CliContainer : IDisposable
         try { Vault.Dispose(); } catch { /* best-effort: avoid masking other Dispose errors */ }
         try { Lock.Dispose(); } catch { /* best-effort */ }
         try { Clipboard.Dispose(); } catch { /* best-effort */ }
+        try { AuditLog.FlushAsync().GetAwaiter().GetResult(); } catch { /* best-effort */ }
     }
 }

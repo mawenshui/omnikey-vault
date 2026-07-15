@@ -302,6 +302,12 @@
                                                Foreground="{DynamicResource FgFaintBrush}" />
                                 </Grid>
                             </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnAuditLogClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📋" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="审计日志" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
                         </StackPanel>
 
                         <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,8,0,0">

@@ -30,26 +30,25 @@ public partial class UnlockWindow : Window
 
         // Try to read header info (no password needed) so the card shows the
         // vault UUID + last access. Falls back to placeholder if file missing.
-        RefreshVaultMeta();
+        // v1.8: fire-and-forget async to avoid blocking the UI thread on vault file I/O.
+        _ = RefreshVaultMetaAsync();
         PasswordBox.Focus();
     }
 
-    private void RefreshVaultMeta()
+    /// <summary>v1.8: Async version of RefreshVaultMeta — avoids
+    /// .GetAwaiter().GetResult() which blocked the UI thread and risked
+    /// deadlock on slow disk I/O. Reads the vault header on a background
+    /// thread and marshals the result back to the UI thread for rendering.</summary>
+    private async Task RefreshVaultMetaAsync()
     {
-        OmniKeyVault.Cli.Gui.App.Log("UnlockWindow.RefreshVaultMeta: file=" + _vaultPath);
+        OmniKeyVault.Cli.Gui.App.Log("UnlockWindow.RefreshVaultMetaAsync: file=" + _vaultPath);
         try
         {
             if (System.IO.File.Exists(_vaultPath))
             {
                 var fmt = new OmniKeyVault.Infrastructure.VaultFormat();
-                // CRITICAL: wrap in Task.Run so the async IO doesn't capture the
-                // UI thread's SynchronizationContext. Without this, the .GetResult()
-                // below deadlocks because ReadAsync's continuation tries to post
-                // back to the UI thread that is currently blocked waiting for it.
-                // This was the silent cause of "double-click okv.exe does nothing"
-                // when the last-vault.txt pointed to a real (or demo) vault file.
-                var record = System.Threading.Tasks.Task.Run(async () =>
-                    await fmt.ReadAsync(_vaultPath)).GetAwaiter().GetResult();
+                var record = await System.Threading.Tasks.Task.Run(async () =>
+                    await fmt.ReadAsync(_vaultPath));
                 OmniKeyVault.Cli.Gui.App.Log("UnlockWindow.RefreshVaultMeta: read OK, uuid=" + record.VaultUuid);
                 VaultIdText.Text = $"{record.VaultUuid} · {record.Profiles.Count} 个 Profile";
                 // VaultRecord has no wall-clock LastModified; surface the build hash
@@ -154,7 +153,7 @@ public partial class UnlockWindow : Window
             }
             _vaultPath = picked;
             OmniKeyVault.Cli.Gui.GuiShell.SaveLastVaultPath(_vaultPath);
-            RefreshVaultMeta();
+            _ = RefreshVaultMetaAsync();
             PasswordBox.Focus();
         }
         catch (Exception ex)

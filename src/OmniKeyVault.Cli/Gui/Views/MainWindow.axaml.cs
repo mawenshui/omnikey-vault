@@ -59,6 +59,67 @@ public partial class MainWindow : Window
             ? $"保险库已解锁 · 已加载 {count} 个条目"
             : "保险库已解锁";
         ToastService.Show(ToastContainer, msg, ToastType.Success);
+
+        // v1.8: Entry expiration reminder — check all profiles for entries
+        // that have ExpiresAt set and are expired or expiring within 7 days.
+        // Shows a warning toast listing the affected entries so the user
+        // can rotate their credentials before they stop working.
+        CheckExpiringEntries();
+
+        // v1.8: Audit log — record unlock event
+        _container.AuditLog.LogUnlock(_container.Vault.CurrentVaultPath ?? "");
+    }
+
+    /// <summary>v1.8: Checks all profiles for entries with ExpiresAt set.
+    /// Shows a warning toast for entries that are expired or expiring within 7 days.
+    /// Covers all profiles (not just the active one) so the user is aware of
+    /// expiring credentials across their entire vault.</summary>
+    private void CheckExpiringEntries()
+    {
+        try
+        {
+            if (!_container.Vault.IsUnlocked) return;
+            var now = DateTimeOffset.UtcNow;
+            var threshold = now.AddDays(7);
+            var expired = new List<(string Profile, string Name, DateTimeOffset ExpiresAt)>();
+            var expiring = new List<(string Profile, string Name, DateTimeOffset ExpiresAt)>();
+
+            foreach (var profileName in _container.Vault.ListProfileNames())
+            {
+                try
+                {
+                    var entries = _container.Entries.List(profileName, null, null, null);
+                    foreach (var entry in entries)
+                    {
+                        if (!entry.ExpiresAt.HasValue) continue;
+                        var expires = entry.ExpiresAt.Value;
+                        if (expires <= now)
+                            expired.Add((profileName, entry.Name, expires));
+                        else if (expires <= threshold)
+                            expiring.Add((profileName, entry.Name, expires));
+                    }
+                }
+                catch { /* skip unreadable profiles */ }
+            }
+
+            if (expired.Count > 0)
+            {
+                var names = string.Join(", ", expired.Take(5).Select(e => e.Name));
+                var suffix = expired.Count > 5 ? $" 等 {expired.Count} 个" : "";
+                ToastService.Show(ToastContainer,
+                    $"⚠ {expired.Count} 个条目已过期:{names}{suffix} · 请尽快轮换",
+                    ToastType.Warning);
+            }
+            else if (expiring.Count > 0)
+            {
+                var names = string.Join(", ", expiring.Take(5).Select(e => $"{e.Name}({e.ExpiresAt.LocalDateTime:MM-dd})"));
+                var suffix = expiring.Count > 5 ? $" 等 {expiring.Count} 个" : "";
+                ToastService.Show(ToastContainer,
+                    $"⏰ {expiring.Count} 个条目将在 7 天内过期:{names}{suffix}",
+                    ToastType.Info);
+            }
+        }
+        catch { /* best-effort: don't crash on expiry check */ }
     }
 
     /// <summary>v0.2 S4-T1: start the <see cref="IWatcherProvider"/> on the
@@ -639,6 +700,9 @@ public partial class MainWindow : Window
             };
             _container.Vault.PutEntry(_activeProfile, copy);
             await _container.Vault.SaveAsync();
+            // v1.8: Audit log
+            _container.AuditLog.LogCreateEntry(_activeProfile, copy.Name);
+            _ = _container.AuditLog.FlushAsync();
             ToastService.Show(ToastContainer, "已复制为新条目", ToastType.Success);
             RefreshProfileAndEntries();
         }
@@ -703,6 +767,9 @@ public partial class MainWindow : Window
         {
             _container.Entries.Delete(_activeProfile, entry.Id);
             await _container.Vault.SaveAsync();
+            // v1.8: Audit log
+            _container.AuditLog.LogDeleteEntry(_activeProfile, entry.Name);
+            _ = _container.AuditLog.FlushAsync();
             _selectedEntry = null;
             DetailContent.IsVisible = false;
             DetailEmpty.IsVisible = true;
@@ -1376,6 +1443,7 @@ public partial class MainWindow : Window
                 {
                     ToastService.Show(ToastContainer, "已从云端拉取最新数据", ToastType.Success);
                     LastSyncText.Text = "刚刚 · 云端拉取";
+                    _container.AuditLog.LogSync("pull", "success");
                     ReloadAfterSync();
                 });
             }
@@ -1385,6 +1453,7 @@ public partial class MainWindow : Window
                 {
                     ToastService.Show(ToastContainer, "已上传金库到云端", ToastType.Info);
                     LastSyncText.Text = "刚刚 · 云端上传";
+                    _container.AuditLog.LogSync("push", "auto");
                 });
             }
         }
@@ -1395,6 +1464,16 @@ public partial class MainWindow : Window
     {
         var dlg = new SettingsWindow(_container);
         dlg.ShowDialog(this);
+    }
+
+    /// <summary>v1.8: Open the audit log viewer dialog.</summary>
+    private async void OnAuditLogClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        // Flush pending entries first so the viewer shows the latest state
+        await _container.AuditLog.FlushAsync();
+
+        var dlg = new AuditLogWindow(_container.AuditLog);
+        await dlg.ShowDialog(this);
     }
 
     /// <summary>v0.2 S3-T3: open the SeedExport dialog for the current profile.</summary>
@@ -1609,6 +1688,10 @@ public partial class MainWindow : Window
 
     private void OnLockClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        // v1.8: Audit log — record lock event
+        _container.AuditLog.LogLock();
+        _ = _container.AuditLog.FlushAsync();
+
         StopLockCountdown();
         _container.Vault.Lock();
         ToastService.Show(ToastContainer, "保险库已锁定 · 内存已清空", ToastType.Info);
@@ -1720,7 +1803,13 @@ public partial class MainWindow : Window
     private void OnNewEntryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var editor = new EditorWindow(_container, _activeProfile);
-        editor.EntrySaved += (_, _) => RefreshProfileAndEntries();
+        editor.EntrySaved += (_, entry) =>
+        {
+            // v1.8: Audit log — record entry create/edit
+            _container.AuditLog.LogEditEntry(_activeProfile, entry.Name);
+            _ = _container.AuditLog.FlushAsync();
+            RefreshProfileAndEntries();
+        };
         editor.ShowDialog(this);
     }
 
@@ -1804,6 +1893,9 @@ public partial class MainWindow : Window
             }
             await _container.Vault.SaveAsync();
             ToastService.Show(ToastContainer, $"已从 {format} 导入 {count} 个条目", ToastType.Success);
+            // v1.8: Audit log
+            _container.AuditLog.LogImport(_activeProfile, format, count);
+            _ = _container.AuditLog.FlushAsync();
             RefreshProfileAndEntries();
         }
         catch (Exception ex)
@@ -1887,6 +1979,9 @@ public partial class MainWindow : Window
             _container.SeedExport.StripSecrets = false;
             await _container.SeedExport.ExportAsync(profile, path);
             ToastService.Show(ToastContainer, $"已导出 {profile} 到 {System.IO.Path.GetFileName(path)}", ToastType.Success);
+            // v1.8: Audit log
+            _container.AuditLog.LogExport(profile, "seed");
+            _ = _container.AuditLog.FlushAsync();
         }
         catch (Exception ex)
         {
@@ -1898,7 +1993,13 @@ public partial class MainWindow : Window
     {
         if (_selectedEntry == null) return;
         var editor = new EditorWindow(_container, _activeProfile, _selectedEntry);
-        editor.EntrySaved += (_, _) => RefreshProfileAndEntries();
+        editor.EntrySaved += (_, entry) =>
+        {
+            // v1.8: Audit log
+            _container.AuditLog.LogEditEntry(_activeProfile, entry.Name);
+            _ = _container.AuditLog.FlushAsync();
+            RefreshProfileAndEntries();
+        };
         editor.ShowDialog(this);
     }
 

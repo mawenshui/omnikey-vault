@@ -30,7 +30,8 @@ public partial class EditorWindow : Window
     /// doesn't accidentally promote a field to secret mid-edit.</summary>
     private const string NoneTag = "— 无 —";
 
-    public event EventHandler? EntrySaved;
+    /// <summary>v1.8: now passes the saved Entry so the host can audit-log it.</summary>
+    public event EventHandler<Entry>? EntrySaved;
 
     public EditorWindow(CliContainer container, string profile, Entry? existing = null)
     {
@@ -368,6 +369,7 @@ public partial class EditorWindow : Window
                 };
                 _container.Vault.PutEntry(_profile, entry);
                 await _container.Vault.SaveAsync();
+                EntrySaved?.Invoke(this, entry);
             }
             else
             {
@@ -385,9 +387,9 @@ public partial class EditorWindow : Window
                 };
                 _container.Vault.PutEntry(_profile, updated);
                 await _container.Vault.SaveAsync();
+                EntrySaved?.Invoke(this, updated);
             }
 
-            EntrySaved?.Invoke(this, EventArgs.Empty);
             Close();
         }
         catch (Exception ex)

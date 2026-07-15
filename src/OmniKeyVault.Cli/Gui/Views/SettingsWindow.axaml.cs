@@ -74,6 +74,9 @@ public partial class SettingsWindow : Window
         AutoCheckUpdateBox.IsChecked = SettingsStore.AutoCheckUpdateOnStartup;
         AutoStartBox.IsChecked = OmniKeyVault.Application.AutoStartService.IsAutoStartEnabled();
         MinimizeToTrayBox.IsChecked = SettingsStore.MinimizeToTrayOnClose;
+        // v1.9: browser extension API
+        BrowserApiEnabledBox.IsChecked = SettingsStore.BrowserApiEnabled;
+        UpdateBrowserApiTokenDisplay();
         _suppressEvents = false;
 
         BuildProfilesPanel();
@@ -783,6 +786,80 @@ public partial class SettingsWindow : Window
         if (_suppressEvents) return;
         SettingsStore.MinimizeToTrayOnClose = MinimizeToTrayBox.IsChecked == true;
         SettingsStore.Save();
+    }
+
+    // ---- v1.9: Browser extension API ----
+
+    private void UpdateBrowserApiTokenDisplay()
+    {
+        if (SettingsStore.BrowserApiEnabled && _container.BrowserApi.IsRunning)
+        {
+            BrowserApiTokenText.Text = _container.BrowserApi.AuthToken;
+        }
+        else
+        {
+            BrowserApiTokenText.Text = "(未启用 — 勾选上方开关来启动 API)";
+        }
+    }
+
+    private void OnBrowserApiEnabledChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var enabled = BrowserApiEnabledBox.IsChecked == true;
+        SettingsStore.BrowserApiEnabled = enabled;
+        SettingsStore.Save();
+        if (enabled)
+        {
+            try
+            {
+                _container.BrowserApi.Start(SettingsStore.BrowserApiPort);
+                UpdateBrowserApiTokenDisplay();
+                ShowBrowserApiStatus($"✓ API 已启动 · 监听 127.0.0.1:{SettingsStore.BrowserApiPort}", success: true);
+            }
+            catch (Exception ex)
+            {
+                ShowBrowserApiStatus("✕ 启动失败: " + ex.Message, success: false);
+            }
+        }
+        else
+        {
+            _container.BrowserApi.Stop();
+            UpdateBrowserApiTokenDisplay();
+            ShowBrowserApiStatus("API 已停止", success: true);
+        }
+    }
+
+    private void OnCopyTokenClick(object? sender, RoutedEventArgs e)
+    {
+        if (!_container.BrowserApi.IsRunning)
+        {
+            ShowBrowserApiStatus("✕ 请先启用浏览器扩展 API", success: false);
+            return;
+        }
+        var token = _container.BrowserApi.AuthToken;
+        try
+        {
+            _container.ClipboardSvc.CopySensitive(token);
+            ShowBrowserApiStatus("✓ 令牌已复制到剪贴板（将在 8 秒后自动清空）", success: true);
+        }
+        catch (Exception ex)
+        {
+            ShowBrowserApiStatus("✕ 复制失败: " + ex.Message, success: false);
+        }
+    }
+
+    private void OnRegenerateTokenClick(object? sender, RoutedEventArgs e)
+    {
+        _container.BrowserApi.RegenerateToken();
+        UpdateBrowserApiTokenDisplay();
+        ShowBrowserApiStatus("✓ 令牌已重新生成 · 请在浏览器扩展中重新配对", success: true);
+    }
+
+    private void ShowBrowserApiStatus(string msg, bool success)
+    {
+        BrowserApiStatusText.IsVisible = true;
+        BrowserApiStatusText.Text = msg;
+        BrowserApiStatusText.Foreground = success ? Res.Brush("SuccessBrush") : Res.Brush("DangerBrush");
     }
 
     private void ShowInfo(string msg)

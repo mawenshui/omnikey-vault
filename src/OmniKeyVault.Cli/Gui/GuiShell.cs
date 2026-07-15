@@ -252,6 +252,12 @@ public sealed class GuiShell
             // P5-T7: Start watcher for auto-sync after unlock
             if (_container.Vault.CurrentVaultPath != null)
                 _ = _container.Sync.StartWatchAsync(_container.Vault.CurrentVaultPath);
+            // v1.9: Auto-start browser extension API if enabled in settings
+            if (SettingsStore.BrowserApiEnabled && !_container.BrowserApi.IsRunning)
+            {
+                try { _container.BrowserApi.Start(SettingsStore.BrowserApiPort); }
+                catch { /* best-effort: non-fatal if port is in use */ }
+            }
             App.Log("ShowMain: MainWindow constructed, calling Show()");
             _main.Show();
             App.Log("ShowMain: MainWindow.Show() returned, IsVisible=" + _main.IsVisible);

@@ -175,6 +175,40 @@
 
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
 
+                <!-- ===== 浏览器扩展 (v1.9) ===== -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="浏览器扩展" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <CheckBox x:Name="BrowserApiEnabledBox" IsCheckedChanged="OnBrowserApiEnabledChanged" Margin="0,4,0,0">
+                        <TextBlock Text="启用浏览器扩展 API（允许浏览器扩展搜索并复制条目）" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <StackPanel Spacing="6" IsVisible="{Binding #BrowserApiEnabledBox.IsChecked}">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Column="0" Text="配对令牌" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Classes="ghost" Padding="10,4" Click="OnCopyTokenClick">
+                                <TextBlock Text="📋 复制" FontSize="11" />
+                            </Button>
+                        </Grid>
+                        <Border BorderBrush="{DynamicResource BorderBrightBrush}" BorderThickness="1" CornerRadius="4"
+                                Padding="10,8" Background="{DynamicResource BgSunkenBrush}">
+                            <TextBlock x:Name="BrowserApiTokenText" FontFamily="{DynamicResource FontMono}" FontSize="10"
+                                       Foreground="{DynamicResource FgDimBrush}" TextWrapping="Wrap"
+                                       Text="(未启用)" />
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Button Classes="ghost" Padding="10,4" Click="OnRegenerateTokenClick">
+                                <TextBlock Text="🔄 重新生成令牌" FontSize="11" />
+                            </Button>
+                        </StackPanel>
+                        <TextBlock x:Name="BrowserApiStatusText" FontSize="10" TextWrapping="Wrap"
+                                   IsVisible="False" Margin="0,4,0,0" />
+                        <TextBlock Text="安装方法：在 Chrome/Edge 中打开 chrome://extensions/，开启开发者模式，加载 browser-extension/ 目录。" 
+                                   FontSize="10" Foreground="{DynamicResource FgDimBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
                 <!-- ===== Profiles ===== -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="Profiles" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"

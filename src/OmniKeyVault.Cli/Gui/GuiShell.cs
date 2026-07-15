@@ -26,6 +26,9 @@ public sealed class GuiShell
     private string _vaultPath;
     private UnlockWindow? _unlock;
     private MainWindow? _main;
+    /// <summary>v1.9.1: Set to true when the user explicitly quits via tray menu.
+    /// Prevents the MinimizeToTrayOnClose handler from cancelling the close.</summary>
+    private bool _isQuitting;
 
     public GuiShell()
     {
@@ -249,6 +252,19 @@ public sealed class GuiShell
                 Title = "OmniKey Vault",
             };
             _main.Locked += (_, _) => { _container.Sync.StopWatch(); ShowUnlock(); };
+            // v1.9.1: When the user closes the window with MinimizeToTrayOnClose,
+            // create the tray icon so the process stays alive and the user
+            // can bring the window back.
+            _main.RequestMinimizeToTray = () =>
+            {
+                EnsureTrayIcon();
+                // Switch to OnExplicitShutdown so the process doesn't exit
+                // when the only window is hidden. The tray's "退出" menu item
+                // calls desktop.Shutdown() to actually quit.
+                if (_desktop.ShutdownMode != ShutdownMode.OnExplicitShutdown)
+                    _desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            };
+            _main.IsQuitting = () => _isQuitting;
             // P5-T7: Start watcher for auto-sync after unlock
             if (_container.Vault.CurrentVaultPath != null)
                 _ = _container.Sync.StartWatchAsync(_container.Vault.CurrentVaultPath);
@@ -906,7 +922,10 @@ public sealed class GuiShell
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
+                    _isQuitting = true;
                     _trayIcon.Dispose();
+                    // Close main window (won't be cancelled because _isQuitting is true)
+                    _main?.Close();
                     if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                         desktop.Shutdown();
                 });

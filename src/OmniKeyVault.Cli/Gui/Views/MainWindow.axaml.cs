@@ -78,18 +78,27 @@ public partial class MainWindow : Window
     /// close button to hide the window and show tray icon instead of quitting.</summary>
     private void OnMainWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Don't intercept if the app is explicitly quitting (tray → 退出)
+        if (IsQuitting?.Invoke() == true) return;
+
         if (SettingsStore.MinimizeToTrayOnClose)
         {
             e.Cancel = true;
             this.Hide();
-            // Tray icon is managed by GuiShell — ensure it's visible
-            // by calling MinimizeToTray through the parent if available.
-            // Since GuiShell subscribes to the Locked event, we use a simpler
-            // approach: just hide the window. The tray icon (if created by
-            // auto-start) remains. If no tray icon exists, the process
-            // stays alive because the hidden window still counts as open.
+            // Notify GuiShell to ensure tray icon is visible
+            RequestMinimizeToTray?.Invoke();
         }
     }
+
+    /// <summary>v1.9.1: Callback invoked when the user closes the window
+    /// with MinimizeToTrayOnClose enabled. GuiShell subscribes to create
+    /// the tray icon and prevent process exit.</summary>
+    public Action? RequestMinimizeToTray { get; set; }
+
+    /// <summary>v1.9.1: Returns true if the app is explicitly quitting
+    /// (e.g. user clicked "退出" in the tray menu). When true, the closing
+    /// handler should NOT cancel the close.</summary>
+    public Func<bool>? IsQuitting { get; set; }
 
     /// <summary>v1.8: Checks all profiles for entries with ExpiresAt set.
     /// Shows a warning toast for entries that are expired or expiring within 7 days.

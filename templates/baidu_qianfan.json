@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "baidu_qianfan",
   "platform_id": "baidu_qianfan",
   "name": "百度千帆 (Baidu Qianfan / ERNIE)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://aip.baidubce.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "baidu_qianfan",

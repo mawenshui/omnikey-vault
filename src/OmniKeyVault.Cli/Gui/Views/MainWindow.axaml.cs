@@ -1476,6 +1476,38 @@ public partial class MainWindow : Window
         await dlg.ShowDialog(this);
     }
 
+    /// <summary>v1.9: Open the vault switcher dialog.</summary>
+    private void OnVaultSwitcherClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var currentPath = _container.Vault.CurrentVaultPath ?? "";
+        var dlg = new VaultSwitcherWindow(currentPath);
+        dlg.VaultSelected += (_, vaultPath) =>
+        {
+            // Add to recent vaults and trigger re-unlock
+            AddRecentVault(vaultPath);
+            // Emit the Locked event so GuiShell shows the unlock window
+            // pointing at the new vault path
+            GuiShell.SaveLastVaultPath(vaultPath);
+            Locked?.Invoke(this, EventArgs.Empty);
+        };
+        dlg.ShowDialog(this);
+    }
+
+    /// <summary>v1.9: Adds a vault path to the recent vaults list (MRU at index 0).</summary>
+    private static void AddRecentVault(string vaultPath)
+    {
+        try
+        {
+            var list = SettingsStore.RecentVaults
+                .Where(p => !string.Equals(p, vaultPath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            list.Insert(0, vaultPath);
+            SettingsStore.RecentVaults = list.Take(10).ToList();
+            SettingsStore.Save();
+        }
+        catch { /* best-effort */ }
+    }
+
     /// <summary>v0.2 S3-T3: open the SeedExport dialog for the current profile.</summary>
     private void OnExportSeedClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {

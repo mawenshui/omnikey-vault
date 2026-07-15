@@ -1,4 +1,4 @@
-﻿﻿using System.Text.Json;
+﻿﻿﻿﻿using System.Text.Json;
 using OmniKeyVault.Domain;
 
 namespace OmniKeyVault.Application;
@@ -66,6 +66,19 @@ public sealed class TemplateService
     public IEnumerable<TemplateDefinition> ListAll()
         => _templates.Values.OrderBy(t => t.Id, StringComparer.Ordinal);
 
+    /// <summary>v1.9: Filter templates by region ("domestic" or "international").
+    /// Templates without a Region field default to "international".</summary>
+    public IEnumerable<TemplateDefinition> ListByRegion(string region)
+        => _templates.Values
+            .Where(t => string.Equals(t.Region ?? "international", region, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.Id, StringComparer.Ordinal);
+
+    /// <summary>v1.9: Filter templates by category.</summary>
+    public IEnumerable<TemplateDefinition> ListByCategory(string category)
+        => _templates.Values
+            .Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => t.Id, StringComparer.Ordinal);
+
     /// <summary>Builds a Domain Template (minimal storage form) from the full definition.</summary>
     public Template ToDomainTemplate(TemplateDefinition def)
     {
@@ -107,7 +120,7 @@ public sealed class TemplateService
         return new Entry
         {
             Id = Guid.NewGuid(),  // v0.1 MVP uses Guid.NewGuid() (random UUIDv4). UUIDv7 generator available in ICryptoProvider.NewUuidV7.
-            Type = EntryType.ApiKey,
+            Type = ResolveEntryType(def),
             Name = name,
             PlatformId = def.PlatformId,
             Tags = Array.Empty<string>(),
@@ -118,6 +131,21 @@ public sealed class TemplateService
             UpdatedAt = now,
             ExpiresAt = null,
             Version = 1
+        };
+    }
+
+    /// <summary>v1.9: Resolves EntryType from template category.
+    /// ssh_key → SshKey, note → Note, certificate → Certificate,
+    /// oauth → OAuth, everything else → ApiKey.</summary>
+    private static EntryType ResolveEntryType(TemplateDefinition def)
+    {
+        return def.Category switch
+        {
+            "ssh_key" => EntryType.SshKey,
+            "note" => EntryType.Note,
+            "certificate" => EntryType.Certificate,
+            "oauth" => EntryType.OAuth,
+            _ => EntryType.ApiKey
         };
     }
 
@@ -153,6 +181,8 @@ public sealed class TemplateDefinition
     public string PlatformId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
+    /// <summary>v1.9: "domestic" (国内) or "international" (国际). Defaults to "international".</summary>
+    public string Region { get; set; } = "international";
     public string? Icon { get; set; }
     public string OfficialDocsUrl { get; set; } = string.Empty;
     public string? AuthHeader { get; set; }

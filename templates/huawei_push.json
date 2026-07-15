@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "huawei_push",
   "platform_id": "huawei_push",
   "name": "华为推送 (HMS Push)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://push-api.cloud.hicloud.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "huawei_push",

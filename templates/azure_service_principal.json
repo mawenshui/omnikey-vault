@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "azure_service_principal",
   "platform_id": "azure",
   "name": "Azure Service Principal",
@@ -9,6 +9,7 @@
   "default_base_url": "https://management.azure.com",
   "mvp_included": false,
   "introduced_in": "v0.2",
+"region": "international",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "azure",

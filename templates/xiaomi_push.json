@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "xiaomi_push",
   "platform_id": "xiaomi_push",
   "name": "小米推送 (Xiaomi Push)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.xmpush.xiaomi.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "xiaomi_push",

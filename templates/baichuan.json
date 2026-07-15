@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "baichuan",
   "platform_id": "baichuan",
   "name": "百川智能 (Baichuan)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.baichuan-ai.com/v1",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "baichuan",

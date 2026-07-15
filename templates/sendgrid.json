@@ -1,0 +1,20 @@
+{
+  "id": "sendgrid",
+  "platform_id": "sendgrid",
+  "name": "SendGrid",
+  "category": "saas",
+  "icon": "sendgrid",
+  "official_docs_url": "https://docs.sendgrid.com/api-reference/",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "https://api.sendgrid.com/v3",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "sendgrid",
+  "notes": "SendGrid API Key 用于发送邮件和管理联系人。建议使用限定权限的 API Key。",
+  "fields": [
+    { "key": "api_key", "label": "API Key", "kind": "secret", "sensitive": true, "required": true, "default_mask": "SG.••••••••", "placeholder": "SG.xxxxxxxxxxxxxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^SG\\.[A-Za-z0-9_-]{22}\\.[A-Za-z0-9_-]{43}$", "hint": "SG. + 22 chars + . + 43 chars" }, "rotatable": true, "group": "primary", "description": "SendGrid API Key" }
+  ]
+}

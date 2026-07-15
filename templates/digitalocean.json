@@ -1,0 +1,22 @@
+{
+  "id": "digitalocean",
+  "platform_id": "digitalocean",
+  "name": "DigitalOcean",
+  "category": "cloud_international",
+  "icon": "digitalocean",
+  "official_docs_url": "https://docs.digitalocean.com/reference/api/api-reference/",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://api.digitalocean.com/v2",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "digitalocean",
+  "notes": "DigitalOcean Personal Access Token 用于 API 管理 Droplets、Spaces、Databases 等资源。",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "dop_v1_••••••••", "placeholder": "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^dop_v1_[A-Za-z0-9]{64}$", "hint": "dop_v1_ + 64 chars" }, "rotatable": true, "group": "primary", "description": "DigitalOcean 个人访问令牌" },
+    { "key": "spaces_key", "label": "Spaces Access Key", "kind": "text", "sensitive": false, "required": false, "placeholder": "DOxxxxxxxxxxxxxxxxxx", "group": "secondary", "description": "Spaces 对象存储访问密钥" },
+    { "key": "spaces_secret", "label": "Spaces Secret Key", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "group": "secondary", "description": "Spaces 对象存储密钥" }
+  ]
+}

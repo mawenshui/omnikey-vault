@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "deepseek",
   "platform_id": "deepseek",
   "name": "DeepSeek",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.deepseek.com/v1",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "deepseek",

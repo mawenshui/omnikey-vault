@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "slack",
   "platform_id": "slack",
   "name": "Slack",
@@ -9,6 +9,7 @@
   "default_base_url": "https://slack.com/api",
   "mvp_included": false,
   "introduced_in": "v0.2",
+"region": "international",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "slack",

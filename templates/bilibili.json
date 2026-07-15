@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "bilibili",
   "platform_id": "bilibili",
   "name": "哔哩哔哩 (Bilibili)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.bilibili.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": false,
   "notes": "B 站 API 使用 Cookie 认证。SESSDATA 是核心登录凭证，bili_jct 用于 POST 请求 CSRF 防护。均为敏感信息，泄露后可完全控制账号。",

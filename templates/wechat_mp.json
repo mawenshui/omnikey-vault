@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "wechat_mp",
   "platform_id": "wechat_mp",
   "name": "微信公众平台 (WeChat MP / 公众号)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.weixin.qq.com/cgi-bin",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "wechat_mp",

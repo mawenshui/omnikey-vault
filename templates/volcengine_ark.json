@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "volcengine_ark",
   "platform_id": "volcengine_ark",
   "name": "火山方舟 (Volcengine Ark / 豆包)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://ark.cn-beijing.volces.com/api/v3",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "volcengine_ark",

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "qiniu_cloud",
   "platform_id": "qiniu_cloud",
   "name": "七牛云 (Qiniu)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://rs.qiniu.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "qiniu_cloud",

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "OmniKey Vault Bridge",
+  "version": "1.9.0",
+  "description": "只读桥接 — 从 OmniKey Vault 搜索条目并复制到剪贴板",
+  "permissions": ["activeTab", "storage", "clipboardWrite"],
+  "host_permissions": ["http://127.0.0.1:14725/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  }
+}

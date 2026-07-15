@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "dashscope",
   "platform_id": "dashscope",
   "name": "阿里通义千问 (DashScope / Qwen)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://dashscope.aliyuncs.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "dashscope",

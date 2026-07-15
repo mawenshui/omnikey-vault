@@ -1,0 +1,23 @@
+{
+  "id": "twilio",
+  "platform_id": "twilio",
+  "name": "Twilio",
+  "category": "saas",
+  "icon": "twilio",
+  "official_docs_url": "https://www.twilio.com/docs/usage/api",
+  "auth_header": "Authorization: Basic <base64(sid:token)>",
+  "default_base_url": "https://api.twilio.com/2010-04-01",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "twilio",
+  "notes": "Twilio 使用 Account SID + Auth Token 进行 Basic Auth。API Key SID + Secret 用于短期凭证。",
+  "fields": [
+    { "key": "account_sid", "label": "Account SID", "kind": "text", "sensitive": false, "required": true, "placeholder": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^AC[A-Za-z0-9]{32}$", "hint": "AC + 32 chars" }, "group": "primary", "description": "Twilio Account SID" },
+    { "key": "auth_token", "label": "Auth Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" }, "rotatable": true, "group": "primary", "description": "Twilio Auth Token" },
+    { "key": "api_key_sid", "label": "API Key SID", "kind": "text", "sensitive": false, "required": false, "placeholder": "SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^SK[A-Za-z0-9]{32}$", "hint": "SK + 32 chars" }, "group": "secondary", "description": "API Key SID（短期凭证）" },
+    { "key": "api_key_secret", "label": "API Key Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••••••••••••••••••••••••••••••", "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" }, "rotatable": true, "group": "secondary", "description": "API Key Secret" }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "jenkins",
+  "platform_id": "jenkins",
+  "name": "Jenkins",
+  "category": "devops",
+  "icon": "jenkins",
+  "official_docs_url": "https://www.jenkins.io/doc/book/system-configuration/security/",
+  "auth_header": "Authorization: Bearer <api_token>",
+  "default_base_url": "http://localhost:8080",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "jenkins",
+  "notes": "Jenkins API Token 在用户设置中生成。用于 REST API 调用和远程触发构建。",
+  "fields": [
+    { "key": "api_token", "label": "API Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••••••••••••••••••••••••••", "placeholder": "11xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^.{32}$", "hint": "32 字符" }, "rotatable": true, "group": "primary", "description": "Jenkins API 令牌" },
+    { "key": "username", "label": "用户名", "kind": "text", "sensitive": false, "required": true, "placeholder": "admin", "group": "primary", "description": "Jenkins 登录用户名" },
+    { "key": "instance_url", "label": "Jenkins 地址", "kind": "text", "sensitive": false, "required": true, "placeholder": "https://jenkins.example.com", "group": "primary", "description": "Jenkins 服务器地址" }
+  ]
+}

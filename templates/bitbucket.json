@@ -1,0 +1,22 @@
+{
+  "id": "bitbucket",
+  "platform_id": "bitbucket",
+  "name": "Bitbucket",
+  "category": "code_hosting",
+  "icon": "bitbucket",
+  "official_docs_url": "https://developer.atlassian.com/cloud/bitbucket/rest/",
+  "auth_header": "Authorization: Basic <base64(key:secret)>",
+  "default_base_url": "https://api.bitbucket.org/2.0",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "bitbucket",
+  "notes": "Bitbucket 使用 OAuth Consumer 的 Key + Secret 进行 Basic Auth。App Password 用于 Git HTTP 认证。",
+  "fields": [
+    { "key": "client_key", "label": "OAuth Client Key", "kind": "text", "sensitive": false, "required": false, "placeholder": "client_key", "group": "primary", "description": "OAuth Consumer Key" },
+    { "key": "client_secret", "label": "OAuth Client Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "validation": { "regex": "^.{16,}$", "hint": "16+ chars" }, "rotatable": true, "group": "primary", "description": "OAuth Consumer Secret" },
+    { "key": "app_password", "label": "App Password", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "validation": { "regex": "^.{20,}$", "hint": "20+ chars" }, "rotatable": true, "group": "secondary", "description": "Bitbucket App Password（用于 Git HTTP 认证）" }
+  ]
+}

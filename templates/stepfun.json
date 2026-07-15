@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "stepfun",
   "platform_id": "stepfun",
   "name": "阶跃星辰 (Step / StepFun)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.stepfun.com/v1",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "stepfun",

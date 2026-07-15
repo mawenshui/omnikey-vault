@@ -1,0 +1,22 @@
+{
+  "id": "cloudflare",
+  "platform_id": "cloudflare",
+  "name": "Cloudflare",
+  "category": "cloud_international",
+  "icon": "cloudflare",
+  "official_docs_url": "https://developers.cloudflare.com/api/",
+  "auth_header": "Authorization: Bearer <api_token>",
+  "default_base_url": "https://api.cloudflare.com/client/v4",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "cloudflare",
+  "notes": "Cloudflare 推荐使用限定范围的 API Token（而非 Global API Key）。API Token 可限定 Zone、权限和有效期。",
+  "fields": [
+    { "key": "api_token", "label": "API Token (推荐)", "kind": "secret", "sensitive": true, "required": true, "default_mask": "•••••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9_-]{40}$", "hint": "40 字符" }, "rotatable": true, "group": "primary", "description": "Cloudflare API Token（限定范围，推荐）" },
+    { "key": "global_api_key", "label": "Global API Key (不推荐)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "•••••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{37}$", "hint": "37 字符" }, "rotatable": true, "group": "secondary", "description": "Global API Key（全权限，不推荐使用）" },
+    { "key": "account_id", "label": "Account ID", "kind": "text", "sensitive": false, "required": false, "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "group": "primary", "description": "Cloudflare Account ID" }
+  ]
+}

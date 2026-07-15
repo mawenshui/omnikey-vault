@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "wecom",
   "platform_id": "wecom",
   "name": "企业微信 (WeCom / WeChat Work)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://qyapi.weixin.qq.com/cgi-bin",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "wecom",

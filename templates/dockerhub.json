@@ -1,0 +1,21 @@
+{
+  "id": "dockerhub",
+  "platform_id": "dockerhub",
+  "name": "Docker Hub",
+  "category": "devops",
+  "icon": "docker",
+  "official_docs_url": "https://docs.docker.com/docker-hub/api/latest",
+  "auth_header": "Authorization: Bearer <jwt>",
+  "default_base_url": "https://hub.docker.com/v2",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "dockerhub",
+  "notes": "Docker Hub Personal Access Token 用于 API 认证和镜像推送。推荐使用限定权限的 PAT。",
+  "fields": [
+    { "key": "pat", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "dckr_pat_••••••••", "placeholder": "dckr_pat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^dckr_pat_[A-Za-z0-9_-]{27,48}$", "hint": "dckr_pat_ + 27-48 chars" }, "rotatable": true, "group": "primary", "description": "Docker Hub 个人访问令牌" },
+    { "key": "username", "label": "用户名", "kind": "text", "sensitive": false, "required": true, "placeholder": "yourusername", "group": "primary", "description": "Docker Hub 用户名" }
+  ]
+}

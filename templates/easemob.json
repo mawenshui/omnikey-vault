@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "easemob",
   "platform_id": "easemob",
   "name": "环信 (Easemob)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://a1.easemob.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "easemob",

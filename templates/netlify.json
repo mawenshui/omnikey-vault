@@ -1,0 +1,20 @@
+{
+  "id": "netlify",
+  "platform_id": "netlify",
+  "name": "Netlify",
+  "category": "saas",
+  "icon": "netlify",
+  "official_docs_url": "https://docs.netlify.com/api/get-started/",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://api.netlify.com/api/v1",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "netlify",
+  "notes": "Netlify Personal Access Token 用于管理站点、部署和表单提交。",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "nfp_••••••••", "placeholder": "nfp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^nfp_[A-Za-z0-9_]{59}$", "hint": "nfp_ + 59 chars" }, "rotatable": true, "group": "primary", "description": "Netlify 个人访问令牌" }
+  ]
+}

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "aliyun_ram_user",
   "platform_id": "aliyun",
   "name": "Aliyun RAM User AccessKey",
@@ -8,6 +8,7 @@
   "auth_header": "ACS3-HMAC-SHA256 signature",
   "mvp_included": false,
   "introduced_in": "v0.2",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "aliyun",

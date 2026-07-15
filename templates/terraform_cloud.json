@@ -1,0 +1,20 @@
+{
+  "id": "terraform_cloud",
+  "platform_id": "terraform_cloud",
+  "name": "Terraform Cloud",
+  "category": "devops",
+  "icon": "terraform",
+  "official_docs_url": "https://developer.hashicorp.com/terraform/cloud/api-docs",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://app.terraform.io/api/v2",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "terraform_cloud",
+  "notes": "Terraform Cloud API Token 用于管理 workspaces、runs 和 variables。Team Token 用于团队级操作。",
+  "fields": [
+    { "key": "api_token", "label": "API Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••••••••••••••••••", "placeholder": "token-at-xxx", "validation": { "regex": "^token-[A-Za-z0-9]{14}-[A-Za-z0-9]{60}$", "hint": "token-at- 格式" }, "rotatable": true, "expires_at_supported": true, "group": "primary", "description": "Terraform Cloud 用户 API 令牌" }
+  ]
+}

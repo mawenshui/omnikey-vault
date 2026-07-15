@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "upyun",
   "platform_id": "upyun",
   "name": "又拍云 (UPyun)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://v0.api.upyun.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "upyun",

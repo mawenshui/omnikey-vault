@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "coding",
   "platform_id": "coding",
   "name": "CODING (腾讯)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://e.coding.net/open-api",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "coding",

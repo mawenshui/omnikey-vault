@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "zhipu",
   "platform_id": "zhipu",
   "name": "智谱 AI (Zhipu / GLM)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "zhipu",

@@ -1,0 +1,23 @@
+{
+  "id": "kubernetes",
+  "platform_id": "kubernetes",
+  "name": "Kubernetes",
+  "category": "devops",
+  "icon": "kubernetes",
+  "official_docs_url": "https://kubernetes.io/docs/concepts/configuration/secret/",
+  "auth_header": "Bearer Token (ServiceAccount)",
+  "default_base_url": "https://kubernetes.default.svc",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "notes": "Kubernetes ServiceAccount Token 用于 API 认证。kubeconfig 文件中的 client-certificate-data 和 client-key-data 也可存储。",
+  "fields": [
+    { "key": "service_account_token", "label": "ServiceAccount Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "eyJ••••••••", "placeholder": "eyJhbGciOiJSUzI1NiIs...", "validation": { "regex": "^eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$", "hint": "JWT 格式 (xxx.yyy.zzz)" }, "group": "primary", "description": "ServiceAccount JWT Token" },
+    { "key": "api_server", "label": "API Server 地址", "kind": "text", "sensitive": false, "required": true, "placeholder": "https://k8s.example.com:6443", "group": "primary", "description": "Kubernetes API Server 地址" },
+    { "key": "client_certificate", "label": "Client Certificate (Base64)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "LS0t••••", "placeholder": "LS0tLS1CRUdJTi...", "group": "secondary", "description": "客户端证书（kubeconfig 中的 client-certificate-data）" },
+    { "key": "client_key", "label": "Client Key (Base64)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "LS0t••••", "placeholder": "LS0tLS1CRUdJTi...", "group": "secondary", "description": "客户端私钥（kubeconfig 中的 client-key-data）" },
+    { "key": "namespace", "label": "命名空间", "kind": "text", "sensitive": false, "required": false, "placeholder": "default", "group": "primary", "description": "默认命名空间" }
+  ]
+}

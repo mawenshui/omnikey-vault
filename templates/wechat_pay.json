@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "wechat_pay",
   "platform_id": "wechat_pay",
   "name": "微信支付 (WeChat Pay)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.mch.weixin.qq.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "wechat_pay",

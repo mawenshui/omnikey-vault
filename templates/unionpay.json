@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "unionpay",
   "platform_id": "unionpay",
   "name": "银联支付 (UnionPay)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://gateway.95516.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": false,
   "notes": "银联在线支付使用商户号 + 签名证书认证。签名证书为 RSA 或 SM2 国密算法。",

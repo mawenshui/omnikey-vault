@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "openai",
   "platform_id": "openai",
   "name": "OpenAI",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.openai.com/v1",
   "mvp_included": true,
   "introduced_in": "v0.1",
+"region": "international",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "openai",

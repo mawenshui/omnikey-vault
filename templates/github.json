@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "github",
   "platform_id": "github",
   "name": "GitHub",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.github.com",
   "mvp_included": true,
   "introduced_in": "v0.1",
+"region": "international",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "github",

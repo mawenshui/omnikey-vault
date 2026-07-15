@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "tencent_sms",
   "platform_id": "tencent_sms",
   "name": "腾讯云短信 (Tencent SMS)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://sms.tencentcloudapi.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": false,
   "notes": "腾讯云短信使用 CAM 密钥认证。SDK AppID 和 App Key 用于短信发送签名。推荐使用 CAM 子账号密钥。",

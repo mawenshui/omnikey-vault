@@ -1,0 +1,22 @@
+{
+  "id": "harbor",
+  "platform_id": "harbor",
+  "name": "Harbor",
+  "category": "devops",
+  "icon": "harbor",
+  "official_docs_url": "https://goharbor.io/docs/2.10/administration/configure-user-settings/",
+  "auth_header": "Authorization: Basic <base64(user:pass)>",
+  "default_base_url": "https://harbor.example.com/api/v2.0",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "notes": "Harbor 容器镜像仓库。使用 Robot Account 或用户凭证进行 API 和镜像推送/拉取。",
+  "fields": [
+    { "key": "robot_token", "label": "Robot Account Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "group": "primary", "description": "Harbor Robot Account 令牌" },
+    { "key": "username", "label": "用户名 / Robot Name", "kind": "text", "sensitive": false, "required": false, "placeholder": "robot$account+project", "group": "primary" },
+    { "key": "password", "label": "密码 / Robot Secret", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••", "group": "primary" },
+    { "key": "instance_url", "label": "Harbor 地址", "kind": "text", "sensitive": false, "required": true, "placeholder": "https://harbor.example.com", "group": "primary" }
+  ]
+}

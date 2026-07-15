@@ -1,0 +1,22 @@
+{
+  "id": "grafana",
+  "platform_id": "grafana",
+  "name": "Grafana",
+  "category": "devops",
+  "icon": "grafana",
+  "official_docs_url": "https://grafana.com/docs/grafana/latest/developers/http_api/",
+  "auth_header": "Authorization: Bearer <api_key>",
+  "default_base_url": "http://localhost:3000/api",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "grafana",
+  "notes": "Grafana API Key / Service Account Token 用于查询仪表板数据和管理资源。",
+  "fields": [
+    { "key": "service_account_token", "label": "Service Account Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "glsa_••••••••", "placeholder": "glsa_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_xxxxxxxxxxxxxxxxxx=", "validation": { "regex": "^glsa_[A-Za-z0-9_]{30,}\\.[A-Za-z0-9_]{16}$", "hint": "glsa_ 前缀" }, "rotatable": true, "group": "primary", "description": "Grafana Service Account Token（推荐）" },
+    { "key": "api_key", "label": "API Key (旧版)", "kind": "secret", "sensitive": true, "required": false, "default_mask": "eyJ••••••••", "placeholder": "eyJrIjoi...", "group": "secondary", "description": "旧版 API Key（已弃用，推荐迁移到 Service Account）" },
+    { "key": "instance_url", "label": "Grafana 地址", "kind": "text", "sensitive": false, "required": true, "placeholder": "https://grafana.example.com", "group": "primary" }
+  ]
+}

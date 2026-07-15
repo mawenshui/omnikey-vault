@@ -151,6 +151,9 @@
                     <Button Classes="icon" Click="OnAdvancedSearchClick" ToolTip.Tip="高级搜索 (tags: / platform: / field:KEY:VALUE)">
                         <TextBlock Text="🔍" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
                     </Button>
+                    <Button Classes="icon" Click="OnVaultSwitcherClick" ToolTip.Tip="切换保险箱">
+                        <TextBlock Text="🗂" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
+                    </Button>
                     <Button Classes="icon" Click="OnSettingsClick" ToolTip.Tip="设置">
                         <TextBlock Text="⚙" FontSize="14" Foreground="{DynamicResource FgMutedBrush}" />
                     </Button>

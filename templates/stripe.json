@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "stripe",
   "platform_id": "stripe",
   "name": "Stripe",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.stripe.com/v1",
   "mvp_included": true,
   "introduced_in": "v0.1",
+"region": "international",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "stripe",

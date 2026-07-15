@@ -1,0 +1,21 @@
+{
+  "id": "datadog",
+  "platform_id": "datadog",
+  "name": "Datadog",
+  "category": "devops",
+  "icon": "datadog",
+  "official_docs_url": "https://docs.datadoghq.com/api/latest/authentication/",
+  "auth_header": "DD-API-KEY: <api_key> / DD-APPLICATION-KEY: <app_key>",
+  "default_base_url": "https://api.datadoghq.com/api/v1",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "datadog",
+  "notes": "Datadog 使用 API Key（发送数据）和 Application Key（查询/管理）。两者均需保管。",
+  "fields": [
+    { "key": "api_key", "label": "API Key", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" }, "rotatable": true, "group": "primary", "description": "Datadog API Key（发送指标/日志）" },
+    { "key": "app_key", "label": "Application Key", "kind": "secret", "sensitive": true, "required": false, "default_mask": "•••••••••••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{40}$", "hint": "40 字符" }, "rotatable": true, "group": "primary", "description": "Datadog Application Key（查询/管理 API）" }
+  ]
+}

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "aws_sts_temporary",
   "platform_id": "aws",
   "name": "AWS STS Temporary Credentials",
@@ -7,6 +7,7 @@
   "official_docs_url": "https://docs.aws.amazon.com/STS/latest/APIReference/API_GetSessionToken.html",
   "mvp_included": false,
   "introduced_in": "v0.2",
+"region": "international",
   "expires_at_supported": true,
   "rotation_supported": false,
   "notes": "Prefer temporary credentials over long-term access keys. Obtain via AssumeRole or GetSessionToken.",

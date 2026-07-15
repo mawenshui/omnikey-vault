@@ -1,0 +1,74 @@
+{
+  "id": "ssh_key",
+  "platform_id": "ssh_key",
+  "name": "SSH 私钥",
+  "category": "ssh_key",
+  "icon": "ssh",
+  "official_docs_url": "https://www.ssh.com/academy/ssh/keygen",
+  "auth_header": "SSH 公钥认证",
+  "default_base_url": "",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "rotation_provider": null,
+  "notes": "SSH 私钥用于服务器免密登录。建议使用 Ed25519 或 RSA 4096 位密钥。私钥文件权限应为 600。",
+  "fields": [
+    {
+      "key": "private_key",
+      "label": "私钥 (Private Key)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "-----BEGIN OPENSSH PRIVATE KEY-----\n••••••••\n-----END OPENSSH PRIVATE KEY-----",
+      "placeholder": "-----BEGIN OPENSSH PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ...\n-----END OPENSSH PRIVATE KEY-----",
+      "validation": { "regex": "^-----BEGIN (OPENSSH |RSA |EC |DSA )?PRIVATE KEY-----", "hint": "以 -----BEGIN PRIVATE KEY----- 开头" },
+      "rotatable": false,
+      "expires_at_supported": false,
+      "group": "primary",
+      "description": "SSH 私钥内容（PEM 格式）。粘贴完整的 -----BEGIN/END----- 块。"
+    },
+    {
+      "key": "public_key",
+      "label": "公钥 (Public Key)",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "ssh-ed25519 AAAAC3Nz... user@host",
+      "validation": { "regex": "^ssh-(ed25519|rsa|ecdsa|dss) ", "hint": "以 ssh- 开头" },
+      "group": "primary",
+      "description": "SSH 公钥（可安全分享，添加到 ~/.ssh/authorized_keys）"
+    },
+    {
+      "key": "key_type",
+      "label": "密钥类型",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "ed25519 / rsa-4096 / ecdsa",
+      "group": "primary",
+      "description": "密钥算法类型"
+    },
+    {
+      "key": "hostname",
+      "label": "主机/服务器地址",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "user@example.com:22",
+      "group": "primary",
+      "description": "SSH 连接目标（user@host:port）"
+    },
+    {
+      "key": "passphrase",
+      "label": "密钥口令 (Passphrase)",
+      "kind": "secret",
+      "sensitive": true,
+      "required": false,
+      "default_mask": "••••••••",
+      "placeholder": "私钥保护口令（如有）",
+      "group": "secondary",
+      "description": "私钥保护口令（如果密钥生成了 passphrase）"
+    }
+  ]
+}

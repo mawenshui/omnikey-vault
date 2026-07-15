@@ -1,0 +1,20 @@
+{
+  "id": "linode",
+  "platform_id": "linode",
+  "name": "Linode (Akamai)",
+  "category": "cloud_international",
+  "icon": "linode",
+  "official_docs_url": "https://www.linode.com/docs/api/",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://api.linode.com/v4",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "linode",
+  "notes": "Linode (Akamai Cloud) Personal Access Token 用于管理计算实例、对象存储、DNS 等资源。",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9_]{64}$", "hint": "64 字符" }, "rotatable": true, "group": "primary", "description": "Linode 个人访问令牌" }
+  ]
+}

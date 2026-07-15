@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "supabase",
   "platform_id": "supabase",
   "name": "Supabase",
@@ -9,6 +9,7 @@
   "default_base_url": "https://<project_ref>.supabase.co",
   "mvp_included": true,
   "introduced_in": "v0.1",
+"region": "international",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "supabase",

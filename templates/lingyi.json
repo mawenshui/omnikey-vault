@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "lingyi",
   "platform_id": "lingyi",
   "name": "零一万物 (01.ai / Yi)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.lingyiwanwu.com/v1",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "lingyi",

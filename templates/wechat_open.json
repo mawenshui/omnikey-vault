@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "wechat_open",
   "platform_id": "wechat_open",
   "name": "微信开放平台 (WeChat Open Platform)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.weixin.qq.com",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "wechat_open",

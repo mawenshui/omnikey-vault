@@ -3,7 +3,7 @@
 ; Requires Inno Setup 6: https://jrsoftware.org/isdl.php
 
 #define MyAppName "OmniKey Vault"
-#define MyAppVersion "1.8.0"
+#define MyAppVersion "1.9.0"
 #define MyAppPublisher "OmniKey Vault"
 #define MyAppURL "https://github.com/mawenshui/omnikey-vault"
 #define MyAppExeName "okv.exe"

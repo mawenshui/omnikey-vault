@@ -1,0 +1,39 @@
+{
+  "id": "encrypted_note",
+  "platform_id": "encrypted_note",
+  "name": "加密笔记",
+  "category": "note",
+  "icon": "note",
+  "official_docs_url": "",
+  "auth_header": "",
+  "default_base_url": "",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "expires_at_supported": false,
+  "rotation_supported": false,
+  "rotation_provider": null,
+  "notes": "加密笔记用于存储安全笔记、恢复码、配置片段等敏感文本信息。内容加密存储在保险库中。",
+  "fields": [
+    {
+      "key": "content",
+      "label": "笔记内容",
+      "kind": "secret",
+      "sensitive": true,
+      "required": true,
+      "default_mask": "••••••••",
+      "placeholder": "输入笔记内容...",
+      "group": "primary",
+      "description": "加密笔记的正文内容。支持多行文本。"
+    },
+    {
+      "key": "category",
+      "label": "分类",
+      "kind": "text",
+      "sensitive": false,
+      "required": false,
+      "placeholder": "恢复码 / 配置片段 / 密码备忘 / 其他",
+      "group": "primary",
+      "description": "笔记分类标签"
+    }
+  ]
+}

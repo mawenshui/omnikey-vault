@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "anthropic",
   "platform_id": "anthropic",
   "name": "Anthropic (Claude)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.anthropic.com",
   "mvp_included": false,
   "introduced_in": "v0.2",
+"region": "international",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "anthropic",

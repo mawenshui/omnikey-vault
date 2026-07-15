@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "ucloud",
   "platform_id": "ucloud",
   "name": "UCloud",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.ucloud.cn",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": false,
   "notes": "UCloud API 使用 PublicKey/PrivateKey 认证，签名通过请求参数传递。",

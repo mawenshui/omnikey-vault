@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "getui",
   "platform_id": "getui",
   "name": "个推 (GeTui / Getui)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://restapi.getui.com/v2",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": true,
   "rotation_supported": true,
   "rotation_provider": "getui",

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "alipay",
   "platform_id": "alipay",
   "name": "支付宝 (Alipay)",
@@ -9,6 +9,7 @@
   "default_base_url": "https://openapi.alipay.com/gateway.do",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "alipay",

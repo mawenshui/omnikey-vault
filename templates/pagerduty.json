@@ -1,0 +1,21 @@
+{
+  "id": "pagerduty",
+  "platform_id": "pagerduty",
+  "name": "PagerDuty",
+  "category": "devops",
+  "icon": "pagerduty",
+  "official_docs_url": "https://developer.pagerduty.com/docs/rest-api-v2/rest-api",
+  "auth_header": "Authorization: Token token=<api_token>",
+  "default_base_url": "https://api.pagerduty.com",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "pagerduty",
+  "notes": "PagerDuty REST API Token 用于事件管理和告警集成。Events API V2 Key 用于事件发送。",
+  "fields": [
+    { "key": "rest_api_token", "label": "REST API Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "••••••••••••••••••••", "placeholder": "y_NbAkKc66ryYTWUXYEu", "validation": { "regex": "^[A-Za-z0-9_+]{20}$", "hint": "20 字符" }, "rotatable": true, "group": "primary", "description": "PagerDuty REST API 令牌" },
+    { "key": "events_api_v2_key", "label": "Events API V2 Integration Key", "kind": "secret", "sensitive": true, "required": false, "default_mask": "••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{32}$", "hint": "32 字符" }, "rotatable": true, "group": "secondary", "description": "Events API V2 集成密钥" }
+  ]
+}

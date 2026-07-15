@@ -1,0 +1,22 @@
+{
+  "id": "gitlab",
+  "platform_id": "gitlab",
+  "name": "GitLab",
+  "category": "code_hosting",
+  "icon": "gitlab",
+  "official_docs_url": "https://docs.gitlab.com/ee/api/rest/",
+  "auth_header": "PRIVATE-TOKEN: <token>",
+  "default_base_url": "https://gitlab.com/api/v4",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": true,
+  "rotation_supported": true,
+  "rotation_provider": "gitlab",
+  "notes": "GitLab 支持 Personal Access Token、CI/CD Job Token 和 OAuth Token。推荐使用限定范围的 PAT。",
+  "fields": [
+    { "key": "personal_access_token", "label": "Personal Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "glpat-••••••••", "placeholder": "glpat-xxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^glpat-[A-Za-z0-9_-]{20}$", "hint": "glpat- + 20 chars" }, "rotatable": true, "expires_at_supported": true, "group": "primary", "description": "GitLab 个人访问令牌" },
+    { "key": "ci_job_token", "label": "CI/CD Job Token", "kind": "secret", "sensitive": true, "required": false, "default_mask": "glcbt-••••••••", "placeholder": "glcbt-xxx", "group": "secondary", "description": "CI/CD 作业令牌（临时）" },
+    { "key": "instance_url", "label": "实例地址", "kind": "text", "sensitive": false, "required": false, "placeholder": "https://gitlab.example.com", "group": "secondary", "description": "自建 GitLab 实例地址" }
+  ]
+}

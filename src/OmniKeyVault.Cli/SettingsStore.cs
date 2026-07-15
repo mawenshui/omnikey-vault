@@ -47,6 +47,21 @@ public static class SettingsStore
     public static bool WebDavEnabled { get; set; }
     public static bool WebDavAutoSync { get; set; }
 
+    // ---- v1.9: Global hotkey ----
+    public static bool HotkeyEnabled { get; set; } = true;
+    public static string HotkeyModifiers { get; set; } = "Ctrl+Shift";
+    public static string HotkeyKey { get; set; } = "V";
+    public static string HotkeyWakeMethod { get; set; } = "double_click";
+
+    // ---- v1.9: Browser extension API ----
+    public static bool BrowserApiEnabled { get; set; }
+    public static int BrowserApiPort { get; set; } = 14725;
+
+    // ---- v1.9: Multi-vault ----
+    /// <summary>List of recently used vault paths, persisted to settings.json.
+    /// Most-recently-used is at index 0.</summary>
+    public static List<string> RecentVaults { get; set; } = new();
+
     // ---- Phase 11: JSON file persistence ----
 
     private static readonly string SettingsPath = System.IO.Path.Combine(
@@ -82,6 +97,15 @@ public static class SettingsStore
             if (root.TryGetProperty("webDavRemoteFilePath", out var wrp)) WebDavRemoteFilePath = wrp.GetString();
             if (root.TryGetProperty("webDavEnabled", out var wen)) WebDavEnabled = wen.GetBoolean();
             if (root.TryGetProperty("webDavAutoSync", out var was)) WebDavAutoSync = was.GetBoolean();
+            // v1.9 settings
+            if (root.TryGetProperty("hotkeyEnabled", out var he)) HotkeyEnabled = he.GetBoolean();
+            if (root.TryGetProperty("hotkeyModifiers", out var hm)) HotkeyModifiers = hm.GetString() ?? "Ctrl+Shift";
+            if (root.TryGetProperty("hotkeyKey", out var hk)) HotkeyKey = hk.GetString() ?? "V";
+            if (root.TryGetProperty("hotkeyWakeMethod", out var hw)) HotkeyWakeMethod = hw.GetString() ?? "double_click";
+            if (root.TryGetProperty("browserApiEnabled", out var bae)) BrowserApiEnabled = bae.GetBoolean();
+            if (root.TryGetProperty("browserApiPort", out var bap)) BrowserApiPort = bap.GetInt32();
+            if (root.TryGetProperty("recentVaults", out var rv) && rv.ValueKind == System.Text.Json.JsonValueKind.Array)
+                RecentVaults = rv.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToList();
         }
         catch { /* best-effort: keep defaults on parse error */ }
     }
@@ -111,6 +135,14 @@ public static class SettingsStore
                 webDavRemoteFilePath = WebDavRemoteFilePath,
                 webDavEnabled = WebDavEnabled,
                 webDavAutoSync = WebDavAutoSync,
+                // v1.9 settings
+                hotkeyEnabled = HotkeyEnabled,
+                hotkeyModifiers = HotkeyModifiers,
+                hotkeyKey = HotkeyKey,
+                hotkeyWakeMethod = HotkeyWakeMethod,
+                browserApiEnabled = BrowserApiEnabled,
+                browserApiPort = BrowserApiPort,
+                recentVaults = RecentVaults,
             };
             var json = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(SettingsPath, json);

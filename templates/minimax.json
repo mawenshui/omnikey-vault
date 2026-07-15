@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "minimax",
   "platform_id": "minimax",
   "name": "MiniMax",
@@ -9,6 +9,7 @@
   "default_base_url": "https://api.minimax.chat/v1",
   "mvp_included": false,
   "introduced_in": "v1.7",
+"region": "domestic",
   "expires_at_supported": false,
   "rotation_supported": true,
   "rotation_provider": "minimax",

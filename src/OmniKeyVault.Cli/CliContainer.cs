@@ -78,6 +78,11 @@ public sealed class CliContainer : IDisposable
     /// persistent JSON-lines file at %APPDATA%/OmniKeyVault/audit.log.</summary>
     public AuditLogService AuditLog { get; } = new();
 
+    /// <summary>v1.9: global hotkey + auto-fill service.</summary>
+    public HotkeyService Hotkey { get; private set; }
+    /// <summary>v1.9: read-only HTTP API for browser extension.</summary>
+    public BrowserExtensionApiService BrowserApi { get; private set; }
+
     /// <summary>v0.4 S8-T1: platform-specific credential rotators. Each
     /// rotator knows the platform's API + auth flow; the EditorWindow calls
     /// <c>RotateAsync</c> and stores the new value in the entry's field.</summary>
@@ -99,6 +104,9 @@ public sealed class CliContainer : IDisposable
         SeedImport = new SeedImporter(Vault, Crypto, Codec, SeedFormat, deviceId);
         Sync = new SyncService(Vault, Lock, Crypto, Format, Codec, Manifests, deviceId, Watcher);
         WebDavSync = new WebDavSyncService(Sync, CreateWebDavProvider);
+        Hotkey = new HotkeyService(ClipboardSvc);
+        Hotkey.LoadConfig();
+        BrowserApi = new BrowserExtensionApiService(Vault, Entries, ClipboardSvc);
         // v0.3 import + attachment services. KeePassXml is stateless (no
         // caching); Attachments holds an in-memory LRU of recently-decrypted
         // blobs to keep the GUI snappy when re-opening a file_ref preview.

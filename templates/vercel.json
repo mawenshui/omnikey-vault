@@ -1,0 +1,20 @@
+{
+  "id": "vercel",
+  "platform_id": "vercel",
+  "name": "Vercel",
+  "category": "saas",
+  "icon": "vercel",
+  "official_docs_url": "https://vercel.com/docs/rest-api",
+  "auth_header": "Authorization: Bearer <token>",
+  "default_base_url": "https://api.vercel.com",
+  "mvp_included": false,
+  "introduced_in": "v1.9",
+  "region": "international",
+  "expires_at_supported": false,
+  "rotation_supported": true,
+  "rotation_provider": "vercel",
+  "notes": "Vercel Access Token 用于管理项目、部署和域名。可在 Dashboard Settings 中创建。",
+  "fields": [
+    { "key": "access_token", "label": "Access Token", "kind": "secret", "sensitive": true, "required": true, "default_mask": "•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••", "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "validation": { "regex": "^[A-Za-z0-9]{64}$", "hint": "64 字符" }, "rotatable": true, "group": "primary", "description": "Vercel 访问令牌" }
+  ]
+}

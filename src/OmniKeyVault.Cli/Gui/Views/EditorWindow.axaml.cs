@@ -42,11 +42,22 @@ public partial class EditorWindow : Window
 
         EditorTitle.Text = existing == null ? "新建条目" : "编辑条目";
 
-        // Populate template list
+        // Populate template list — v1.9: group by region (国内/国际)
         var templates = container.Templates.ListAll().ToList();
-        foreach (var t in templates)
+        var domestic = templates.Where(t => string.Equals(t.Region ?? "international", "domestic", StringComparison.OrdinalIgnoreCase)).ToList();
+        var international = templates.Where(t => string.Equals(t.Region ?? "international", "international", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (domestic.Count > 0)
         {
-            TemplateBox.Items.Add(new ComboBoxItem { Content = t.Id + " — " + t.Name, Tag = t });
+            TemplateBox.Items.Add(new ComboBoxItem { Content = "—— 国内平台 ——", IsEnabled = false });
+            foreach (var t in domestic)
+                TemplateBox.Items.Add(new ComboBoxItem { Content = t.Id + " — " + t.Name, Tag = t });
+        }
+        if (international.Count > 0)
+        {
+            TemplateBox.Items.Add(new ComboBoxItem { Content = "—— 国际平台 ——", IsEnabled = false });
+            foreach (var t in international)
+                TemplateBox.Items.Add(new ComboBoxItem { Content = t.Id + " — " + t.Name, Tag = t });
         }
         if (TemplateBox.Items.Count > 0) TemplateBox.SelectedIndex = 0;
 

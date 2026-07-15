@@ -135,9 +135,20 @@ public partial class App : AvaloniaApplication
 
                 if (!routed)
                 {
-                    Log("routing → ShowUnlock");
-                    _shell.ShowUnlock();
-                    Log("ShowUnlock returned");
+                    // v1.9.1: If launched with --minimized (auto-start), don't show
+                    // the unlock window — just the tray icon. Clicking the tray
+                    // icon will show the main window.
+                    if (OmniKeyVault.Application.AutoStartService.IsMinimizedStart)
+                    {
+                        Log("routing → ShowMinimized (tray only)");
+                        _shell.ShowMinimizedToTray();
+                    }
+                    else
+                    {
+                        Log("routing → ShowUnlock");
+                        _shell.ShowUnlock();
+                        Log("ShowUnlock returned");
+                    }
                 }
             }
             else

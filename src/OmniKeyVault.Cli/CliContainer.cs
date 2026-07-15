@@ -82,6 +82,8 @@ public sealed class CliContainer : IDisposable
     public HotkeyService Hotkey { get; private set; }
     /// <summary>v1.9: read-only HTTP API for browser extension.</summary>
     public BrowserExtensionApiService BrowserApi { get; private set; }
+    /// <summary>v1.9.1: checks GitHub releases for updates.</summary>
+    public UpdateService UpdateChecker { get; } = new();
 
     /// <summary>v0.4 S8-T1: platform-specific credential rotators. Each
     /// rotator knows the platform's API + auth flow; the EditorWindow calls

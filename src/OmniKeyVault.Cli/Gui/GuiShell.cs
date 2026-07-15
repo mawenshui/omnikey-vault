@@ -42,6 +42,100 @@ public sealed class GuiShell
         {
             LocaleRegistry.SetActive(SettingsStore.Language);
         }
+
+        // v1.9.1: Auto-check for updates on startup (silent — only shows dialog if update available)
+        if (SettingsStore.AutoCheckUpdateOnStartup)
+        {
+            _ = AutoCheckUpdateAsync();
+        }
+    }
+
+    /// <summary>v1.9.1: Silently checks GitHub for a new release.
+    /// Only shows a dialog if an update is available.</summary>
+    private async System.Threading.Tasks.Task AutoCheckUpdateAsync()
+    {
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(3000); // Wait 3s after startup
+            var info = await _container.UpdateChecker.CheckForUpdateAsync();
+            if (info == null) return; // No update — silent
+
+            // Show update dialog on the UI thread
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var activeWindow = _desktop.MainWindow;
+                if (activeWindow == null) return;
+
+                var dlg = new Window
+                {
+                    Title = $"发现新版本 {info.TagName}",
+                    Width = 520, Height = 480,
+                    CanResize = true,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Background = Avalonia.Media.Brushes.White,
+                };
+                var sp = new Avalonia.Controls.StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 12 };
+                sp.Children.Add(new Avalonia.Controls.TextBlock
+                {
+                    Text = $"📦 发现新版本 {info.TagName}",
+                    FontSize = 16, FontWeight = Avalonia.Media.FontWeight.SemiBold,
+                });
+                sp.Children.Add(new Avalonia.Controls.TextBlock
+                {
+                    Text = info.Name ?? info.TagName,
+                    FontSize = 12, Foreground = Avalonia.Media.Brushes.Gray,
+                });
+                if (info.PublishedAt.HasValue)
+                {
+                    sp.Children.Add(new Avalonia.Controls.TextBlock
+                    {
+                        Text = $"发布时间: {info.PublishedAt.Value:yyyy-MM-dd HH:mm}",
+                        FontSize = 11, Foreground = Avalonia.Media.Brushes.Gray,
+                    });
+                }
+                var bodyScroll = new Avalonia.Controls.ScrollViewer { MaxHeight = 240 };
+                bodyScroll.Content = new Avalonia.Controls.TextBlock
+                {
+                    Text = string.IsNullOrEmpty(info.Body) ? "(无更新说明)" : info.Body,
+                    FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                };
+                sp.Children.Add(bodyScroll);
+                if (info.Assets.Count > 0)
+                {
+                    sp.Children.Add(new Avalonia.Controls.TextBlock { Text = "下载:", FontSize = 11, Foreground = Avalonia.Media.Brushes.Gray });
+                    foreach (var asset in info.Assets)
+                    {
+                        var btn = new Avalonia.Controls.Button { Padding = new Avalonia.Thickness(8, 4) };
+                        var sizeMb = asset.Size / 1024.0 / 1024.0;
+                        btn.Content = $"⬇ {asset.Name} ({sizeMb:F1} MB)";
+                        var url = asset.DownloadUrl;
+                        btn.Click += (_, _) =>
+                        {
+                            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                        };
+                        sp.Children.Add(btn);
+                    }
+                }
+                var openBtn = new Avalonia.Controls.Button { Content = "查看发布页", Padding = new Avalonia.Thickness(14, 6) };
+                openBtn.Click += (_, _) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); } catch { }
+                };
+                var closeBtn = new Avalonia.Controls.Button { Content = "稍后再说", Padding = new Avalonia.Thickness(14, 6) };
+                closeBtn.Click += (_, _) => dlg.Close();
+                var btnRow = new Avalonia.Controls.StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    Spacing = 8, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                };
+                btnRow.Children.Add(openBtn);
+                btnRow.Children.Add(closeBtn);
+                sp.Children.Add(btnRow);
+                dlg.Content = sp;
+                await dlg.ShowDialog(activeWindow);
+            });
+        }
+        catch { /* silent — don't bother user on startup failure */ }
     }
 
     /// <summary>Returns the vault path to unlock on startup. Per UI_UX_SPEC §4.2
@@ -675,19 +769,19 @@ public sealed class GuiShell
     public async System.Threading.Tasks.Task ShowCreateFullDemoAsync()
     {
         var logPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "okv-demo-createfull.log");
-        void Log(string msg)
+        void DemoLog(string msg)
         {
             try { System.IO.File.AppendAllText(logPath, $"[{DateTimeOffset.Now:HH:mm:ss.fff}] {msg}\n"); } catch { }
             System.Console.Error.WriteLine($"[DEMO] {msg}");
         }
         try { if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath); } catch { }
-        Log("=== ShowCreateFullDemoAsync start ===");
+        DemoLog("=== ShowCreateFullDemoAsync start ===");
 
         _main?.Close(); _main = null;
         _unlock?.Close(); _unlock = null;
         var demoPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "okv-createfull-demo.okv");
         try { if (System.IO.File.Exists(demoPath)) System.IO.File.Delete(demoPath); } catch { }
-        Log($"demo vault path = {demoPath}");
+        DemoLog($"demo vault path = {demoPath}");
 
         var wiz = new CreateVaultWizard(_container, demoPath)
         {
@@ -695,54 +789,153 @@ public sealed class GuiShell
         };
         wiz.VaultCreated += (_, _) =>
         {
-            Log("VaultCreated event fired");
-            // ShowMain FIRST, then close the wizard. Avalonia's default
-            // ShutdownMode.OnLastWindowClose would otherwise kill the process
-            // the instant the wizard (the only open window) closes.
-            try { ShowMain(); Log("ShowMain() OK"); } catch (Exception ex) { Log("ShowMain() threw: " + ex); }
-            try { wiz.Close(); Log("wizard.Close() OK"); } catch (Exception ex) { Log("wiz.Close() threw: " + ex.Message); }
+            DemoLog("VaultCreated event fired");
+            try { ShowMain(); DemoLog("ShowMain() OK"); } catch (Exception ex) { DemoLog("ShowMain() threw: " + ex); }
+            try { wiz.Close(); DemoLog("wizard.Close() OK"); } catch (Exception ex) { DemoLog("wiz.Close() threw: " + ex.Message); }
         };
         wiz.Closed += (_, _) =>
         {
-            Log($"wizard.Closed — vault.IsUnlocked={_container.Lock.IsUnlocked}");
+            DemoLog($"wizard.Closed — vault.IsUnlocked={_container.Lock.IsUnlocked}");
             if (!_container.Lock.IsUnlocked)
             {
-                Log("[DEMO] wizard closed without success; falling back to unlock");
+                DemoLog("[DEMO] wizard closed without success; falling back to unlock");
                 ShowUnlock();
             }
         };
         wiz.Show();
-        Log("wizard shown");
+        DemoLog("wizard shown");
 
         try
         {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.ShowStep(2); Log("ShowStep(2)"); });
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.ShowStep(2); DemoLog("ShowStep(2)"); });
             await System.Threading.Tasks.Task.Delay(200);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 wiz.PasswordBox.Text = "DemoP@ssw0rd-2026";
                 wiz.ConfirmBox.Text = "DemoP@ssw0rd-2026";
-                Log("passwords set");
+                DemoLog("passwords set");
             });
             await System.Threading.Tasks.Task.Delay(200);
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.NextButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)); Log("clicked Next (step 2→3, triggers preview)"); });
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.NextButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)); DemoLog("clicked Next (step 2→3, triggers preview)"); });
             await System.Threading.Tasks.Task.Delay(3000);
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.SavedCheck.IsChecked = true; Log("checked saved"); });
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.SavedCheck.IsChecked = true; DemoLog("checked saved"); });
             await System.Threading.Tasks.Task.Delay(200);
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.NextButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)); Log("clicked Next (step 3→create)"); });
-            // Wait for the real create + KDF + unlock. Argon2id 256 MiB can take 5-15 s.
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { wiz.NextButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent)); DemoLog("clicked Next (step 3→create)"); });
             for (int i = 0; i < 30; i++)
             {
                 await System.Threading.Tasks.Task.Delay(1000);
-                if (!wiz.IsVisible) { Log($"wizard closed at i={i}s"); break; }
-                if (i % 5 == 0) Log($"still waiting at i={i}s, wiz.IsVisible={wiz.IsVisible}");
+                if (!wiz.IsVisible) { DemoLog($"wizard closed at i={i}s"); break; }
+                if (i % 5 == 0) DemoLog($"still waiting at i={i}s, wiz.IsVisible={wiz.IsVisible}");
             }
-            if (wiz.IsVisible) Log($"final: wiz.IsVisible={wiz.IsVisible}");
+            if (wiz.IsVisible) DemoLog($"final: wiz.IsVisible={wiz.IsVisible}");
         }
         catch (Exception ex)
         {
-            Log("demo driver threw: " + ex);
+            DemoLog("demo driver threw: " + ex);
         }
-        Log("=== ShowCreateFullDemoAsync end ===");
+        DemoLog("=== ShowCreateFullDemoAsync end ===");
+    }
+
+    /// <summary>v1.9.1: Starts the app minimized to the system tray.
+    /// No main window is shown — only a tray icon. Clicking the icon
+    /// shows the unlock window. Used when launched with --minimized (auto-start).</summary>
+    public void ShowMinimizedToTray()
+    {
+        EnsureTrayIcon();
+        // Don't show any window — the tray icon is the only UI.
+        // The user clicks the tray icon to bring up the unlock window.
+    }
+
+    /// <summary>v1.9.1: Ensures the system tray icon is created and visible.</summary>
+    private Avalonia.Controls.TrayIcon? _trayIcon;
+    private void EnsureTrayIcon()
+    {
+        if (_trayIcon != null) return;
+        try
+        {
+            _trayIcon = new Avalonia.Controls.TrayIcon
+            {
+                ToolTipText = "OmniKey Vault",
+                // Use the app icon if available
+                Icon = Avalonia.Application.Current?.FindResource("TrayIcon") as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime != null
+                    ? null : null,
+            };
+
+            // Click → show unlock/main window
+            _trayIcon.Clicked += (_, _) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_main != null && _main.IsVisible)
+                    {
+                        _main.Show();
+                        _main.Activate();
+                    }
+                    else if (_unlock != null && _unlock.IsVisible)
+                    {
+                        _unlock.Show();
+                        _unlock.Activate();
+                    }
+                    else
+                    {
+                        ShowUnlock();
+                    }
+                });
+            };
+
+            // Context menu for quit
+            var menu = new Avalonia.Controls.NativeMenu();
+            var showItem = new Avalonia.Controls.NativeMenuItem("显示主界面");
+            showItem.Click += (_, _) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_main != null && _main.IsVisible) { _main.Show(); _main.Activate(); }
+                    else if (_unlock != null && _unlock.IsVisible) { _unlock.Show(); _unlock.Activate(); }
+                    else ShowUnlock();
+                });
+            };
+            var quitItem = new Avalonia.Controls.NativeMenuItem("退出");
+            quitItem.Click += (_, _) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _trayIcon.Dispose();
+                    if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                        desktop.Shutdown();
+                });
+            };
+            menu.Add(showItem);
+            menu.Add(new Avalonia.Controls.NativeMenuItemSeparator());
+            menu.Add(quitItem);
+            _trayIcon.Menu = menu;
+            _trayIcon.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Log("EnsureTrayIcon failed: " + ex);
+        }
+    }
+
+    /// <summary>v1.9.1: Called by MainWindow when the user closes the window
+    /// and MinimizeToTrayOnClose is enabled. Shows the tray icon and hides
+    /// the window instead of quitting the app.</summary>
+    public void MinimizeToTray()
+    {
+        EnsureTrayIcon();
+        // The window is already being closed by the user — just ensure
+        // the tray icon is visible so they can bring it back.
+    }
+
+    /// <summary>Simple log helper for tray-related messages.</summary>
+    private static void Log(string msg)
+    {
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "okv-startup.log"),
+                $"[{DateTimeOffset.Now:HH:mm:ss.fff}] [GuiShell] {msg}\n");
+        }
+        catch { /* best-effort */ }
     }
 }

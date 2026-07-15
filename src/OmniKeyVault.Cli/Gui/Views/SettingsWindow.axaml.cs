@@ -70,6 +70,10 @@ public partial class SettingsWindow : Window
         WebDavPathBox.Text = SettingsStore.WebDavRemoteFilePath ?? "vault.okv";
         WebDavEnabledBox.IsChecked = SettingsStore.WebDavEnabled;
         WebDavAutoSyncBox.IsChecked = SettingsStore.WebDavAutoSync;
+        // v1.9.1: update + autostart
+        AutoCheckUpdateBox.IsChecked = SettingsStore.AutoCheckUpdateOnStartup;
+        AutoStartBox.IsChecked = OmniKeyVault.Application.AutoStartService.IsAutoStartEnabled();
+        MinimizeToTrayBox.IsChecked = SettingsStore.MinimizeToTrayOnClose;
         _suppressEvents = false;
 
         BuildProfilesPanel();
@@ -649,6 +653,137 @@ public partial class SettingsWindow : Window
         ShowInfo("查看恢复密钥:请使用 CLI: okv vault info");
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    // ---- v1.9.1: Update check ----
+
+    private async void OnCheckUpdateClick(object? sender, RoutedEventArgs e)
+    {
+        UpdateStatusText.Text = "正在检查更新…";
+        UpdateStatusText.Foreground = Res.Brush("FgMutedBrush");
+        try
+        {
+            var info = await _container.UpdateChecker.CheckForUpdateAsync();
+            if (info == null)
+            {
+                UpdateStatusText.Text = $"✓ 已是最新版本 (v{OmniKeyVault.Application.UpdateService.CurrentVersion.ToString(3)})";
+                UpdateStatusText.Foreground = Res.Brush("SuccessBrush");
+            }
+            else
+            {
+                UpdateStatusText.Text = $"📦 发现新版本 {info.TagName}";
+                UpdateStatusText.Foreground = Res.Brush("AccentBrush");
+                // Show update details dialog
+                await ShowUpdateDialog(info);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "✕ 检查失败: " + ex.Message;
+            UpdateStatusText.Foreground = Res.Brush("DangerBrush");
+        }
+    }
+
+    private async System.Threading.Tasks.Task ShowUpdateDialog(OmniKeyVault.Application.UpdateInfo info)
+    {
+        var dlg = new Window
+        {
+            Title = $"发现新版本 {info.TagName}",
+            Width = 520, Height = 480,
+            CanResize = true,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res.Brush("BgCardBrush"),
+        };
+        var sp = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+        sp.Children.Add(new TextBlock
+        {
+            Text = $"📦 {info.Name}",
+            FontSize = 16, FontWeight = FontWeight.SemiBold,
+            Foreground = Res.Brush("FgBrush"),
+            TextWrapping = TextWrapping.Wrap,
+        });
+        if (info.PublishedAt.HasValue)
+        {
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"发布时间: {info.PublishedAt.Value:yyyy-MM-dd HH:mm}",
+                FontSize = 11, Foreground = Res.Brush("FgDimBrush"),
+            });
+        }
+        sp.Children.Add(new Border { BorderBrush = Res.Brush("BorderBrush"), BorderThickness = new Thickness(0, 1, 0, 0) });
+        var bodyScroll = new ScrollViewer { MaxHeight = 260, Margin = new Thickness(0, 0, 0, 0) };
+        bodyScroll.Content = new TextBlock
+        {
+            Text = string.IsNullOrEmpty(info.Body) ? "(无更新说明)" : info.Body,
+            FontSize = 11, Foreground = Res.Brush("FgMutedBrush"),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        sp.Children.Add(bodyScroll);
+        // Download links
+        if (info.Assets.Count > 0)
+        {
+            sp.Children.Add(new TextBlock { Text = "下载:", FontSize = 11, Foreground = Res.Brush("FgDimBrush") });
+            foreach (var asset in info.Assets)
+            {
+                var linkBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(8, 4) };
+                var sizeMb = asset.Size / 1024.0 / 1024.0;
+                linkBtn.Content = new TextBlock
+                {
+                    Text = $"⬇ {asset.Name} ({sizeMb:F1} MB)",
+                    FontSize = 11, Foreground = Res.Brush("AccentBrush"),
+                };
+                var url = asset.DownloadUrl;
+                linkBtn.Click += (_, _) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                };
+                sp.Children.Add(linkBtn);
+            }
+        }
+        // Buttons
+        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var openBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(14, 6), Content = new TextBlock { Text = "查看完整发布页", FontSize = 12 } };
+        openBtn.Click += (_, _) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); } catch { }
+        };
+        var closeBtn = new Button { Classes = { "primary" }, Padding = new Thickness(14, 6), Content = new TextBlock { Text = "关闭", FontSize = 12 } };
+        closeBtn.Click += (_, _) => dlg.Close();
+        btnRow.Children.Add(openBtn);
+        btnRow.Children.Add(closeBtn);
+        sp.Children.Add(btnRow);
+        dlg.Content = sp;
+        await dlg.ShowDialog(this);
+    }
+
+    private void OnAutoCheckUpdateChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.AutoCheckUpdateOnStartup = AutoCheckUpdateBox.IsChecked == true;
+        SettingsStore.Save();
+    }
+
+    // ---- v1.9.1: Auto-start ----
+
+    private void OnAutoStartChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var enabled = AutoStartBox.IsChecked == true;
+        var ok = enabled
+            ? OmniKeyVault.Application.AutoStartService.EnableAutoStart()
+            : OmniKeyVault.Application.AutoStartService.DisableAutoStart();
+        SettingsStore.AutoStartEnabled = enabled && ok;
+        SettingsStore.Save();
+        ShowStatus(ok
+            ? $"✓ 自启动已{(enabled ? "启用" : "关闭")}"
+            : "✕ 设置自启动失败（权限不足）", success: ok);
+    }
+
+    private void OnMinimizeToTrayChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.MinimizeToTrayOnClose = MinimizeToTrayBox.IsChecked == true;
+        SettingsStore.Save();
+    }
 
     private void ShowInfo(string msg)
     {

@@ -12,10 +12,10 @@
     <Product>OmniKey Vault</Product>
     <Copyright>Copyright © 2026 OmniKey Vault</Copyright>
     <Description>本地优先 · 端到端加密 · 开源凭据管理工具。将分散在各 SaaS / 云厂商中的 API Key、Secret、Token、证书等信息收纳进一个加密保险库。</Description>
-    <!-- v1.9.0: SSH keys, encrypted notes, more templates, hotkey, browser extension, multi-vault -->
-    <Version>1.9.0</Version>
-    <AssemblyVersion>1.9.0.0</AssemblyVersion>
-    <FileVersion>1.9.0.0</FileVersion>
+    <!-- v1.9.1: Update check, auto-start, tray icon -->
+    <Version>1.9.1</Version>
+    <AssemblyVersion>1.9.1.0</AssemblyVersion>
+    <FileVersion>1.9.1.0</FileVersion>
     <RepositoryUrl>https://github.com/mawenshui/omnikey-vault</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/mawenshui/omnikey-vault</PackageProjectUrl>

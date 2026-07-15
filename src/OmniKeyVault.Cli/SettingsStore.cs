@@ -62,6 +62,11 @@ public static class SettingsStore
     /// Most-recently-used is at index 0.</summary>
     public static List<string> RecentVaults { get; set; } = new();
 
+    // ---- v1.9.1: Auto-start + tray ----
+    public static bool AutoStartEnabled { get; set; }
+    public static bool AutoCheckUpdateOnStartup { get; set; } = true;
+    public static bool MinimizeToTrayOnClose { get; set; } = false;
+
     // ---- Phase 11: JSON file persistence ----
 
     private static readonly string SettingsPath = System.IO.Path.Combine(
@@ -106,6 +111,10 @@ public static class SettingsStore
             if (root.TryGetProperty("browserApiPort", out var bap)) BrowserApiPort = bap.GetInt32();
             if (root.TryGetProperty("recentVaults", out var rv) && rv.ValueKind == System.Text.Json.JsonValueKind.Array)
                 RecentVaults = rv.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            // v1.9.1 settings
+            if (root.TryGetProperty("autoStartEnabled", out var ase)) AutoStartEnabled = ase.GetBoolean();
+            if (root.TryGetProperty("autoCheckUpdateOnStartup", out var acu)) AutoCheckUpdateOnStartup = acu.GetBoolean();
+            if (root.TryGetProperty("minimizeToTrayOnClose", out var mtc)) MinimizeToTrayOnClose = mtc.GetBoolean();
         }
         catch { /* best-effort: keep defaults on parse error */ }
     }
@@ -143,6 +152,10 @@ public static class SettingsStore
                 browserApiEnabled = BrowserApiEnabled,
                 browserApiPort = BrowserApiPort,
                 recentVaults = RecentVaults,
+                // v1.9.1 settings
+                autoStartEnabled = AutoStartEnabled,
+                autoCheckUpdateOnStartup = AutoCheckUpdateOnStartup,
+                minimizeToTrayOnClose = MinimizeToTrayOnClose,
             };
             var json = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(SettingsPath, json);

@@ -167,10 +167,9 @@ OmniKeyVault/
 │   └── OmniKeyVault.Analyzers/        # Roslyn 安全分析器
 ├── templates/                          # 内置平台模板 JSON（50 个）
 ├── installer/                          # Inno Setup 安装脚本 + 安装包
-├── images/                             # 应用图标 + 截图
+├── images/                             # 应用图标
 ├── docs/                               # 项目文档（中文）
-├── installer/                          # Inno Setup 安装脚本
-└── images/                             # 截图
+└── installer/                          # Inno Setup 安装脚本 + 安装包
 ```
 
 ---

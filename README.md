@@ -165,7 +165,9 @@ OmniKeyVault/
 ├── tools/
 │   ├── OmniKeyVault.Benchmark/        # 性能压测工具
 │   └── OmniKeyVault.Analyzers/        # Roslyn 安全分析器
-├── templates/                          # 内置平台模板 JSON（11 个）
+├── templates/                          # 内置平台模板 JSON（50 个）
+├── installer/                          # Inno Setup 安装脚本 + 安装包
+├── images/                             # 应用图标 + 截图
 ├── docs/                               # 项目文档（中文）
 ├── installer/                          # Inno Setup 安装脚本
 └── images/                             # 截图
@@ -202,7 +204,7 @@ OmniKeyVault/
 | [编译打包指南](docs/编译打包指南.md) | 编译、运行、打包、跨 RID 发布、故障排查 |
 | [测试报告](docs/测试报告.md) | 测试结果、性能基准、已知偏差 |
 | [开发路线图](docs/开发路线图.md) | Sprint 任务分解、依赖、风险 |
-| [变更日志](docs/变更日志.md) | v0.1 → v1.6 全部用户可见变更 |
+| [变更日志](docs/变更日志.md) | v0.1 → v1.7 全部用户可见变更 |
 | [文档总览](docs/文档总览.md) | 文档索引、阅读路径、维护规则 |
 
 ---

@@ -875,12 +875,21 @@ public sealed class GuiShell
         if (_trayIcon != null) return;
         try
         {
+            // Load the application icon from the embedded AvaloniaResource
+            Avalonia.Controls.WindowIcon? trayWindowIcon = null;
+            try
+            {
+                var assetUri = new System.Uri("avares://okv/Assets/okv-icon.ico");
+                using var iconStream = Avalonia.Platform.AssetLoader.Open(assetUri);
+                if (iconStream != null)
+                    trayWindowIcon = new Avalonia.Controls.WindowIcon(iconStream);
+            }
+            catch { /* best-effort: icon may not load in some environments */ }
+
             _trayIcon = new Avalonia.Controls.TrayIcon
             {
                 ToolTipText = "OmniKey Vault",
-                // Use the app icon if available
-                Icon = Avalonia.Application.Current?.FindResource("TrayIcon") as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime != null
-                    ? null : null,
+                Icon = trayWindowIcon,
             };
 
             // Click → show unlock/main window

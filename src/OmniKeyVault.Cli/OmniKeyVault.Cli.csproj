@@ -26,4 +26,9 @@
       <Link>templates\%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="..\..\images\okv-icon.ico">
+      <Link>Assets\okv-icon.ico</Link>
+    </AvaloniaResource>
+  </ItemGroup>
 </Project>

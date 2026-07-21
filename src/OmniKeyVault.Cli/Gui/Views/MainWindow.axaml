@@ -269,11 +269,37 @@
                             <WrapPanel x:Name="TagsPanel" />
                         </StackPanel>
 
-                        <TextBlock Text="" Height="40" />
+                        <!-- v2.0: Favorites + Recent quick filters -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="快捷"
+                                       FontFamily="{DynamicResource FontMono}"
+                                       FontSize="10" LetterSpacing="1.6"
+                                       Foreground="{DynamicResource FgFaintBrush}" />
+                            <Button x:Name="FavoritesBtn" Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnFavoritesFilterClick">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="⭐" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="收藏夹" Margin="8,0,0,0" FontSize="13" />
+                                    <TextBlock Grid.Column="2" x:Name="FavoritesCount" Text="0"
+                                               FontFamily="{DynamicResource FontMono}" FontSize="11"
+                                               Foreground="{DynamicResource FgFaintBrush}" />
+                                </Grid>
+                            </Button>
+                            <Button x:Name="RecentBtn" Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnRecentFilterClick">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Text="🕘" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="最近使用" Margin="8,0,0,0" FontSize="13" />
+                                    <TextBlock Grid.Column="2" x:Name="RecentCount" Text="0"
+                                               FontFamily="{DynamicResource FontMono}" FontSize="11"
+                                               Foreground="{DynamicResource FgFaintBrush}" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
 
-                        <!-- v0.2 Dev Tools: seed export/import + sync status -->
+                        <TextBlock Text="" Height="20" />
+
+                        <!-- v2.0 Tools: export/import + security + sync + utilities -->
                         <StackPanel Spacing="2">
-                            <TextBlock Text="Dev Tools · v0.2"
+                            <TextBlock Text="工具"
                                        FontFamily="{DynamicResource FontMono}"
                                        FontSize="10" LetterSpacing="1.6"
                                        Foreground="{DynamicResource FgFaintBrush}"
@@ -296,10 +322,144 @@
                                     <TextBlock Grid.Column="1" Text="导入 KeePass (XML)" Margin="8,0,0,0" FontSize="12" />
                                 </Grid>
                             </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImportKdbxClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔑" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 KeePass (KDBX)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImport1PuxClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="1️⃣" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 1Password (.1pux)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImportEnPassClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📥" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 EnPass (JSON)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnCsvImportPreviewClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📄" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="CSV 导入预览" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnEncryptedExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔒" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="加密容器导出" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnEncryptedImportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔓" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="加密容器导入" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnEnvExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🌿" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导出 .env" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnEnvImportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📥" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入 .env" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnBatchExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📦" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="批量导出 JSON" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnCsvExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📊" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导出 CSV" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnMarkdownExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="📝" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导出 Markdown" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnExportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="⬆" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导出 Seed (.dev)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnImportClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="⬇" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="导入文件" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4" />
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnShowPasswordGeneratorClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🎲" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="密码生成器" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnCheckLeaksClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔍" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="密码泄露检测" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnPasswordStrengthScanClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="💪" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="密码强度扫描" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnBatchEditClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="✏️" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="批量编辑标签" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnBatchDeleteClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🗑️" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="批量删除" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnLinkEntryClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🔗" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="关联条目" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnCustomExpiryRulesClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="⏰" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="过期提醒设置" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnEmergencyShareClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🆘" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="紧急联系人(Shamir)" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnCreateCustomTemplateClick">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="🎨" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
+                                    <TextBlock Grid.Column="1" Text="创建自定义模板" Margin="8,0,0,0" FontSize="12" />
+                                </Grid>
+                            </Button>
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,4" />
                             <Button Classes="sidebar-item" HorizontalAlignment="Stretch" Click="OnSyncNowClick">
                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                     <TextBlock Grid.Column="0" Text="🔄" FontSize="12" Foreground="{DynamicResource FgDimBrush}" />
-                                    <TextBlock Grid.Column="1" Text="同步" Margin="8,0,0,0" FontSize="12" />
+                                    <TextBlock Grid.Column="1" Text="本地同步" Margin="8,0,0,0" FontSize="12" />
                                     <TextBlock Grid.Column="2" x:Name="LastSyncText" Text="从未同步"
                                                FontFamily="{DynamicResource FontMono}" FontSize="10"
                                                Foreground="{DynamicResource FgFaintBrush}" />

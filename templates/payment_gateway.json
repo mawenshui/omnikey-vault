@@ -1,0 +1,16 @@
+{
+  "id": "payment_gateway",
+  "platform_id": "payment_gateway",
+  "name": "支付网关",
+  "category": "finance",
+  "region": "domestic",
+  "introduced_in": "2.0.0",
+  "fields": [
+    { "key": "merchant_id", "label": "商户号", "kind": "text", "sensitive": false, "required": true },
+    { "key": "api_key", "label": "API Key", "kind": "secret", "sensitive": true, "required": true },
+    { "key": "secret_key", "label": "Secret Key", "kind": "secret", "sensitive": true, "required": true },
+    { "key": "gateway_url", "label": "网关地址", "kind": "url", "sensitive": false },
+    { "key": "callback_url", "label": "回调地址", "kind": "url", "sensitive": false },
+    { "key": "platform", "label": "平台", "kind": "text", "sensitive": false }
+  ]
+}

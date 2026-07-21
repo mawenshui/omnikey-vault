@@ -9,8 +9,8 @@
 **即使源代码和金库文件同时泄露，没有主密码也无法解密。**
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-578%2F578-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-1.9.2-blue)](docs/变更日志.md)
+[![Tests](https://img.shields.io/badge/tests-737%2F737-brightgreen)](docs/测试报告.md)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 
@@ -56,13 +56,25 @@
 - **本地文件夹同步**：OneDrive / Google Drive / Dropbox / USB
 - **多 Profile**：生产 / 开发 / 测试环境隔离，带视觉标识
 - **TOTP 验证码**：内置 RFC 6238 标准的 OTP 生成器
-- **平台模板**：内置 50 个模板，覆盖国内外主流平台（GitHub / OpenAI / AWS / 腾讯云 / 华为云 / 百度千帆 / 通义千问 / DeepSeek / 支付宝 / 微信支付 / 钉钉 / 飞书等）
+- **平台模板**：内置 66 个模板，覆盖国内外主流平台（GitHub / OpenAI / AWS / 腾讯云 / 华为云 / 百度千帆 / 通义千问 / DeepSeek / 支付宝 / 微信支付 / 钉钉 / 飞书等）
 - **全文搜索**：字段级搜索语法，1 万条目搜索 ≤ 2ms
 - **历史快照**：每次编辑自动保存版本，可随时回退
 - **一键轮换**：支持 OpenAI / GitHub API 密钥自动轮换
-- **导入**：Bitwarden JSON / KeePass 2.x XML
+- **导入**：Bitwarden JSON / KeePass 2.x XML / KeePass KDBX / 1Password .1pux / EnPass JSON / CSV（LastPass/Chrome/Edge/Firefox）/ .env 文件
 - **国际化**：中文 + 英文
 - **自动锁定**：空闲超时 / 系统锁屏 / 系统休眠
+- **凭据泄露检测**：HaveIBeenPwned k-anonymity 模式，主动检测密码是否已在已知泄露库中
+- **紧急联系人**：Shamir 分片恢复机制，主密码拆分为 N 份分片，任意 K 份可还原
+- **加密容器导出**：导出为独立加密文件（.okvx），输入独立密码，方便安全分享
+- **密码生成器**：自定义长度/字符集/排除易混字符 + 密码短语模式，Ctrl+G 快捷唤起
+- **X.509 证书管理**：解析 PEM/PFX 证书，显示到期时间、指纹、颁发者
+- **SSH Agent 集成**：一键将 SSH 私钥加载到 Windows ssh-agent
+- **S3 兼容存储同步**：AWS S3 / MinIO / Cloudflare R2 等对象存储作为同步后端
+- **文件夹/标签**：文件夹 CRUD + 标签系统（侧边栏标签面板，点击筛选）
+- **批量操作**：批量编辑/删除/导出，Ctrl+点击多选
+- **密码强度全库扫描**：一键扫描所有条目的密码强度
+- **系统通知**：条目过期等事件推送 Windows 系统通知
+- **窗口位置记忆**：记住上次窗口位置和大小
 
 ---
 
@@ -70,7 +82,7 @@
 
 ### 安装
 
-1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-1.7.0.exe`（安装包）或 `OmniKeyVault-1.7.0-win-x64.zip`（便携版）
+1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-2.1.0.exe`（安装包）或 `OmniKeyVault-2.1.0-win-x64.zip`（便携版）
 2. 安装包：双击运行，按向导完成安装
 3. 便携版：解压后直接运行 `okv.exe`
 
@@ -91,7 +103,7 @@ dotnet build OmniKeyVault.sln -c Release
 dotnet run --project src/OmniKeyVault.Cli
 
 # 4. 运行测试
-dotnet test    # → 578/578 通过
+dotnet test    # → 737/737 通过
 
 # 5. 性能压测（1 万条目）
 dotnet run --project tools/OmniKeyVault.Benchmark
@@ -160,12 +172,12 @@ OmniKeyVault/
 │       ├── Gui/                       #   Avalonia 11 MVVM 视图（用户面向）
 │       └── Cli/                       #   内部 CLI 解析器（CI/测试入口）
 ├── tests/
-│   ├── OmniKeyVault.Tests/            # xUnit 单元/集成测试（568 个）
-│   └── OmniKeyVault.Analyzers.Tests/  # Roslyn 分析器测试（10 个）
+│   ├── OmniKeyVault.Tests/            # xUnit 单元/集成测试（717 个）
+│   └── OmniKeyVault.Analyzers.Tests/  # Roslyn 分析器测试（20 个）
 ├── tools/
 │   ├── OmniKeyVault.Benchmark/        # 性能压测工具
 │   └── OmniKeyVault.Analyzers/        # Roslyn 安全分析器
-├── templates/                          # 内置平台模板 JSON（50 个）
+├── templates/                          # 内置平台模板 JSON（66 个）
 ├── installer/                          # Inno Setup 安装脚本 + 安装包
 ├── images/                             # 应用图标
 ├── docs/                               # 项目文档（中文）
@@ -203,7 +215,7 @@ OmniKeyVault/
 | [编译打包指南](docs/编译打包指南.md) | 编译、运行、打包、跨 RID 发布、故障排查 |
 | [测试报告](docs/测试报告.md) | 测试结果、性能基准、已知偏差 |
 | [开发路线图](docs/开发路线图.md) | Sprint 任务分解、依赖、风险 |
-| [变更日志](docs/变更日志.md) | v0.1 → v1.7 全部用户可见变更 |
+| [变更日志](docs/变更日志.md) | v0.1 → v2.1 全部用户可见变更 |
 | [文档总览](docs/文档总览.md) | 文档索引、阅读路径、维护规则 |
 
 ---

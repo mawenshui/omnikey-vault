@@ -85,6 +85,38 @@ public sealed class CliContainer : IDisposable
     /// <summary>v1.9.1: checks GitHub releases for updates.</summary>
     public UpdateService UpdateChecker { get; } = new();
 
+    // ---- v2.0 services ----
+    /// <summary>v2.0: Cryptographically secure password generator.</summary>
+    public PasswordGeneratorService PasswordGenerator { get; } = new();
+    /// <summary>v2.0: CSV importer for LastPass/Chrome/Edge/Firefox.</summary>
+    public CsvImporter CsvImport { get; private set; }
+    /// <summary>v2.0: 1Password CSV importer.</summary>
+    public OnePasswordCsvImporter OnePasswordImport { get; private set; }
+    /// <summary>v2.0: .env file import/export.</summary>
+    public EnvFileService EnvFile { get; private set; }
+    /// <summary>v2.0: Credential leak detection (HIBP).</summary>
+    public CredentialLeakService CredentialLeakChecker { get; } = new();
+    /// <summary>v2.0: X.509 certificate management.</summary>
+    public CertificateService Certificates { get; } = new();
+    /// <summary>v2.0: SSH Agent integration.</summary>
+    public SshAgentService SshAgent { get; } = new();
+    /// <summary>v2.0: S3-compatible storage sync.</summary>
+    public S3SyncService S3Sync { get; } = new();
+    /// <summary>v2.0: Encrypted container export/import.</summary>
+    public EncryptedContainerExporter ContainerExporter { get; private set; }
+    /// <summary>v2.0: Password history tracking.</summary>
+    public PasswordHistoryService PasswordHistory { get; private set; }
+    /// <summary>v2.0: WebAuthn/FIDO2 (Windows Hello) integration.</summary>
+    public WebAuthnService WebAuthn { get; } = new();
+    /// <summary>v2.0: Community template contribution mechanism.</summary>
+    public CommunityTemplateService CommunityTemplates { get; private set; }
+    /// <summary>v2.1: 1Password .1pux native format importer.</summary>
+    public OnePuxImporter OnePuxImportNative { get; private set; }
+    /// <summary>v2.1: KeePass KDBX binary format importer.</summary>
+    public KeePassKdbxImporter KeePassKdbx { get; private set; }
+    /// <summary>v2.1: EnPass JSON importer.</summary>
+    public EnPassImporter EnPassImport { get; private set; }
+
     /// <summary>v0.4 S8-T1: platform-specific credential rotators. Each
     /// rotator knows the platform's API + auth flow; the EditorWindow calls
     /// <c>RotateAsync</c> and stores the new value in the entry's field.</summary>
@@ -126,6 +158,17 @@ public sealed class CliContainer : IDisposable
             ["openai"] = new OpenAiRotator(),
             ["github"] = new GitHubPatRotator(),
         };
+        // v2.0 services
+        CsvImport = new CsvImporter(Entries, Vault, Crypto);
+        OnePasswordImport = new OnePasswordCsvImporter(CsvImport);
+        EnvFile = new EnvFileService(Entries, Vault, Crypto);
+        ContainerExporter = new EncryptedContainerExporter(Crypto);
+        PasswordHistory = new PasswordHistoryService(Vault, Crypto);
+        CommunityTemplates = new CommunityTemplateService(Templates);
+        // v2.1 importers
+        OnePuxImportNative = new OnePuxImporter(Entries, Vault, Crypto);
+        KeePassKdbx = new KeePassKdbxImporter(KeePassXml);
+        EnPassImport = new EnPassImporter(Entries, Vault, Crypto);
     }
 
     /// <summary>Creates a WebDavSyncProvider from current SettingsStore values.
@@ -236,6 +279,8 @@ public sealed class CliContainer : IDisposable
         try { Vault.Dispose(); } catch { /* best-effort: avoid masking other Dispose errors */ }
         try { Lock.Dispose(); } catch { /* best-effort */ }
         try { Clipboard.Dispose(); } catch { /* best-effort */ }
+        try { CredentialLeakChecker.Dispose(); } catch { /* best-effort */ }
+        try { S3Sync.Dispose(); } catch { /* best-effort */ }
         try { AuditLog.FlushAsync().GetAwaiter().GetResult(); } catch { /* best-effort */ }
     }
 }

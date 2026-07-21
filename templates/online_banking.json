@@ -1,0 +1,17 @@
+{
+  "id": "online_banking",
+  "platform_id": "online_banking",
+  "name": "网上银行",
+  "category": "finance",
+  "region": "domestic",
+  "introduced_in": "2.0.0",
+  "fields": [
+    { "key": "username", "label": "登录账号", "kind": "text", "sensitive": false, "required": true },
+    { "key": "password", "label": "登录密码", "kind": "secret", "sensitive": true, "required": true },
+    { "key": "bank_name", "label": "银行名称", "kind": "text", "sensitive": false },
+    { "key": "login_url", "label": "登录网址", "kind": "url", "sensitive": false },
+    { "key": "security_question", "label": "安全问题", "kind": "text", "sensitive": false },
+    { "key": "security_answer", "label": "安全答案", "kind": "secret", "sensitive": true },
+    { "key": "u_key_pin", "label": "U盾 PIN", "kind": "secret", "sensitive": true }
+  ]
+}

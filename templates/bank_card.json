@@ -1,0 +1,16 @@
+{
+  "id": "bank_card",
+  "platform_id": "bank_card",
+  "name": "银行卡",
+  "category": "finance",
+  "region": "domestic",
+  "introduced_in": "2.0.0",
+  "fields": [
+    { "key": "card_number", "label": "卡号", "kind": "secret", "sensitive": true, "required": true, "default_mask": "**** **** **** ####" },
+    { "key": "card_holder", "label": "持卡人", "kind": "text", "sensitive": false },
+    { "key": "expiry_date", "label": "有效期 (MM/YY)", "kind": "text", "sensitive": false },
+    { "key": "cvv", "label": "CVV", "kind": "secret", "sensitive": true },
+    { "key": "bank_name", "label": "银行名称", "kind": "text", "sensitive": false },
+    { "key": "pin", "label": "PIN 码", "kind": "secret", "sensitive": true }
+  ]
+}

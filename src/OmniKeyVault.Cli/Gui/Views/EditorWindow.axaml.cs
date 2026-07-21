@@ -150,7 +150,7 @@ public partial class EditorWindow : Window
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("140,130,*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("140,130,*,Auto,Auto,Auto"),
             Margin = new Thickness(0, 0, 0, 6),
         };
 
@@ -207,6 +207,19 @@ public partial class EditorWindow : Window
         // TOTP: clicking the value box should focus it for URI paste (no extra UI).
         // file_ref: clicking the value box opens a file picker; we keep the text
         // path so users can paste a relative path.
+        // v2.0: Password generator button — visible only for secret fields
+        var genBtn = new Button
+        {
+            Classes = { "ghost" },
+            Padding = new Thickness(8, 4),
+            Margin = new Thickness(0, 0, 6, 0),
+            IsVisible = kind == FieldKind.Secret,
+            Content = new TextBlock { Text = "🎲", FontSize = 12, Foreground = Res.Brush("FgDimBrush") },
+        };
+        ToolTip.SetTip(genBtn, "生成密码");
+        genBtn.Click += (_, _) => ShowPasswordGenerator(valueBox);
+        Grid.SetColumn(genBtn, 3);
+
         var pickBtn = new Button
         {
             Classes = { "ghost" },
@@ -216,7 +229,7 @@ public partial class EditorWindow : Window
             Content = new TextBlock { Text = "📂", FontSize = 12, Foreground = Res.Brush("FgDimBrush") },
         };
         pickBtn.Click += async (_, _) => await PickFileRefAsync(valueBox);
-        Grid.SetColumn(pickBtn, 3);
+        Grid.SetColumn(pickBtn, 4);
 
         var removeBtn = new Button
         {
@@ -225,18 +238,20 @@ public partial class EditorWindow : Window
             Content = new TextBlock { Text = "✕", FontSize = 12, Foreground = Res.Brush("FgDimBrush") },
         };
         removeBtn.Click += (_, _) => (row.Parent as Panel)?.Children.Remove(row);
-        Grid.SetColumn(removeBtn, 4);
+        Grid.SetColumn(removeBtn, 5);
 
         // Show/hide pick button as the kind changes
         kindBox.SelectionChanged += (_, _) =>
         {
             var sel = (kindBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             pickBtn.IsVisible = sel == "file_ref";
+            genBtn.IsVisible = sel == "secret";
         };
 
         row.Children.Add(keyBox);
         row.Children.Add(kindBox);
         row.Children.Add(valueBox);
+        row.Children.Add(genBtn);
         row.Children.Add(pickBtn);
         row.Children.Add(removeBtn);
 
@@ -384,7 +399,22 @@ public partial class EditorWindow : Window
             }
             else
             {
-                var updated = _existing with
+                // v2.0: Record password history for changed sensitive fields
+                if (_existing != null)
+                {
+                    foreach (var newField in fields)
+                    {
+                        if (newField.Kind != FieldKind.Secret) continue;
+                        var oldField = _existing.FindField(newField.Key);
+                        if (oldField != null && oldField.ValueString != newField.ValueString)
+                        {
+                            _container.PasswordHistory.RecordChange(
+                                _existing.Id, _existing.Name, newField.Key,
+                                oldField.ValueString, newField.ValueString);
+                        }
+                    }
+                }
+                var updated = _existing! with
                 {
                     Name = name,
                     PlatformId = platformId,
@@ -559,6 +589,114 @@ public partial class EditorWindow : Window
         dlg.Content = sp;
         await dlg.ShowDialog<bool>(this);
         return ok;
+    }
+
+    // ============================================================
+    //  v2.0: Password Generator Dialog
+    // ============================================================
+
+    private void ShowPasswordGenerator(TextBox target)
+    {
+        var dlg = new Window
+        {
+            Title = "密码生成器",
+            Width = 480, Height = 420,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res.Brush("BgCardBrush"),
+        };
+
+        var sp = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+
+        // Length slider
+        var lenLabel = new TextBlock { Text = "密码长度: 20", FontSize = 12, Foreground = Res.Brush("FgBrush") };
+        var lenSlider = new Slider { Minimum = 8, Maximum = 64, Value = 20, TickFrequency = 1, IsSnapToTickEnabled = true };
+        lenSlider.PropertyChanged += (_, _) => lenLabel.Text = $"密码长度: {(int)lenSlider.Value}";
+        sp.Children.Add(lenLabel);
+        sp.Children.Add(lenSlider);
+
+        // Character set toggles
+        var optsPanel = new StackPanel { Spacing = 6 };
+        var upperCb = new CheckBox { Content = "大写字母 (A-Z)", IsChecked = true };
+        var lowerCb = new CheckBox { Content = "小写字母 (a-z)", IsChecked = true };
+        var digitCb = new CheckBox { Content = "数字 (0-9)", IsChecked = true };
+        var symbolCb = new CheckBox { Content = "特殊符号 (!@#$...)", IsChecked = true };
+        var noAmbiguousCb = new CheckBox { Content = "排除易混淆字符 (Il1O0)", IsChecked = true };
+        optsPanel.Children.Add(upperCb);
+        optsPanel.Children.Add(lowerCb);
+        optsPanel.Children.Add(digitCb);
+        optsPanel.Children.Add(symbolCb);
+        optsPanel.Children.Add(noAmbiguousCb);
+        sp.Children.Add(optsPanel);
+
+        // Generated password display
+        var pwdBox = new TextBox
+        {
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 14,
+            IsReadOnly = true,
+            Text = _container.PasswordGenerator.Generate(20, true, true, true, true, true),
+        };
+        sp.Children.Add(pwdBox);
+
+        // Strength meter
+        var strengthLabel = new TextBlock { FontSize = 12 };
+        void UpdateStrength()
+        {
+            var score = PasswordGeneratorService.EstimateStrength(pwdBox.Text ?? "");
+            strengthLabel.Text = $"强度: {PasswordGeneratorService.StrengthLabel(score)}";
+            strengthLabel.Foreground = score switch
+            {
+                0 or 1 => Res.Brush("DangerBrush"),
+                2 => Res.Brush("WarningBrush"),
+                _ => Res.Brush("SuccessBrush"),
+            };
+        }
+        UpdateStrength();
+        sp.Children.Add(strengthLabel);
+
+        // Passphrase option
+        var passphraseBtn = new Button { Content = "生成短语密码", Padding = new Thickness(10, 4), Margin = new Thickness(0, 0, 8, 0) };
+
+        // Buttons
+        var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        var regenBtn = new Button { Content = "🔄 重新生成", Padding = new Thickness(10, 4) };
+        var useBtn = new Button { Content = "✓ 使用此密码", Classes = { "primary" }, Padding = new Thickness(10, 4) };
+        var cancelBtn = new Button { Content = "取消", Padding = new Thickness(10, 4) };
+
+        void Regenerate()
+        {
+            pwdBox.Text = _container.PasswordGenerator.Generate(
+                (int)lenSlider.Value,
+                upperCb.IsChecked == true,
+                lowerCb.IsChecked == true,
+                digitCb.IsChecked == true,
+                symbolCb.IsChecked == true,
+                noAmbiguousCb.IsChecked == true);
+            UpdateStrength();
+        }
+
+        regenBtn.Click += (_, _) => Regenerate();
+        passphraseBtn.Click += (_, _) => { pwdBox.Text = _container.PasswordGenerator.GeneratePassphrase(4, "-"); UpdateStrength(); };
+        useBtn.Click += (_, _) => { target.Text = pwdBox.Text; dlg.Close(); };
+        cancelBtn.Click += (_, _) => dlg.Close();
+
+        // Re-generate when options change
+        lenSlider.PropertyChanged += (_, _) => Regenerate();
+        upperCb.Click += (_, _) => Regenerate();
+        lowerCb.Click += (_, _) => Regenerate();
+        digitCb.Click += (_, _) => Regenerate();
+        symbolCb.Click += (_, _) => Regenerate();
+        noAmbiguousCb.Click += (_, _) => Regenerate();
+
+        btnRow.Children.Add(passphraseBtn);
+        btnRow.Children.Add(regenBtn);
+        btnRow.Children.Add(cancelBtn);
+        btnRow.Children.Add(useBtn);
+        sp.Children.Add(btnRow);
+
+        dlg.Content = sp;
+        dlg.ShowDialog(this);
     }
 
     private void ShowInfo(string msg)

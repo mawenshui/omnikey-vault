@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     private string _activeFolderFilter = "all";
     // §2.3: Search debounce timer — 250ms delay before filtering entries.
     private DispatcherTimer? _searchDebounceTimer;
+    // v2.0: Filter mode — "all" (default), "favorites", "recent".
+    private string _filterMode = "all";
 
     /// <summary>Emitted when the user locks the vault. Host (GuiShell) handles window swap.</summary>
     public event EventHandler? Locked;
@@ -72,6 +74,23 @@ public partial class MainWindow : Window
 
         // v1.8: Audit log — record unlock event
         _container.AuditLog.LogUnlock(_container.Vault.CurrentVaultPath ?? "");
+
+        // v2.0: Restore window position, register shortcuts, auto-archive
+        RestoreWindowPosition();
+        RegisterKeyboardShortcuts();
+        AutoArchiveExpiredEntries();
+        EnableDragDrop();
+        StartPeriodicLeakCheck();
+
+        // v2.0: Initialize S3 sync from settings
+        if (SettingsStore.S3Enabled)
+        {
+            _container.S3Sync.Endpoint = SettingsStore.S3Endpoint;
+            _container.S3Sync.Bucket = SettingsStore.S3Bucket;
+            _container.S3Sync.AccessKey = SettingsStore.S3AccessKey;
+            _container.S3Sync.SecretKey = SettingsStore.S3SecretKey;
+            _container.S3Sync.Region = SettingsStore.S3Region ?? "us-east-1";
+        }
     }
 
     /// <summary>v1.9.1: If MinimizeToTrayOnClose is enabled, intercept the
@@ -237,9 +256,28 @@ public partial class MainWindow : Window
         {
             filtered = _container.Search.SearchEntries(search, filtered);
         }
+        // v2.0: Apply favorites/recent filter
+        if (_filterMode == "favorites")
+        {
+            filtered = filtered.Where(e => SettingsStore.FavoriteEntries.Contains(e.Id.ToString())).ToList();
+            ListTitle.Text = "⭐ 收藏夹";
+        }
+        else if (_filterMode == "recent")
+        {
+            var recentIds = SettingsStore.RecentEntries;
+            filtered = filtered
+                .Where(e => recentIds.Contains(e.Id.ToString()))
+                .OrderByDescending(e => recentIds.IndexOf(e.Id.ToString()))
+                .ToList();
+            ListTitle.Text = "🕘 最近使用";
+        }
+
         ProfileCountText.Text = filtered.Count.ToString();
         FolderAllCount.Text = all.Count.ToString();
         FolderNoneCount.Text = all.Count(e => !e.Folder.HasValue).ToString();
+        // v2.0: Update favorites + recent counts
+        FavoritesCount.Text = all.Count(e => SettingsStore.FavoriteEntries.Contains(e.Id.ToString())).ToString();
+        RecentCount.Text = SettingsStore.RecentEntries.Count.ToString();
         RebuildFoldersPanel(all);
         RebuildTagPanel(all);
         RenderEntryList(filtered);
@@ -569,7 +607,7 @@ public partial class MainWindow : Window
         var primaryField = entry.Fields.FirstOrDefault(f => f.Sensitive) ?? entry.Fields.FirstOrDefault();
         var primaryValue = primaryField is null ? "" : MaskValue(FieldCodec.Decode(primaryField.Value));
 
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto") };
 
         var platformMark = new Border
         {
@@ -667,9 +705,27 @@ public partial class MainWindow : Window
         }
         Grid.SetColumn(meta, 2);
 
+        // v2.0: Favorite toggle button
+        var favBtn = new Button
+        {
+            Background = Avalonia.Media.Brushes.Transparent,
+            BorderThickness = new Avalonia.Thickness(0),
+            Padding = new Avalonia.Thickness(4),
+            Content = new TextBlock
+            {
+                Text = IsFavorite(entry) ? "⭐" : "☆",
+                FontSize = 14,
+                Foreground = IsFavorite(entry) ? Res.Brush("WarningBrush") : Res.Brush("FgDimBrush"),
+            },
+        };
+        ToolTip.SetTip(favBtn, IsFavorite(entry) ? "取消收藏" : "添加收藏");
+        favBtn.Click += (_, _) => ToggleFavorite(entry);
+        Grid.SetColumn(favBtn, 3);
+
         grid.Children.Add(platformMark);
         grid.Children.Add(main);
         grid.Children.Add(meta);
+        grid.Children.Add(favBtn);
         btn.Content = grid;
         btn.Click += (_, _) => SelectEntry(entry);
 
@@ -707,6 +763,19 @@ public partial class MainWindow : Window
         var historyItem = new Avalonia.Controls.MenuItem { Header = "🕐  查看历史" };
         historyItem.Click += (_, _) => OnViewHistoryClick(this, new Avalonia.Interactivity.RoutedEventArgs());
         flyout.Items.Add(historyItem);
+        flyout.Items.Add(new Avalonia.Controls.Separator());
+        // v2.0: Favorite toggle
+        var favItem = new Avalonia.Controls.MenuItem { Header = IsFavorite(entry) ? "☆  取消收藏" : "⭐  添加收藏" };
+        favItem.Click += (_, _) => ToggleFavorite(entry);
+        flyout.Items.Add(favItem);
+        // v2.0: SSH Agent load (for ssh_key type entries)
+        var sshItem = new Avalonia.Controls.MenuItem { Header = "🔑  加载到 SSH Agent" };
+        sshItem.Click += (_, _) => OnSshAgentLoadClick(this, new Avalonia.Interactivity.RoutedEventArgs());
+        flyout.Items.Add(sshItem);
+        // v2.0: Certificate viewer (for certificate type entries)
+        var certItem = new Avalonia.Controls.MenuItem { Header = "📜  查看证书详情" };
+        certItem.Click += (_, _) => OnViewCertificateClick(this, new Avalonia.Interactivity.RoutedEventArgs());
+        flyout.Items.Add(certItem);
         flyout.Items.Add(new Avalonia.Controls.Separator());
         var delItem = new Avalonia.Controls.MenuItem { Header = "🗑  删除" };
         delItem.Click += async (_, _) => await DeleteEntryAsync(entry);
@@ -815,8 +884,16 @@ public partial class MainWindow : Window
     private void SelectEntry(Entry entry)
     {
         _selectedEntry = entry;
+        // v2.0: Record as recent entry
+        RecordRecentEntry(entry);
         RefreshProfileAndEntries();
         RenderDetail(entry);
+
+        // v2.0: System notification for entry selection
+        if (SettingsStore.SystemNotificationsEnabled)
+        {
+            ShowSystemNotification("条目已选中", entry.Name);
+        }
     }
 
     private void RenderDetail(Entry entry)
@@ -1817,6 +1894,7 @@ public partial class MainWindow : Window
     {
         if (sender is not Button btn || btn.Tag is not string tag) return;
         _activeFolderFilter = tag;
+        _filterMode = "all"; // Reset filter mode when folder is selected
         ListTitle.Text = tag switch
         {
             "all" => "全部条目",
@@ -1897,8 +1975,12 @@ public partial class MainWindow : Window
                         { Patterns = new[] { "*.json" } },
                     new Avalonia.Platform.Storage.FilePickerFileType("KeePass 2 XML")
                         { Patterns = new[] { "*.xml" } },
+                    new Avalonia.Platform.Storage.FilePickerFileType("CSV (LastPass/Chrome/Edge/Firefox/1Password)")
+                        { Patterns = new[] { "*.csv" } },
                     new Avalonia.Platform.Storage.FilePickerFileType("OKV Dev seed")
                         { Patterns = new[] { "*.dev" } },
+                    new Avalonia.Platform.Storage.FilePickerFileType(".env")
+                        { Patterns = new[] { "*.env", ".env", "*.env.*" } },
                     new Avalonia.Platform.Storage.FilePickerFileType("All")
                         { Patterns = new[] { "*" } },
                 },
@@ -1948,9 +2030,19 @@ public partial class MainWindow : Window
                 var result = await _container.SeedImport.ImportAsync(path, _activeProfile);
                 count = result.EntriesImported;
             }
+            else if (ext == ".csv")
+            {
+                format = "CSV (LastPass/Chrome/1Password)";
+                count = await _container.CsvImport.ImportAsync(_activeProfile, path);
+            }
+            else if (ext == ".env" || System.IO.Path.GetFileName(path).StartsWith(".env"))
+            {
+                format = ".env";
+                count = await _container.EnvFile.ImportAsync(_activeProfile, path, System.IO.Path.GetFileNameWithoutExtension(path));
+            }
             else
             {
-                ToastService.Show(ToastContainer, "无法识别文件格式 (.json / .xml / .dev)", ToastType.Error);
+                ToastService.Show(ToastContainer, "无法识别文件格式 (.json / .xml / .csv / .dev / .env)", ToastType.Error);
                 return;
             }
             await _container.Vault.SaveAsync();
@@ -2224,6 +2316,42 @@ public partial class MainWindow : Window
     }
 
     // ============================================================
+    //  v2.0: Sidebar filter handlers (favorites + recent)
+    // ============================================================
+
+    private void OnFavoritesFilterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _filterMode = _filterMode == "favorites" ? "all" : "favorites";
+        if (_filterMode == "all") ListTitle.Text = "全部条目";
+        RefreshProfileAndEntries();
+        ToastService.Show(ToastContainer,
+            _filterMode == "favorites" ? "已切换到收藏夹" : "已切换到全部条目", ToastType.Info);
+    }
+
+    private void OnRecentFilterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _filterMode = _filterMode == "recent" ? "all" : "recent";
+        if (_filterMode == "all") ListTitle.Text = "全部条目";
+        RefreshProfileAndEntries();
+        ToastService.Show(ToastContainer,
+            _filterMode == "recent" ? "已切换到最近使用" : "已切换到全部条目", ToastType.Info);
+    }
+
+    // ============================================================
+    //  v2.0: Password generator + leak check sidebar triggers
+    // ============================================================
+
+    private void OnShowPasswordGeneratorClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ShowStandalonePasswordGenerator();
+    }
+
+    private void OnCheckLeaksClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _ = CheckCredentialLeaksAsync();
+    }
+
+    // ============================================================
     //  P4-T9: Cleanup on close
     // ============================================================
 
@@ -2231,6 +2359,8 @@ public partial class MainWindow : Window
     /// all event handlers, preventing memory leaks from dangling references.</summary>
     protected override void OnClosed(EventArgs e)
     {
+        // v2.0: Save window position
+        SaveWindowPosition();
         // Stop and dispose all timers
         StopLockCountdown();
         _clipboardClearTimer?.Stop();

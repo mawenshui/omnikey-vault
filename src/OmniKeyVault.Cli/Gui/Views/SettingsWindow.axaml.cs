@@ -76,6 +76,20 @@ public partial class SettingsWindow : Window
         MinimizeToTrayBox.IsChecked = SettingsStore.MinimizeToTrayOnClose;
         // v1.9: browser extension API
         BrowserApiEnabledBox.IsChecked = SettingsStore.BrowserApiEnabled;
+        // v2.0: S3 sync
+        S3EndpointBox.Text = SettingsStore.S3Endpoint ?? "";
+        S3BucketBox.Text = SettingsStore.S3Bucket ?? "";
+        S3AccessKeyBox.Text = SettingsStore.S3AccessKey ?? "";
+        S3SecretKeyBox.Text = SettingsStore.S3SecretKey ?? "";
+        S3RegionBox.Text = SettingsStore.S3Region ?? "us-east-1";
+        S3EnabledBox.IsChecked = SettingsStore.S3Enabled;
+        // v2.0: advanced settings
+        AutoSyncOnChangeBox.IsChecked = SettingsStore.AutoSyncOnChange;
+        SystemNotificationsBox.IsChecked = SettingsStore.SystemNotificationsEnabled;
+        AutoArchiveDaysBox.SelectedIndex = SettingsStore.AutoArchiveDays switch
+        {
+            7 => 0, 14 => 1, 30 => 2, 60 => 3, 0 => 4, _ => 2,
+        };
         UpdateBrowserApiTokenDisplay();
         _suppressEvents = false;
 
@@ -894,5 +908,52 @@ public partial class SettingsWindow : Window
         panel.Children.Add(ok);
         dlg.Content = panel;
         dlg.ShowDialog(this);
+    }
+
+    // ---- v2.0: S3 sync settings ----
+
+    private void OnS3EnabledChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.S3Enabled = S3EnabledBox.IsChecked == true;
+        ShowStatus($"✓ S3 同步已{(SettingsStore.S3Enabled ? "启用" : "停用")} · 点击「保存 S3 配置」持久化", success: true);
+    }
+
+    private void OnSaveS3Click(object? sender, RoutedEventArgs e)
+    {
+        SettingsStore.S3Endpoint = (S3EndpointBox.Text ?? "").Trim();
+        SettingsStore.S3Bucket = (S3BucketBox.Text ?? "").Trim();
+        SettingsStore.S3AccessKey = (S3AccessKeyBox.Text ?? "").Trim();
+        SettingsStore.S3SecretKey = S3SecretKeyBox.Text ?? "";
+        SettingsStore.S3Region = string.IsNullOrWhiteSpace(S3RegionBox.Text) ? "us-east-1" : S3RegionBox.Text.Trim();
+        SettingsStore.S3Enabled = S3EnabledBox.IsChecked == true;
+        SettingsStore.Save();
+        S3StatusText.IsVisible = true;
+        S3StatusText.Text = "✓ S3 配置已保存";
+        S3StatusText.Foreground = Res.Brush("SuccessBrush");
+    }
+
+    // ---- v2.0: Advanced settings ----
+
+    private void OnAutoSyncChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.AutoSyncOnChange = AutoSyncOnChangeBox.IsChecked == true;
+        SettingsStore.Save();
+    }
+
+    private void OnSystemNotificationsChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.SystemNotificationsEnabled = SystemNotificationsBox.IsChecked == true;
+        SettingsStore.Save();
+    }
+
+    private void OnAutoArchiveDaysChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var tag = (AutoArchiveDaysBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        SettingsStore.AutoArchiveDays = int.TryParse(tag, out var days) ? days : 30;
+        SettingsStore.Save();
     }
 }

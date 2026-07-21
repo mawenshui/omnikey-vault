@@ -67,6 +67,37 @@ public static class SettingsStore
     public static bool AutoCheckUpdateOnStartup { get; set; } = true;
     public static bool MinimizeToTrayOnClose { get; set; } = false;
 
+    // ---- v2.0: New features ----
+    /// <summary>v2.0: Auto-sync after entry changes (push to WebDAV/S3).</summary>
+    public static bool AutoSyncOnChange { get; set; }
+    /// <summary>v2.0: System notifications for expiring entries.</summary>
+    public static bool SystemNotificationsEnabled { get; set; } = true;
+    /// <summary>v2.0: Auto-archive expired entries after N days.</summary>
+    public static int AutoArchiveDays { get; set; } = 30;
+    /// <summary>v2.0: Window position X.</summary>
+    public static double? WindowX { get; set; }
+    /// <summary>v2.0: Window position Y.</summary>
+    public static double? WindowY { get; set; }
+    /// <summary>v2.0: Window width.</summary>
+    public static double? WindowWidth { get; set; }
+    /// <summary>v2.0: Window height.</summary>
+    public static double? WindowHeight { get; set; }
+    /// <summary>v2.0: Recently accessed entry IDs (MRU at index 0).</summary>
+    public static List<string> RecentEntries { get; set; } = new();
+    /// <summary>v2.0: Favorite entry IDs.</summary>
+    public static HashSet<string> FavoriteEntries { get; set; } = new();
+    /// <summary>v2.0: S3 sync configuration.</summary>
+    public static string? S3Endpoint { get; set; }
+    public static string? S3Bucket { get; set; }
+    public static string? S3AccessKey { get; set; }
+    public static string? S3SecretKey { get; set; }
+    public static string? S3Region { get; set; } = "us-east-1";
+    public static bool S3Enabled { get; set; }
+    /// <summary>v2.0: Selective sync — which profiles participate in sync.</summary>
+    public static HashSet<string> SyncExcludedProfiles { get; set; } = new();
+    /// <summary>v2.0: WebAuthn/FIDO2 enabled.</summary>
+    public static bool WebAuthnEnabled { get; set; }
+
     // ---- Phase 11: JSON file persistence ----
 
     private static readonly string SettingsPath = System.IO.Path.Combine(
@@ -115,6 +146,27 @@ public static class SettingsStore
             if (root.TryGetProperty("autoStartEnabled", out var ase)) AutoStartEnabled = ase.GetBoolean();
             if (root.TryGetProperty("autoCheckUpdateOnStartup", out var acu)) AutoCheckUpdateOnStartup = acu.GetBoolean();
             if (root.TryGetProperty("minimizeToTrayOnClose", out var mtc)) MinimizeToTrayOnClose = mtc.GetBoolean();
+            // v2.0 settings
+            if (root.TryGetProperty("autoSyncOnChange", out var asc)) AutoSyncOnChange = asc.GetBoolean();
+            if (root.TryGetProperty("systemNotificationsEnabled", out var sne)) SystemNotificationsEnabled = sne.GetBoolean();
+            if (root.TryGetProperty("autoArchiveDays", out var aad)) AutoArchiveDays = aad.GetInt32();
+            if (root.TryGetProperty("windowX", out var wx)) WindowX = wx.GetDouble();
+            if (root.TryGetProperty("windowY", out var wy)) WindowY = wy.GetDouble();
+            if (root.TryGetProperty("windowWidth", out var ww)) WindowWidth = ww.GetDouble();
+            if (root.TryGetProperty("windowHeight", out var wh)) WindowHeight = wh.GetDouble();
+            if (root.TryGetProperty("recentEntries", out var re) && re.ValueKind == System.Text.Json.JsonValueKind.Array)
+                RecentEntries = re.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            if (root.TryGetProperty("favoriteEntries", out var fe) && fe.ValueKind == System.Text.Json.JsonValueKind.Array)
+                FavoriteEntries = fe.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToHashSet();
+            if (root.TryGetProperty("s3Endpoint", out var s3e)) S3Endpoint = s3e.GetString();
+            if (root.TryGetProperty("s3Bucket", out var s3b)) S3Bucket = s3b.GetString();
+            if (root.TryGetProperty("s3AccessKey", out var s3a)) S3AccessKey = s3a.GetString();
+            if (root.TryGetProperty("s3SecretKey", out var s3s)) S3SecretKey = s3s.GetString();
+            if (root.TryGetProperty("s3Region", out var s3r)) S3Region = s3r.GetString();
+            if (root.TryGetProperty("s3Enabled", out var s3en)) S3Enabled = s3en.GetBoolean();
+            if (root.TryGetProperty("syncExcludedProfiles", out var sep) && sep.ValueKind == System.Text.Json.JsonValueKind.Array)
+                SyncExcludedProfiles = sep.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToHashSet();
+            if (root.TryGetProperty("webAuthnEnabled", out var wa)) WebAuthnEnabled = wa.GetBoolean();
         }
         catch { /* best-effort: keep defaults on parse error */ }
     }
@@ -156,6 +208,24 @@ public static class SettingsStore
                 autoStartEnabled = AutoStartEnabled,
                 autoCheckUpdateOnStartup = AutoCheckUpdateOnStartup,
                 minimizeToTrayOnClose = MinimizeToTrayOnClose,
+                // v2.0 settings
+                autoSyncOnChange = AutoSyncOnChange,
+                systemNotificationsEnabled = SystemNotificationsEnabled,
+                autoArchiveDays = AutoArchiveDays,
+                windowX = WindowX,
+                windowY = WindowY,
+                windowWidth = WindowWidth,
+                windowHeight = WindowHeight,
+                recentEntries = RecentEntries,
+                favoriteEntries = FavoriteEntries.ToList(),
+                s3Endpoint = S3Endpoint,
+                s3Bucket = S3Bucket,
+                s3AccessKey = S3AccessKey,
+                s3SecretKey = S3SecretKey,
+                s3Region = S3Region,
+                s3Enabled = S3Enabled,
+                syncExcludedProfiles = SyncExcludedProfiles.ToList(),
+                webAuthnEnabled = WebAuthnEnabled,
             };
             var json = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(SettingsPath, json);

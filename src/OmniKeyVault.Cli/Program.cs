@@ -11,7 +11,17 @@ var cliArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
 // GUI mode: no subcommand → Avalonia main window
 if (cliArgs.Length == 0)
+{
+    // v2.2.0: Single-instance — only one GUI process may run at a time.
+    // If another instance is already running, signal it to show its window
+    // and exit this process immediately.
+    if (!OmniKeyVault.Application.SingleInstanceService.TryStart())
+    {
+        OmniKeyVault.Application.SingleInstanceService.SignalShow();
+        return 0;
+    }
     return AvaloniaApp.RunGui(Environment.GetCommandLineArgs());
+}
 
 // CLI mode: parse + dispatch (unchanged from the pre-GUI implementation)
 var parser = new CliParser();

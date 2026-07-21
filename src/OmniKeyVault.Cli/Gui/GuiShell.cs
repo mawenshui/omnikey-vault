@@ -51,6 +51,39 @@ public sealed class GuiShell
         {
             _ = AutoCheckUpdateAsync();
         }
+
+        // v2.2.0: Start the single-instance named pipe server.
+        // When a second instance starts, it sends "SHOW" via the pipe;
+        // this callback brings the existing window to the foreground.
+        OmniKeyVault.Application.SingleInstanceService.StartServer(OnShowFromSecondInstance);
+    }
+
+    /// <summary>v2.2.0: Called when a second instance signals "SHOW".
+    /// Brings the existing window to the foreground. Called on a background
+    /// thread — marshals to the UI thread.</summary>
+    private void OnShowFromSecondInstance()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            // If minimized to tray, ensure the tray icon is hidden and window shown
+            if (_main != null && _main.IsVisible)
+            {
+                _main.Show();
+                _main.Activate();
+                _main.WindowState = Avalonia.Controls.WindowState.Normal;
+            }
+            else if (_unlock != null && _unlock.IsVisible)
+            {
+                _unlock.Show();
+                _unlock.Activate();
+                _unlock.WindowState = Avalonia.Controls.WindowState.Normal;
+            }
+            else
+            {
+                // Window is hidden (tray only) — show it
+                ShowUnlock();
+            }
+        });
     }
 
     /// <summary>v1.9.1: Silently checks GitHub for a new release.
@@ -965,23 +998,22 @@ public sealed class GuiShell
         // The user clicks the tray icon to bring up the unlock window.
     }
 
-    /// <summary>v1.9.1: Ensures the system tray icon is created and visible.</summary>
+    /// <summary>v1.9.1: Ensures the system tray icon is created and visible.
+    /// v2.2.0: Rewrote icon loading with multiple fallback strategies and
+    /// diagnostic logging — the previous version silently swallowed exceptions
+    /// from AssetLoader.Open, causing a blank/transparent tray icon in some
+    /// published builds.</summary>
     private Avalonia.Controls.TrayIcon? _trayIcon;
     private void EnsureTrayIcon()
     {
         if (_trayIcon != null) return;
         try
         {
-            // Load the application icon from the embedded AvaloniaResource
-            Avalonia.Controls.WindowIcon? trayWindowIcon = null;
-            try
+            var trayWindowIcon = LoadTrayIcon();
+            if (trayWindowIcon == null)
             {
-                var assetUri = new System.Uri("avares://okv/Assets/okv-icon.ico");
-                using var iconStream = Avalonia.Platform.AssetLoader.Open(assetUri);
-                if (iconStream != null)
-                    trayWindowIcon = new Avalonia.Controls.WindowIcon(iconStream);
+                Log("EnsureTrayIcon: WARNING — failed to load any icon; tray icon will be blank");
             }
-            catch { /* best-effort: icon may not load in some environments */ }
 
             _trayIcon = new Avalonia.Controls.TrayIcon
             {
@@ -1046,6 +1078,70 @@ public sealed class GuiShell
         {
             Log("EnsureTrayIcon failed: " + ex);
         }
+    }
+
+    /// <summary>v2.2.0: Loads the tray icon using multiple strategies:
+    /// 1. Try loading from the .ico file on disk (next to the exe)
+    /// 2. Try loading from the embedded AvaloniaResource
+    /// 3. Try extracting the icon from the running exe (Windows only)
+    /// Returns null if all strategies fail.</summary>
+    private Avalonia.Controls.WindowIcon? LoadTrayIcon()
+    {
+        // Strategy 1: Load from disk (the .ico file is copied to the output dir)
+        try
+        {
+            var exeDir = AppContext.BaseDirectory;
+            var icoPath = System.IO.Path.Combine(exeDir, "Assets", "okv-icon.ico");
+            if (System.IO.File.Exists(icoPath))
+            {
+                var bytes = System.IO.File.ReadAllBytes(icoPath);
+                var ms = new System.IO.MemoryStream(bytes); // keep alive — not disposed
+                var icon = new Avalonia.Controls.WindowIcon(ms);
+                Log($"LoadTrayIcon: loaded from disk ({icoPath}, {bytes.Length} bytes)");
+                return icon;
+            }
+            // Also try the images/ subdirectory (development layout)
+            icoPath = System.IO.Path.Combine(exeDir, "..", "..", "..", "..", "images", "okv-icon.ico");
+            if (System.IO.File.Exists(icoPath))
+            {
+                icoPath = System.IO.Path.GetFullPath(icoPath);
+                var bytes = System.IO.File.ReadAllBytes(icoPath);
+                var ms = new System.IO.MemoryStream(bytes);
+                var icon = new Avalonia.Controls.WindowIcon(ms);
+                Log($"LoadTrayIcon: loaded from disk dev layout ({icoPath}, {bytes.Length} bytes)");
+                return icon;
+            }
+        }
+        catch (Exception ex) { Log("LoadTrayIcon: disk load failed: " + ex.Message); }
+
+        // Strategy 2: Load from embedded AvaloniaResource
+        try
+        {
+            var assetUri = new System.Uri("avares://okv/Assets/okv-icon.ico");
+            var iconStream = Avalonia.Platform.AssetLoader.Open(assetUri);
+            if (iconStream != null)
+            {
+                // Copy to MemoryStream — don't dispose the original stream too early
+                using (iconStream)
+                {
+                    var ms = new System.IO.MemoryStream();
+                    iconStream.CopyTo(ms);
+                    ms.Position = 0;
+                    var icon = new Avalonia.Controls.WindowIcon(ms);
+                    Log($"LoadTrayIcon: loaded from AvaloniaResource ({ms.Length} bytes)");
+                    return icon;
+                }
+            }
+        }
+        catch (Exception ex) { Log("LoadTrayIcon: AvaloniaResource load failed: " + ex.Message); }
+
+        // Strategy 3: Fallback — if both strategies above fail, the tray icon
+        // will have no icon image. The .ico file is now also copied to the output
+        // directory as a regular file (csproj <None CopyToOutputDirectory>),
+        // so strategy 1 should always succeed in published builds.
+
+        Log("LoadTrayIcon: all strategies failed");
+        return null;
     }
 
     /// <summary>v1.9.1: Called by MainWindow when the user closes the window

@@ -30,5 +30,12 @@
     <AvaloniaResource Include="..\..\images\okv-icon.ico">
       <Link>Assets\okv-icon.ico</Link>
     </AvaloniaResource>
+    <!-- v2.2.0: Also copy the .ico to the output directory as a regular file
+         so the tray icon loader can read it from disk (more reliable than
+         AssetLoader in some published/self-contained builds). -->
+    <None Include="..\..\images\okv-icon.ico">
+      <Link>Assets\okv-icon.ico</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

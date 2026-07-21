@@ -94,6 +94,14 @@ public partial class App : AvaloniaApplication
                 _shell = new GuiShell();
                 Log("GuiShell constructed");
 
+                // v2.2.0: Clean up single-instance server on application exit.
+                // We hook into ProcessExit because Avalonia 11.3's IClassicDesktopStyleApplicationLifetime
+                // doesn't expose an Exiting event.
+                AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+                {
+                    try { OmniKeyVault.Application.SingleInstanceService.Stop(); } catch { }
+                };
+
                 // v1.4: Refactored 16 if-else demo routes into a dictionary.
                 // Each entry maps an env var name to a demo launcher action.
                 // The first env var set to "1" wins; if none match, ShowUnlock runs.

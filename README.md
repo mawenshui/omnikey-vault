@@ -10,7 +10,7 @@
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Tests](https://img.shields.io/badge/tests-730%2F730-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](docs/变更日志.md)
+[![Version](https://img.shields.io/badge/version-2.2.1-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 

@@ -54,6 +54,7 @@ public sealed class GuiShell
     }
 
     /// <summary>v1.9.1: Silently checks GitHub for a new release.
+    /// v2.2.0: Now supports direct download + auto-install (no browser needed).
     /// Only shows a dialog if an update is available.</summary>
     private async System.Threading.Tasks.Task AutoCheckUpdateAsync()
     {
@@ -72,7 +73,7 @@ public sealed class GuiShell
                 var dlg = new Window
                 {
                     Title = $"发现新版本 {info.TagName}",
-                    Width = 520, Height = 480,
+                    Width = 520, Height = 500,
                     CanResize = true,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     Background = Avalonia.Media.Brushes.White,
@@ -96,42 +97,138 @@ public sealed class GuiShell
                         FontSize = 11, Foreground = Avalonia.Media.Brushes.Gray,
                     });
                 }
-                var bodyScroll = new Avalonia.Controls.ScrollViewer { MaxHeight = 240 };
+                var bodyScroll = new Avalonia.Controls.ScrollViewer { MaxHeight = 200 };
                 bodyScroll.Content = new Avalonia.Controls.TextBlock
                 {
                     Text = string.IsNullOrEmpty(info.Body) ? "(无更新说明)" : info.Body,
                     FontSize = 11, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                 };
                 sp.Children.Add(bodyScroll);
-                if (info.Assets.Count > 0)
+
+                // v2.2.0: Direct download + auto-install
+                var installerAsset = OmniKeyVault.Application.UpdateService.FindInstallerAsset(info);
+
+                var progressText = new Avalonia.Controls.TextBlock
                 {
-                    sp.Children.Add(new Avalonia.Controls.TextBlock { Text = "下载:", FontSize = 11, Foreground = Avalonia.Media.Brushes.Gray });
-                    foreach (var asset in info.Assets)
-                    {
-                        var btn = new Avalonia.Controls.Button { Padding = new Avalonia.Thickness(8, 4) };
-                        var sizeMb = asset.Size / 1024.0 / 1024.0;
-                        btn.Content = $"⬇ {asset.Name} ({sizeMb:F1} MB)";
-                        var url = asset.DownloadUrl;
-                        btn.Click += (_, _) =>
-                        {
-                            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
-                        };
-                        sp.Children.Add(btn);
-                    }
-                }
-                var openBtn = new Avalonia.Controls.Button { Content = "查看发布页", Padding = new Avalonia.Thickness(14, 6) };
-                openBtn.Click += (_, _) =>
-                {
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); } catch { }
+                    FontSize = 11,
+                    Foreground = Avalonia.Media.Brushes.Gray,
+                    IsVisible = false,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                 };
-                var closeBtn = new Avalonia.Controls.Button { Content = "稍后再说", Padding = new Avalonia.Thickness(14, 6) };
-                closeBtn.Click += (_, _) => dlg.Close();
+                sp.Children.Add(progressText);
+
+                var progressBar = new Avalonia.Controls.ProgressBar
+                {
+                    Minimum = 0,
+                    Maximum = 100,
+                    Value = 0,
+                    IsVisible = false,
+                    Height = 20,
+                };
+                sp.Children.Add(progressBar);
+
+                // Buttons
                 var btnRow = new Avalonia.Controls.StackPanel
                 {
                     Orientation = Avalonia.Layout.Orientation.Horizontal,
                     Spacing = 8, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
                 };
+
+                var openBtn = new Avalonia.Controls.Button { Content = "查看发布页", Padding = new Avalonia.Thickness(14, 6) };
+                openBtn.Click += (_, _) =>
+                {
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); } catch { }
+                };
                 btnRow.Children.Add(openBtn);
+
+                Avalonia.Controls.Button? downloadBtn = null;
+                Avalonia.Controls.Button closeBtn;
+
+                if (installerAsset != null)
+                {
+                    downloadBtn = new Avalonia.Controls.Button
+                    {
+                        Background = Avalonia.Media.Brushes.DodgerBlue,
+                        Foreground = Avalonia.Media.Brushes.White,
+                        Padding = new Avalonia.Thickness(14, 6),
+                    };
+                    var sizeMb = installerAsset.Size / 1024.0 / 1024.0;
+                    downloadBtn.Content = $"⬇ 下载并安装 ({sizeMb:F1} MB)";
+
+                    var assetRef = installerAsset;
+                    var btnRef = downloadBtn;
+                    var openRef = openBtn;
+                    downloadBtn.Click += async (_, _) =>
+                    {
+                        btnRef.IsEnabled = false;
+                        openRef.IsEnabled = false;
+                        progressBar.IsVisible = true;
+                        progressText.IsVisible = true;
+                        progressText.Text = "正在下载更新…";
+
+                        try
+                        {
+                            var progress = new Progress<OmniKeyVault.Application.DownloadProgress>(p =>
+                            {
+                                progressBar.Value = p.Percentage;
+                                progressText.Text = $"正在下载… {p.ReceivedMb} / {p.TotalMb} MB ({p.Percentage:F0}%)";
+                            });
+
+                            var downloadedPath = await _container.UpdateChecker.DownloadAssetAsync(assetRef, progress);
+
+                            progressBar.Value = 100;
+                            progressText.Text = "✓ 下载完成，正在启动安装程序…";
+                            progressText.Foreground = Avalonia.Media.Brushes.Green;
+
+                            await System.Threading.Tasks.Task.Delay(800);
+
+                            OmniKeyVault.Application.UpdateService.LaunchInstaller(downloadedPath);
+
+                            // Exit the app so the installer can replace files
+                            if (Avalonia.Application.Current?.ApplicationLifetime is
+                                Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+                            {
+                                desktop.Shutdown();
+                            }
+                            else
+                            {
+                                System.Environment.Exit(0);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            progressBar.IsVisible = false;
+                            progressText.Text = "✕ 下载失败: " + ex.Message + "\n您仍可通过「查看发布页」手动下载。";
+                            progressText.Foreground = Avalonia.Media.Brushes.Crimson;
+                            btnRef.IsEnabled = true;
+                            openRef.IsEnabled = true;
+                        }
+                    };
+                    btnRow.Children.Add(downloadBtn);
+                }
+                else
+                {
+                    // No installer asset — show manual download links
+                    if (info.Assets.Count > 0)
+                    {
+                        sp.Children.Add(new Avalonia.Controls.TextBlock { Text = "下载:", FontSize = 11, Foreground = Avalonia.Media.Brushes.Gray });
+                        foreach (var asset in info.Assets)
+                        {
+                            var btn = new Avalonia.Controls.Button { Padding = new Avalonia.Thickness(8, 4) };
+                            var sizeMb = asset.Size / 1024.0 / 1024.0;
+                            btn.Content = $"⬇ {asset.Name} ({sizeMb:F1} MB)";
+                            var url = asset.DownloadUrl;
+                            btn.Click += (_, _) =>
+                            {
+                                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                            };
+                            sp.Children.Add(btn);
+                        }
+                    }
+                }
+
+                closeBtn = new Avalonia.Controls.Button { Content = "稍后再说", Padding = new Avalonia.Thickness(14, 6) };
+                closeBtn.Click += (_, _) => dlg.Close();
                 btnRow.Children.Add(closeBtn);
                 sp.Children.Add(btnRow);
                 dlg.Content = sp;

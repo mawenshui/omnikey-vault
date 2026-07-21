@@ -705,7 +705,7 @@ public partial class SettingsWindow : Window
         var dlg = new Window
         {
             Title = $"发现新版本 {info.TagName}",
-            Width = 520, Height = 480,
+            Width = 520, Height = 500,
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = Res.Brush("BgCardBrush"),
@@ -727,7 +727,7 @@ public partial class SettingsWindow : Window
             });
         }
         sp.Children.Add(new Border { BorderBrush = Res.Brush("BorderBrush"), BorderThickness = new Thickness(0, 1, 0, 0) });
-        var bodyScroll = new ScrollViewer { MaxHeight = 260, Margin = new Thickness(0, 0, 0, 0) };
+        var bodyScroll = new ScrollViewer { MaxHeight = 200, Margin = new Thickness(0, 0, 0, 0) };
         bodyScroll.Content = new TextBlock
         {
             Text = string.IsNullOrEmpty(info.Body) ? "(无更新说明)" : info.Body,
@@ -735,41 +735,156 @@ public partial class SettingsWindow : Window
             TextWrapping = TextWrapping.Wrap,
         };
         sp.Children.Add(bodyScroll);
-        // Download links
-        if (info.Assets.Count > 0)
+
+        // v2.2.0: Direct download + auto-install (no browser needed)
+        var installerAsset = OmniKeyVault.Application.UpdateService.FindInstallerAsset(info);
+        var progressText = new TextBlock
         {
-            sp.Children.Add(new TextBlock { Text = "下载:", FontSize = 11, Foreground = Res.Brush("FgDimBrush") });
-            foreach (var asset in info.Assets)
-            {
-                var linkBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(8, 4) };
-                var sizeMb = asset.Size / 1024.0 / 1024.0;
-                linkBtn.Content = new TextBlock
-                {
-                    Text = $"⬇ {asset.Name} ({sizeMb:F1} MB)",
-                    FontSize = 11, Foreground = Res.Brush("AccentBrush"),
-                };
-                var url = asset.DownloadUrl;
-                linkBtn.Click += (_, _) =>
-                {
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
-                };
-                sp.Children.Add(linkBtn);
-            }
-        }
+            FontSize = 11,
+            Foreground = Res.Brush("FgMutedBrush"),
+            IsVisible = false,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        sp.Children.Add(progressText);
+
+        var progressBar = new ProgressBar
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0,
+            IsVisible = false,
+            Height = 20,
+        };
+        sp.Children.Add(progressBar);
+
         // Buttons
         var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
-        var openBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(14, 6), Content = new TextBlock { Text = "查看完整发布页", FontSize = 12 } };
+
+        var openBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(14, 6), Content = new TextBlock { Text = "查看发布页", FontSize = 12 } };
         openBtn.Click += (_, _) =>
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); } catch { }
         };
+        btnRow.Children.Add(openBtn);
+
+        Button? downloadBtn = null;
         var closeBtn = new Button { Classes = { "primary" }, Padding = new Thickness(14, 6), Content = new TextBlock { Text = "关闭", FontSize = 12 } };
         closeBtn.Click += (_, _) => dlg.Close();
-        btnRow.Children.Add(openBtn);
+
+        if (installerAsset != null)
+        {
+            downloadBtn = new Button { Classes = { "primary" }, Padding = new Thickness(14, 6) };
+            var sizeMb = installerAsset.Size / 1024.0 / 1024.0;
+            downloadBtn.Content = new TextBlock { Text = $"⬇ 下载并安装 ({sizeMb:F1} MB)", FontSize = 12 };
+
+            downloadBtn.Click += async (_, _) =>
+            {
+                await DownloadAndInstallAsync(_container.UpdateChecker, installerAsset, progressBar, progressText, downloadBtn, openBtn, closeBtn, dlg);
+            };
+            btnRow.Children.Add(downloadBtn);
+        }
+        else
+        {
+            // No installer asset found — show manual download links
+            if (info.Assets.Count > 0)
+            {
+                sp.Children.Add(new TextBlock { Text = "下载:", FontSize = 11, Foreground = Res.Brush("FgDimBrush") });
+                foreach (var asset in info.Assets)
+                {
+                    var linkBtn = new Button { Classes = { "ghost" }, Padding = new Thickness(8, 4) };
+                    var assetMb = asset.Size / 1024.0 / 1024.0;
+                    linkBtn.Content = new TextBlock
+                    {
+                        Text = $"⬇ {asset.Name} ({assetMb:F1} MB)",
+                        FontSize = 11, Foreground = Res.Brush("AccentBrush"),
+                    };
+                    var url = asset.DownloadUrl;
+                    linkBtn.Click += (_, _) =>
+                    {
+                        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                    };
+                    sp.Children.Add(linkBtn);
+                }
+            }
+        }
+
         btnRow.Children.Add(closeBtn);
         sp.Children.Add(btnRow);
         dlg.Content = sp;
         await dlg.ShowDialog(this);
+    }
+
+    /// <summary>v2.2.0: Downloads the installer with a progress bar, then
+    /// launches it in silent mode and exits the app so files can be replaced.</summary>
+    private static async System.Threading.Tasks.Task DownloadAndInstallAsync(
+        OmniKeyVault.Application.UpdateService updateService,
+        OmniKeyVault.Application.UpdateAsset asset,
+        ProgressBar progressBar,
+        TextBlock progressText,
+        Button downloadBtn,
+        Button openBtn,
+        Button closeBtn,
+        Window owner)
+    {
+        downloadBtn.IsEnabled = false;
+        openBtn.IsEnabled = false;
+        closeBtn.IsEnabled = false;
+        progressBar.IsVisible = true;
+        progressText.IsVisible = true;
+        progressText.Text = "正在下载更新…";
+        progressText.Foreground = Res.Brush("AccentBrush");
+
+        try
+        {
+            var progress = new Progress<OmniKeyVault.Application.DownloadProgress>(p =>
+            {
+                progressBar.Value = p.Percentage;
+                progressText.Text = $"正在下载… {p.ReceivedMb} / {p.TotalMb} MB ({p.Percentage:F0}%)";
+            });
+
+            var downloadedPath = await updateService.DownloadAssetAsync(asset, progress);
+
+            progressBar.Value = 100;
+            progressText.Text = "✓ 下载完成，正在启动安装程序…";
+            progressText.Foreground = Res.Brush("SuccessBrush");
+
+            // Brief delay so the user sees "download complete" before the UAC prompt
+            await System.Threading.Tasks.Task.Delay(800);
+
+            // Launch the installer (triggers UAC elevation) — the installer
+            // will close the running app and replace files automatically.
+            OmniKeyVault.Application.UpdateService.LaunchInstaller(downloadedPath);
+
+            // Exit the application so the installer can replace files.
+            // The installer's [Run] section launches the updated app after install.
+            if (Avalonia.Application.Current?.ApplicationLifetime is
+                Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
+            else
+            {
+                System.Environment.Exit(0);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            progressBar.IsVisible = false;
+            progressText.Text = "✕ 下载已取消";
+            progressText.Foreground = Res.Brush("DangerBrush");
+            downloadBtn.IsEnabled = true;
+            openBtn.IsEnabled = true;
+            closeBtn.IsEnabled = true;
+        }
+        catch (Exception ex)
+        {
+            progressBar.IsVisible = false;
+            progressText.Text = "✕ 下载失败: " + ex.Message + "\n您仍可通过「查看发布页」手动下载。";
+            progressText.Foreground = Res.Brush("DangerBrush");
+            downloadBtn.IsEnabled = true;
+            openBtn.IsEnabled = true;
+            closeBtn.IsEnabled = true;
+        }
     }
 
     private void OnAutoCheckUpdateChanged(object? sender, RoutedEventArgs e)

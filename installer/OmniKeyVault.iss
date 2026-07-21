@@ -3,7 +3,7 @@
 ; Requires Inno Setup 6: https://jrsoftware.org/isdl.php
 
 #define MyAppName "OmniKey Vault"
-#define MyAppVersion "2.1.0"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "OmniKey Vault"
 #define MyAppURL "https://github.com/mawenshui/omnikey-vault"
 #define MyAppExeName "okv.exe"
@@ -46,6 +46,10 @@ VersionInfoCopyright=Copyright (c) 2026 OmniKey Vault
 VersionInfoDescription=OmniKey Vault Installer
 ; Show installation progress
 ShowLanguageDialog=auto
+; v2.2.0: Auto-update support — force-close the running app during
+; silent installs so files can be replaced without manual intervention.
+CloseApplications=force
+RestartApplications=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -72,7 +76,10 @@ Root: HKCR; Subkey: "OmniKeyVault.File\DefaultIcon"; ValueType: string; ValueNam
 Root: HKCR; Subkey: "OmniKeyVault.File\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: associateokv
 
 [Run]
+; Interactive install: show launch checkbox on the final wizard page
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+; Silent auto-update: always launch the updated app after install
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: IsSilentInstall
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -81,4 +88,23 @@ Type: filesandordirs; Name: "{app}"
 function InitializeSetup(): Boolean;
 begin
   Result := True;
+end;
+
+// v2.2.0: Returns True when the installer is running in /SILENT or /VERYSILENT
+// mode (used for auto-update). In that case, the second [Run] entry launches
+// the updated app automatically after installation completes.
+function IsSilentInstall(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if (CompareText(ParamStr(I), '/SILENT') = 0) or
+       (CompareText(ParamStr(I), '/VERYSILENT') = 0) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
 end;

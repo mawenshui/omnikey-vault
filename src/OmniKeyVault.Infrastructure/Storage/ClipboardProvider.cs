@@ -4,14 +4,25 @@ namespace OmniKeyVault.Infrastructure;
 
 /// <summary>
 /// Clipboard provider with auto-clear after the configured timeout (PRD §5.11).
-/// v0.1 MVP: in-memory copy with 8-second auto-clear timer. The GUI layer
-/// (v0.2+ per ROADMAP S2-T8) will add OS-level clipboard integration.
+/// v2.3.4: Added OsCopyAction callback so the GUI layer can bridge
+/// the real OS clipboard. When set, Copy() forwards the text to the
+/// OS clipboard in addition to tracking it in memory for auto-clear.
+/// This fixes the bug where BrowserExtensionApiService copied field
+/// values via ClipboardService → ClipboardProvider, but the in-memory
+/// provider never touched the actual OS clipboard.
 /// </summary>
 public sealed class ClipboardProvider : IClipboardProvider
 {
     private string? _content;
     private Timer? _clearTimer;
     private readonly object _gate = new();
+
+    /// <summary>v2.3.4: Set by the GUI layer to bridge the OS clipboard.
+    /// When non-null, Copy() calls this action to write to the real clipboard.</summary>
+    public Action<string>? OsCopyAction { get; set; }
+
+    /// <summary>v2.3.4: Set by the GUI layer to clear the real OS clipboard.</summary>
+    public Action? OsClearAction { get; set; }
 
     public string? CurrentContent
     {
@@ -28,6 +39,8 @@ public sealed class ClipboardProvider : IClipboardProvider
             _clearTimer?.Dispose();
             _clearTimer = new Timer(_ => ClearInternal(), null, clearAfterSeconds * 1000, Timeout.Infinite);
         }
+        // v2.3.4: Forward to the real OS clipboard if the GUI layer has set the callback
+        OsCopyAction?.Invoke(text);
     }
 
     /// <summary>Forces immediate clear — used in tests and on app exit.</summary>
@@ -42,6 +55,8 @@ public sealed class ClipboardProvider : IClipboardProvider
                 _content = null;
             }
         }
+        // v2.3.4: Also clear the real OS clipboard
+        OsClearAction?.Invoke();
         Cleared?.Invoke(this, EventArgs.Empty);
     }
 

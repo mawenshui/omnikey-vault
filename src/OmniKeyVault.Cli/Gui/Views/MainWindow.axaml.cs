@@ -51,6 +51,30 @@ public partial class MainWindow : Window
         // close button to minimize to tray instead of quitting.
         Closing += OnMainWindowClosing;
         DeviceIdText.Text = container.DeviceId;
+
+        // v2.3.4: Bridge the in-memory ClipboardProvider to the real OS clipboard.
+        // This ensures that copies via ClipboardService (e.g. from BrowserExtensionApiService)
+        // actually write to the OS clipboard, not just to in-memory storage.
+        if (container.Clipboard is Infrastructure.ClipboardProvider cp)
+        {
+            cp.OsCopyAction = text =>
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    var cb = TopLevel.GetTopLevel(this)?.Clipboard;
+                    if (cb != null) await cb.SetTextAsync(text);
+                });
+            };
+            cp.OsClearAction = () =>
+            {
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    var cb = TopLevel.GetTopLevel(this)?.Clipboard;
+                    if (cb != null) await cb.ClearAsync();
+                });
+            };
+        }
+
         StartLockCountdown();
         StartWatcherIfEnabled();
         StartSystemEventsIfEnabled();
@@ -2233,7 +2257,7 @@ public partial class MainWindow : Window
     //  Clipboard copy with 8s auto-clear (per UI_UX_SPEC §5.1)
     // ============================================================
 
-private void CopyToClipboard(string value)
+private async void CopyToClipboard(string value)
     {
         if (string.IsNullOrEmpty(value)) return;
         try
@@ -2241,7 +2265,11 @@ private void CopyToClipboard(string value)
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard != null)
             {
-                _ = clipboard.SetTextAsync(value);
+                // v2.3.4: Must await SetTextAsync — the previous fire-and-forget
+                // pattern (_ = clipboard.SetTextAsync(value)) caused the Task to
+                // be discarded before the clipboard operation completed, so
+                // nothing was actually copied to the OS clipboard.
+                await clipboard.SetTextAsync(value);
                 // v2.3: Enhanced copy feedback with clipboard clear countdown
                 ToastService.Show(ToastContainer, $"✓ 已复制 · {SettingsStore.ClipboardClearSeconds} 秒后自动清空", ToastType.Success);
 

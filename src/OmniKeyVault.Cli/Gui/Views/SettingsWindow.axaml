@@ -266,7 +266,7 @@
                         </StackPanel>
                         <TextBlock x:Name="BrowserApiStatusText" FontSize="10" TextWrapping="Wrap"
                                    IsVisible="False" Margin="0,4,0,0" />
-                        <TextBlock Text="安装方法：在 Chrome/Edge 中打开 chrome://extensions/，开启开发者模式，加载 browser-extension/ 目录。" 
+                        <TextBlock Text="安装方法：在 Chrome/Edge 中打开 chrome://extensions/，开启开发者模式，点击「加载已解压的扩展程序」，选择程序安装目录下的 browser-extension/ 文件夹（默认路径：C:\Program Files\OmniKeyVault\browser-extension）。便携版用户请选择解压目录下的 browser-extension/ 文件夹。" 
                                    FontSize="10" Foreground="{DynamicResource FgDimBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </StackPanel>

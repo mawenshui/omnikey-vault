@@ -35,6 +35,15 @@
       <Link>templates\%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
+
+  <!-- v2.3.1: Include browser-extension files in publish output so the
+       installer and portable zip contain the extension directory. -->
+  <ItemGroup>
+    <None Include="..\..\browser-extension\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>browser-extension\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+  </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="..\..\images\okv-icon.ico">
       <Link>Assets\okv-icon.ico</Link>

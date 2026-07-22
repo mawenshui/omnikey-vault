@@ -980,7 +980,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void OnCopyTokenClick(object? sender, RoutedEventArgs e)
+    private void OnCopyTokenClick(object? sender, RoutedEventArgs e)
     {
         if (!_container.BrowserApi.IsRunning)
         {
@@ -990,31 +990,17 @@ public partial class SettingsWindow : Window
         var token = _container.BrowserApi.AuthToken;
         try
         {
-            // v2.3.4: Use Avalonia's OS clipboard directly instead of the
-            // in-memory ClipboardProvider (which never touched the real clipboard).
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(token);
-                ShowBrowserApiStatus("✓ 令牌已复制到剪贴板（将在 8 秒后自动清空）", success: true);
+            // v2.3.5: Use Win32Clipboard (direct Win32 API) instead of Avalonia's
+            // OLE clipboard to avoid "CoInitialize has not been called" error.
+            Win32Clipboard.SetText(token);
+            ShowBrowserApiStatus("✓ 令牌已复制到剪贴板（将在 8 秒后自动清空）", success: true);
 
-                // Auto-clear after 8 seconds
-                _ = Task.Delay(8000).ContinueWith(async _ =>
-                {
-                    try
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            if (clipboard != null) await clipboard.ClearAsync();
-                        });
-                    }
-                    catch { }
-                });
-            }
-            else
+            // Auto-clear after 8 seconds
+            _ = Task.Delay(8000).ContinueWith(_ =>
             {
-                ShowBrowserApiStatus("✕ 无法访问剪贴板", success: false);
-            }
+                try { Win32Clipboard.Clear(); }
+                catch { }
+            });
         }
         catch (Exception ex)
         {

@@ -364,19 +364,15 @@ public partial class CreateVaultWizard : Window
         }
     }
 
-    private async void OnCopyRecoveryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnCopyRecoveryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_generatedRecoveryKey)) return;
         try
         {
-            var cb = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (cb != null)
-            {
-                await cb.SetTextAsync(_generatedRecoveryKey);
-                CopyRecoveryText.Text = "✓  已复制";
-                await Task.Delay(2000);
-                await Dispatcher.UIThread.InvokeAsync(() => CopyRecoveryText.Text = "⧉  复制全部");
-            }
+            Win32Clipboard.SetText(_generatedRecoveryKey);
+            CopyRecoveryText.Text = "✓  已复制";
+            Task.Delay(2000).ContinueWith(_ =>
+                Dispatcher.UIThread.Post(() => CopyRecoveryText.Text = "⧉  复制全部"));
         }
         catch { }
     }

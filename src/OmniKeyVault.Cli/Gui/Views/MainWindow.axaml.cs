@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using OmniKeyVault.Application;
 using OmniKeyVault.Domain;
+using OmniKeyVault.Infrastructure;
 using OmniKeyVault.Cli.Gui.Views;
 
 namespace OmniKeyVault.Cli.Gui;
@@ -52,27 +53,13 @@ public partial class MainWindow : Window
         Closing += OnMainWindowClosing;
         DeviceIdText.Text = container.DeviceId;
 
-        // v2.3.4: Bridge the in-memory ClipboardProvider to the real OS clipboard.
-        // This ensures that copies via ClipboardService (e.g. from BrowserExtensionApiService)
-        // actually write to the OS clipboard, not just to in-memory storage.
+        // v2.3.5: Bridge the in-memory ClipboardProvider to the real OS clipboard.
+        // Uses Win32Clipboard (direct Win32 API) instead of Avalonia's OLE clipboard
+        // to avoid "CoInitialize has not been called" errors.
         if (container.Clipboard is Infrastructure.ClipboardProvider cp)
         {
-            cp.OsCopyAction = text =>
-            {
-                Dispatcher.UIThread.Post(async () =>
-                {
-                    var cb = TopLevel.GetTopLevel(this)?.Clipboard;
-                    if (cb != null) await cb.SetTextAsync(text);
-                });
-            };
-            cp.OsClearAction = () =>
-            {
-                Dispatcher.UIThread.Post(async () =>
-                {
-                    var cb = TopLevel.GetTopLevel(this)?.Clipboard;
-                    if (cb != null) await cb.ClearAsync();
-                });
-            };
+            cp.OsCopyAction = text => Win32Clipboard.SetText(text);
+            cp.OsClearAction = () => Win32Clipboard.Clear();
         }
 
         StartLockCountdown();
@@ -792,17 +779,13 @@ public partial class MainWindow : Window
         };
         flyout.Items.Add(copyItem);
         var copyAllItem = new Avalonia.Controls.MenuItem { Header = "📋  复制全部字段(JSON)" };
-        copyAllItem.Click += async (_, _) =>
+        copyAllItem.Click += (_, _) =>
         {
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(entry.Fields.Select(f => new { f.Key, f.Value, f.Kind, f.Sensitive }));
-                var cb = TopLevel.GetTopLevel(this)?.Clipboard;
-                if (cb != null)
-                {
-                    await cb.SetTextAsync(json);
-                    ToastService.Show(ToastContainer, "已复制全部字段", ToastType.Success);
-                }
+                Win32Clipboard.SetText(json);
+                ToastService.Show(ToastContainer, "已复制全部字段", ToastType.Success);
             }
             catch { }
         };
@@ -2257,38 +2240,33 @@ public partial class MainWindow : Window
     //  Clipboard copy with 8s auto-clear (per UI_UX_SPEC §5.1)
     // ============================================================
 
-private async void CopyToClipboard(string value)
+private void CopyToClipboard(string value)
     {
         if (string.IsNullOrEmpty(value)) return;
         try
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard != null)
-            {
-                // v2.3.4: Must await SetTextAsync — the previous fire-and-forget
-                // pattern (_ = clipboard.SetTextAsync(value)) caused the Task to
-                // be discarded before the clipboard operation completed, so
-                // nothing was actually copied to the OS clipboard.
-                await clipboard.SetTextAsync(value);
-                // v2.3: Enhanced copy feedback with clipboard clear countdown
-                ToastService.Show(ToastContainer, $"✓ 已复制 · {SettingsStore.ClipboardClearSeconds} 秒后自动清空", ToastType.Success);
+            // v2.3.5: Use direct Win32 clipboard API instead of Avalonia's
+            // OLE-based clipboard, which requires CoInitialize/OleInitialize
+            // and fails with "尚未调用Coinitialize" on some threads.
+            Win32Clipboard.SetText(value);
+            // v2.3: Enhanced copy feedback with clipboard clear countdown
+            ToastService.Show(ToastContainer, $"✓ 已复制 · {SettingsStore.ClipboardClearSeconds} 秒后自动清空", ToastType.Success);
 
-                _clipboardClearTimer?.Stop();
-                _clipboardClearTimer = new System.Timers.Timer(SettingsStore.ClipboardClearSeconds * 1000) { AutoReset = false };
-                _clipboardClearTimer.Elapsed += async (_, _) =>
+            _clipboardClearTimer?.Stop();
+            _clipboardClearTimer = new System.Timers.Timer(SettingsStore.ClipboardClearSeconds * 1000) { AutoReset = false };
+            _clipboardClearTimer.Elapsed += (_, _) =>
+            {
+                try
                 {
-                    try
+                    Win32Clipboard.Clear();
+                    Dispatcher.UIThread.Post(() =>
                     {
-                        if (clipboard != null) await clipboard.ClearAsync();
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            ToastService.Show(ToastContainer, "剪贴板已清空", ToastType.Info);
-                        });
-                    }
-                    catch { }
-                };
-                _clipboardClearTimer.Start();
-            }
+                        ToastService.Show(ToastContainer, "剪贴板已清空", ToastType.Info);
+                    });
+                }
+                catch { }
+            };
+            _clipboardClearTimer.Start();
         }
         catch (Exception ex)
         {

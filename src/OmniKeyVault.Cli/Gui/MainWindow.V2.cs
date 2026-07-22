@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using OmniKeyVault.Application;
 using OmniKeyVault.Domain;
+using OmniKeyVault.Infrastructure;
 
 namespace OmniKeyVault.Cli.Gui;
 
@@ -893,12 +894,11 @@ public partial class MainWindow
             }
         };
 
-        copy.Click += async (_, _) =>
+        copy.Click += (_, _) =>
         {
             if (!string.IsNullOrEmpty(resultBox.Text))
             {
-                var cb = TopLevel.GetTopLevel(this)?.Clipboard;
-                if (cb != null) await cb.SetTextAsync(resultBox.Text);
+                Win32Clipboard.SetText(resultBox.Text);
                 ToastService.Show(ToastContainer, "已复制分片到剪贴板", ToastType.Success);
             }
         };

@@ -1,4 +1,5 @@
 using Avalonia;
+using OmniKeyVault.Infrastructure;
 
 namespace OmniKeyVault.Cli.Gui;
 
@@ -16,6 +17,14 @@ internal static class AvaloniaApp
     /// <summary>Entry point used from <c>Program.cs</c> when no CLI args are given.</summary>
     public static int RunGui(string[] args)
     {
+        // v2.3.5: Initialize OLE/COM on the main thread before Avalonia starts.
+        // This ensures the Windows clipboard (OLE clipboard API) works correctly.
+        // Win32Clipboard.SetText also works without this (it uses the basic
+        // Win32 clipboard API), but calling OleInitialize is best practice and
+        // prevents "CoInitialize has not been called" errors from any OLE-based
+        // clipboard operations that might still occur.
+        Win32Clipboard.EnsureOleInitialized();
+
         return BuildAppBuilder().StartWithClassicDesktopLifetime(args);
     }
 

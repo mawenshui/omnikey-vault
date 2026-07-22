@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using OmniKeyVault.Cli.Gui;
+using OmniKeyVault.Infrastructure;
 
 namespace OmniKeyVault.Cli.Gui.Views;
 
@@ -58,18 +59,14 @@ public partial class RecoveryKeyWindow : Window
         }
     }
 
-    private async void OnCopyClick(object? sender, RoutedEventArgs e)
+    private void OnCopyClick(object? sender, RoutedEventArgs e)
     {
         try
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(_recoveryKey);
-                CopyButtonText.Text = "✓  已复制";
-                await Task.Delay(2000);
-                await Dispatcher.UIThread.InvokeAsync(() => CopyButtonText.Text = "⧉  复制");
-            }
+            Win32Clipboard.SetText(_recoveryKey);
+            CopyButtonText.Text = "✓  已复制";
+            Task.Delay(2000).ContinueWith(_ =>
+                Dispatcher.UIThread.Post(() => CopyButtonText.Text = "⧉  复制"));
         }
         catch { }
     }

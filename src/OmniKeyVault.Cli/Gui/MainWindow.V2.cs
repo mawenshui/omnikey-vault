@@ -126,6 +126,75 @@ public partial class MainWindow
             RefreshProfileAndEntries();
             ToastService.Show(ToastContainer, "已刷新", ToastType.Info);
         }
+        // v2.3: Ctrl+Shift+P — Command palette
+        else if (ctrl && shift && e.Key == Key.P)
+        {
+            e.Handled = true;
+            ShowCommandPalette();
+        }
+        // v2.3: Ctrl+Shift+F — Global search panel
+        else if (ctrl && shift && e.Key == Key.F)
+        {
+            e.Handled = true;
+            ShowGlobalSearchPanel();
+        }
+        // v2.3: F1 or ? — Shortcut cheatsheet
+        else if (e.Key == Key.F1 || (!ctrl && !shift && e.Key == Key.OemQuestion))
+        {
+            e.Handled = true;
+            ShowShortcutCheatsheet();
+        }
+        // v2.3: F2 — Edit selected entry
+        else if (e.Key == Key.F2 && _selectedEntry != null)
+        {
+            e.Handled = true;
+            OnDetailEditClick(this, new RoutedEventArgs());
+        }
+        // v2.3: Arrow Up/Down — Navigate entry list
+        else if (e.Key == Key.Up && !ctrl && !shift)
+        {
+            // Only handle if not in a text input
+            if (SearchBox.IsFocused) return;
+            e.Handled = true;
+            NavigateEntryList(-1);
+        }
+        else if (e.Key == Key.Down && !ctrl && !shift)
+        {
+            if (SearchBox.IsFocused) return;
+            e.Handled = true;
+            NavigateEntryList(1);
+        }
+        // v2.3: Delete key — Delete selected entry
+        else if (e.Key == Key.Delete && _selectedEntry != null && !SearchBox.IsFocused)
+        {
+            e.Handled = true;
+            _ = DeleteEntryAsync(_selectedEntry);
+        }
+        // v2.3: / — Focus search (vim style)
+        else if (!ctrl && !shift && e.Key == Key.Oem2)
+        {
+            if (!SearchBox.IsFocused)
+            {
+                e.Handled = true;
+                SearchBox.Focus();
+            }
+        }
+        // v2.3: Ctrl+A — Select all entries for batch ops
+        else if (ctrl && e.Key == Key.A && !SearchBox.IsFocused)
+        {
+            e.Handled = true;
+            var entries = SafeListEntries(_activeProfile, null, null, null);
+            _selectedEntries.Clear();
+            foreach (var entry in entries) _selectedEntries.Add(entry.Id);
+            RefreshProfileAndEntries();
+            ToastService.Show(ToastContainer, $"已选择 {entries.Count} 个条目", ToastType.Info);
+        }
+        // v2.3: Ctrl+Shift+H — Security health report
+        else if (ctrl && shift && e.Key == Key.H)
+        {
+            e.Handled = true;
+            ShowSecurityHealthReport();
+        }
     }
 
     /// <summary>v2.0: Standalone password generator dialog (Ctrl+G).</summary>

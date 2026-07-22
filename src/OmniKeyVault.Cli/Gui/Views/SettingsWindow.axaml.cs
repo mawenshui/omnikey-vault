@@ -91,6 +91,20 @@ public partial class SettingsWindow : Window
             7 => 0, 14 => 1, 30 => 2, 60 => 3, 0 => 4, _ => 2,
         };
         UpdateBrowserApiTokenDisplay();
+        // v2.3: Accessibility settings
+        for (int i = 0; i < FontSizeBox.Items.Count; i++)
+        {
+            if ((FontSizeBox.Items[i] as ComboBoxItem)?.Tag?.ToString() == SettingsStore.FontSizeScale)
+            { FontSizeBox.SelectedIndex = i; break; }
+        }
+        if (FontSizeBox.SelectedIndex < 0) FontSizeBox.SelectedIndex = 1;
+        for (int i = 0; i < ListDensityBox.Items.Count; i++)
+        {
+            if ((ListDensityBox.Items[i] as ComboBoxItem)?.Tag?.ToString() == SettingsStore.ListDensity)
+            { ListDensityBox.SelectedIndex = i; break; }
+        }
+        if (ListDensityBox.SelectedIndex < 0) ListDensityBox.SelectedIndex = 1;
+        HighContrastBox.IsChecked = SettingsStore.HighContrastMode;
         _suppressEvents = false;
 
         BuildProfilesPanel();
@@ -1069,6 +1083,31 @@ public partial class SettingsWindow : Window
         if (_suppressEvents) return;
         var tag = (AutoArchiveDaysBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
         SettingsStore.AutoArchiveDays = int.TryParse(tag, out var days) ? days : 30;
+        SettingsStore.Save();
+    }
+
+    // ---- v2.3: Accessibility settings ----
+
+    private void OnFontSizeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var tag = (FontSizeBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        SettingsStore.FontSizeScale = tag ?? "medium";
+        SettingsStore.Save();
+    }
+
+    private void OnListDensityChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        var tag = (ListDensityBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        SettingsStore.ListDensity = tag ?? "standard";
+        SettingsStore.Save();
+    }
+
+    private void OnHighContrastChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.HighContrastMode = HighContrastBox.IsChecked == true;
         SettingsStore.Save();
     }
 }

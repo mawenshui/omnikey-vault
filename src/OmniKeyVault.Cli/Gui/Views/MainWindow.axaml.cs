@@ -91,6 +91,9 @@ public partial class MainWindow : Window
             _container.S3Sync.SecretKey = SettingsStore.S3SecretKey;
             _container.S3Sync.Region = SettingsStore.S3Region ?? "us-east-1";
         }
+
+        // v2.3: Initialize UX optimization features
+        InitializeV3Features();
     }
 
     /// <summary>v1.9.1: If MinimizeToTrayOnClose is enabled, intercept the
@@ -581,12 +584,20 @@ public partial class MainWindow : Window
         {
             EntryListPanel.IsVisible = false;
             EmptyState.IsVisible = true;
-            EmptyTitle.Text = _container.Vault.IsUnlocked
-                ? (string.IsNullOrWhiteSpace(SearchBox.Text) ? "金库为空" : "没有匹配的条目")
-                : "金库未解锁";
-            EmptySub.Text = _container.Vault.IsUnlocked
-                ? (string.IsNullOrWhiteSpace(SearchBox.Text) ? "点击 + 新建条目 开始使用" : "试试清除筛选条件或更换搜索关键词。")
-                : "请运行 okv vault unlock 解锁金库";
+            // v2.3: Use guided empty state when vault is unlocked and empty
+            if (_container.Vault.IsUnlocked && string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                RenderGuidedEmptyState();
+            }
+            else
+            {
+                EmptyTitle.Text = _container.Vault.IsUnlocked
+                    ? (string.IsNullOrWhiteSpace(SearchBox.Text) ? "金库为空" : "没有匹配的条目")
+                    : "金库未解锁";
+                EmptySub.Text = _container.Vault.IsUnlocked
+                    ? (string.IsNullOrWhiteSpace(SearchBox.Text) ? "点击 + 新建条目 开始使用" : "试试清除筛选条件或更换搜索关键词。")
+                    : "请运行 okv vault unlock 解锁金库";
+            }
         }
         else
         {
@@ -607,18 +618,20 @@ public partial class MainWindow : Window
         var primaryField = entry.Fields.FirstOrDefault(f => f.Sensitive) ?? entry.Fields.FirstOrDefault();
         var primaryValue = primaryField is null ? "" : MaskValue(FieldCodec.Decode(primaryField.Value));
 
+        // v2.3: Use density-aware padding
+        var rowPadding = GetEntryRowPadding();
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto") };
 
+        // v2.3: Use entry type icon with colored badge
         var platformMark = new Border
         {
             Width = 32, Height = 32,
             CornerRadius = new Avalonia.CornerRadius(6),
-            Background = PlatformBrush(entry.PlatformId),
+            Background = EntryTypeColor(entry.Type),
             Child = new TextBlock
             {
-                Text = PlatformInitial(entry.PlatformId),
-                FontSize = 16, FontWeight = Avalonia.Media.FontWeight.SemiBold,
-                Foreground = Res.Brush("AccentFgBrush"),
+                Text = EntryTypeIcon(entry.Type),
+                FontSize = 16,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             },
@@ -689,6 +702,23 @@ public partial class MainWindow : Window
             FontSize = 10,
             Foreground = Res.Brush("FgFaintBrush"),
         });
+        // v2.3: Expiry indicator badge
+        var expiryLabel = ExpiryLabel(entry);
+        if (!string.IsNullOrEmpty(expiryLabel))
+        {
+            meta.Children.Add(new Border
+            {
+                Background = ExpiryColor(entry),
+                CornerRadius = new Avalonia.CornerRadius(2),
+                Padding = new Avalonia.Thickness(4, 1),
+                Child = new TextBlock
+                {
+                    Text = expiryLabel,
+                    FontSize = 9,
+                    Foreground = Res.Brush("AccentFgBrush"),
+                },
+            });
+        }
         if (primaryField != null)
         {
             var copyBtn = new Button
@@ -901,10 +931,43 @@ public partial class MainWindow : Window
         DetailEmpty.IsVisible = false;
         DetailContent.IsVisible = true;
         DetailTitle.Text = entry.Name;
-        DetailSubtitle.Text = $"{entry.PlatformId ?? "—"} · {entry.Type} · {entry.Id}";
+        // v2.3: Enhanced subtitle with type icon and expiry
+        var expiryText = ExpiryLabel(entry);
+        DetailSubtitle.Text = $"{EntryTypeIcon(entry.Type)} {entry.PlatformId ?? "—"} · {entry.Type}" +
+            (string.IsNullOrEmpty(expiryText) ? "" : $" · {expiryText}");
 
         DetailFieldsPanel.Children.Clear();
         foreach (var f in entry.Fields) DetailFieldsPanel.Children.Add(BuildFieldRow(f));
+
+        // v2.3: Quick actions toolbar at the top of detail panel
+        var quickActions = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 6,
+            Margin = new Avalonia.Thickness(0, 0, 0, 8),
+        };
+        var editAction = new Button { Content = "✎ 编辑", Padding = new Avalonia.Thickness(8, 4), FontSize = 11 };
+        editAction.Click += (_, _) => OnDetailEditClick(this, new Avalonia.Interactivity.RoutedEventArgs());
+        quickActions.Children.Add(editAction);
+        var copyAction = new Button { Content = "⧉ 复制主字段", Padding = new Avalonia.Thickness(8, 4), FontSize = 11 };
+        copyAction.Click += (_, _) =>
+        {
+            var secret = entry.Fields.FirstOrDefault(f => f.Sensitive) ?? entry.Fields.FirstOrDefault();
+            if (secret != null) CopyToClipboard(FieldCodec.Decode(secret.Value));
+        };
+        quickActions.Children.Add(copyAction);
+        var historyAction = new Button { Content = "🕐 历史", Padding = new Avalonia.Thickness(8, 4), FontSize = 11 };
+        historyAction.Click += (_, _) => OnViewHistoryClick(this, new Avalonia.Interactivity.RoutedEventArgs());
+        quickActions.Children.Add(historyAction);
+        var favAction = new Button
+        {
+            Content = IsFavorite(entry) ? "⭐ 取消收藏" : "☆ 收藏",
+            Padding = new Avalonia.Thickness(8, 4),
+            FontSize = 11,
+        };
+        favAction.Click += (_, _) => ToggleFavorite(entry);
+        quickActions.Children.Add(favAction);
+        DetailFieldsPanel.Children.Insert(0, quickActions);
 
         if (!string.IsNullOrEmpty(entry.Notes))
         {
@@ -1229,7 +1292,16 @@ public partial class MainWindow : Window
     private void OnSearchDebounceTick(object? sender, EventArgs e)
     {
         _searchDebounceTimer?.Stop();
+        // v2.3: Record search history
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            RecordSearchHistory(SearchBox.Text);
         RefreshProfileAndEntries();
+        // v2.3: Update search result count
+        var all = SafeListEntries(_activeProfile, null, null, null);
+        var filtered = ApplyFolderFilter(all);
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            filtered = _container.Search.SearchEntries(SearchBox.Text, filtered);
+        UpdateSearchResultCount(filtered.Count, all.Count);
     }
 
     private async void OnWebDavPullClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -2161,7 +2233,7 @@ public partial class MainWindow : Window
     //  Clipboard copy with 8s auto-clear (per UI_UX_SPEC §5.1)
     // ============================================================
 
-    private void CopyToClipboard(string value)
+private void CopyToClipboard(string value)
     {
         if (string.IsNullOrEmpty(value)) return;
         try
@@ -2170,9 +2242,8 @@ public partial class MainWindow : Window
             if (clipboard != null)
             {
                 _ = clipboard.SetTextAsync(value);
-                // Status bar stays focused on sync state; copy confirmation is toast-only
-                // to avoid semantic overload (sync vs clipboard).
-                ToastService.Show(ToastContainer, "已复制 · 8 秒后自动清空", ToastType.Success);
+                // v2.3: Enhanced copy feedback with clipboard clear countdown
+                ToastService.Show(ToastContainer, $"✓ 已复制 · {SettingsStore.ClipboardClearSeconds} 秒后自动清空", ToastType.Success);
 
                 _clipboardClearTimer?.Stop();
                 _clipboardClearTimer = new System.Timers.Timer(SettingsStore.ClipboardClearSeconds * 1000) { AutoReset = false };

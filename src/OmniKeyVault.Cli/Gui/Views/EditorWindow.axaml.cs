@@ -25,6 +25,8 @@ public partial class EditorWindow : Window
     private readonly CliContainer _container;
     private readonly string _profile;
     private readonly Entry? _existing;
+    // v2.3: Track unsaved changes
+    private bool _isDirty;
 
     /// <summary>Tracks per-row "was sensitive" so re-toggling the kind dropdown
     /// doesn't accidentally promote a field to secret mid-edit.</summary>
@@ -78,6 +80,13 @@ public partial class EditorWindow : Window
         // is rendered by the first RefreshRotatePanel() call below.
         PlatformIdBox.TextChanged += (_, _) => RefreshRotatePanel();
         RefreshRotatePanel();
+
+        // v2.3: Track changes for unsaved warning
+        NameBox.TextChanged += (_, _) => _isDirty = true;
+        NotesBox.TextChanged += (_, _) => _isDirty = true;
+        TagsBox.TextChanged += (_, _) => _isDirty = true;
+        PlatformIdBox.TextChanged += (_, _) => _isDirty = true;
+        Closing += OnEditorClosing;
 
         if (existing != null)
         {
@@ -431,6 +440,8 @@ public partial class EditorWindow : Window
                 EntrySaved?.Invoke(this, updated);
             }
 
+            // v2.3: Mark as saved — no unsaved warning needed
+            _isDirty = false;
             Close();
         }
         catch (Exception ex)
@@ -704,5 +715,81 @@ public partial class EditorWindow : Window
         StatusText.Text = msg;
         StatusText.Foreground = Res.Brush("InfoBrush");
         StatusText.IsVisible = true;
+    }
+
+    // ============================================================
+    //  v2.3: Unsaved changes warning + password strength indicator
+    // ============================================================
+
+    /// <summary>v2.3: Warn user about unsaved changes when closing.</summary>
+    private async void OnEditorClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_isDirty) return;
+
+        // Prevent immediate close and show confirmation dialog
+        e.Cancel = true;
+        Closing -= OnEditorClosing; // Remove handler to avoid re-entry
+
+        var dlg = new Window
+        {
+            Title = "未保存的更改",
+            Width = 360, Height = 160,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Res.Brush("BgCardBrush"),
+        };
+        var sp = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
+        sp.Children.Add(new TextBlock
+        {
+            Text = "有未保存的更改，确定要关闭吗？",
+            FontSize = 13,
+            Foreground = Res.Brush("FgMutedBrush"),
+            TextWrapping = TextWrapping.Wrap,
+        });
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        var cancel = new Button { Content = "取消", Padding = new Thickness(14, 6) };
+        cancel.Click += (_, _) => { dlg.Close(); };
+        var discard = new Button
+        {
+            Content = "不保存关闭",
+            Classes = { "primary" },
+            Background = Res.Brush("DangerBrush"),
+            Foreground = Res.Brush("AccentFgBrush"),
+            Padding = new Thickness(14, 6),
+        };
+        discard.Click += (_, _) => { dlg.Close(); this.Close(); };
+        row.Children.Add(cancel);
+        row.Children.Add(discard);
+        sp.Children.Add(row);
+        dlg.Content = sp;
+        await dlg.ShowDialog(this);
+
+        // Re-add handler if user cancelled
+        Closing += OnEditorClosing;
+    }
+
+    /// <summary>v2.3: Update password strength indicator for a secret field.</summary>
+    private void UpdatePasswordStrength(TextBox valueBox, TextBlock? strengthLabel)
+    {
+        if (strengthLabel == null) return;
+        var value = valueBox.Text ?? "";
+        if (string.IsNullOrEmpty(value))
+        {
+            strengthLabel.Text = "";
+            return;
+        }
+        var score = PasswordGeneratorService.EstimateStrength(value);
+        strengthLabel.Text = $"强度: {PasswordGeneratorService.StrengthLabel(score)}";
+        strengthLabel.Foreground = score switch
+        {
+            0 or 1 => Res.Brush("DangerBrush"),
+            2 => Res.Brush("WarningBrush"),
+            _ => Res.Brush("SuccessBrush"),
+        };
     }
 }

@@ -98,6 +98,28 @@ public static class SettingsStore
     /// <summary>v2.0: WebAuthn/FIDO2 enabled.</summary>
     public static bool WebAuthnEnabled { get; set; }
 
+    // ---- v2.3: UX optimization settings ----
+    /// <summary>v2.3: Sidebar width (px), user-adjustable.</summary>
+    public static double SidebarWidth { get; set; } = 220;
+    /// <summary>v2.3: Detail panel width (px), user-adjustable.</summary>
+    public static double DetailPanelWidth { get; set; } = 380;
+    /// <summary>v2.3: Search history (max 10 items, MRU at index 0).</summary>
+    public static List<string> SearchHistory { get; set; } = new();
+    /// <summary>v2.3: Font size scale: "small", "medium", "large".</summary>
+    public static string FontSizeScale { get; set; } = "medium";
+    /// <summary>v2.3: Entry list row density: "compact", "standard", "comfortable".</summary>
+    public static string ListDensity { get; set; } = "standard";
+    /// <summary>v2.3: High contrast mode.</summary>
+    public static bool HighContrastMode { get; set; }
+    /// <summary>v2.3: Whether the sidebar tool groups are collapsed (JSON dict of group→bool).</summary>
+    public static string? CollapsedToolGroups { get; set; }
+    /// <summary>v2.3: Whether the detail panel is hidden (collapsed).</summary>
+    public static bool DetailPanelHidden { get; set; }
+    /// <summary>v2.3: Whether first-use guide has been completed.</summary>
+    public static bool FirstUseGuideCompleted { get; set; }
+    /// <summary>v2.3: Notification center — list of unread notifications (JSON array).</summary>
+    public static List<NotificationItem> Notifications { get; set; } = new();
+
     // ---- Phase 11: JSON file persistence ----
 
     private static readonly string SettingsPath = System.IO.Path.Combine(
@@ -167,6 +189,29 @@ public static class SettingsStore
             if (root.TryGetProperty("syncExcludedProfiles", out var sep) && sep.ValueKind == System.Text.Json.JsonValueKind.Array)
                 SyncExcludedProfiles = sep.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).ToHashSet();
             if (root.TryGetProperty("webAuthnEnabled", out var wa)) WebAuthnEnabled = wa.GetBoolean();
+            // v2.3 settings
+            if (root.TryGetProperty("sidebarWidth", out var sw)) SidebarWidth = sw.GetDouble();
+            if (root.TryGetProperty("detailPanelWidth", out var dpw)) DetailPanelWidth = dpw.GetDouble();
+            if (root.TryGetProperty("searchHistory", out var sh) && sh.ValueKind == System.Text.Json.JsonValueKind.Array)
+                SearchHistory = sh.EnumerateArray().Select(e => e.GetString()!).Where(s => !string.IsNullOrEmpty(s)).Take(10).ToList();
+            if (root.TryGetProperty("fontSizeScale", out var fss)) FontSizeScale = fss.GetString() ?? "medium";
+            if (root.TryGetProperty("listDensity", out var ld)) ListDensity = ld.GetString() ?? "standard";
+            if (root.TryGetProperty("highContrastMode", out var hcm)) HighContrastMode = hcm.GetBoolean();
+            if (root.TryGetProperty("collapsedToolGroups", out var ctg)) CollapsedToolGroups = ctg.GetString();
+            if (root.TryGetProperty("detailPanelHidden", out var dph)) DetailPanelHidden = dph.GetBoolean();
+            if (root.TryGetProperty("firstUseGuideCompleted", out var fugc)) FirstUseGuideCompleted = fugc.GetBoolean();
+            if (root.TryGetProperty("notifications", out var notifs) && notifs.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                Notifications = notifs.EnumerateArray().Select(e =>
+                {
+                    var n = new NotificationItem();
+                    if (e.TryGetProperty("title", out var t)) n.Title = t.GetString() ?? "";
+                    if (e.TryGetProperty("message", out var m)) n.Message = m.GetString() ?? "";
+                    if (e.TryGetProperty("level", out var lv) && Enum.TryParse<NotificationLevel>(lv.GetString(), true, out var lvl)) n.Level = lvl;
+                    if (e.TryGetProperty("time", out var tm) && DateTimeOffset.TryParse(tm.GetString(), out var dt)) n.Time = dt;
+                    return n;
+                }).Take(50).ToList();
+            }
         }
         catch { /* best-effort: keep defaults on parse error */ }
     }
@@ -226,6 +271,17 @@ public static class SettingsStore
                 s3Enabled = S3Enabled,
                 syncExcludedProfiles = SyncExcludedProfiles.ToList(),
                 webAuthnEnabled = WebAuthnEnabled,
+                // v2.3 settings
+                sidebarWidth = SidebarWidth,
+                detailPanelWidth = DetailPanelWidth,
+                searchHistory = SearchHistory,
+                fontSizeScale = FontSizeScale,
+                listDensity = ListDensity,
+                highContrastMode = HighContrastMode,
+                collapsedToolGroups = CollapsedToolGroups,
+                detailPanelHidden = DetailPanelHidden,
+                firstUseGuideCompleted = FirstUseGuideCompleted,
+                notifications = Notifications.Select(n => new { title = n.Title, message = n.Message, level = n.Level.ToString(), time = n.Time.ToString("O") }).ToList(),
             };
             var json = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(SettingsPath, json);
@@ -233,3 +289,14 @@ public static class SettingsStore
         catch { /* best-effort: don't crash on permission errors */ }
     }
 }
+
+/// <summary>v2.3: A notification item for the notification center.</summary>
+public class NotificationItem
+{
+    public string Title { get; set; } = "";
+    public string Message { get; set; } = "";
+    public NotificationLevel Level { get; set; } = NotificationLevel.Info;
+    public DateTimeOffset Time { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public enum NotificationLevel { Info, Warning, Error, Success }

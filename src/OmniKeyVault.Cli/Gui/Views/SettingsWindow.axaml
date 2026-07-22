@@ -343,6 +343,35 @@
 
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
 
+                <!-- ===== v2.3: 辅助功能与显示 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="辅助功能与显示" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <TextBlock Text="字体大小:" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource FgMutedBrush}" />
+                        <ComboBox x:Name="FontSizeBox" Width="120" SelectionChanged="OnFontSizeChanged">
+                            <ComboBoxItem Content="小" Tag="small" />
+                            <ComboBoxItem Content="中 (默认)" Tag="medium" />
+                            <ComboBoxItem Content="大" Tag="large" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                        <TextBlock Text="列表密度:" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource FgMutedBrush}" />
+                        <ComboBox x:Name="ListDensityBox" Width="120" SelectionChanged="OnListDensityChanged">
+                            <ComboBoxItem Content="紧凑" Tag="compact" />
+                            <ComboBoxItem Content="标准 (默认)" Tag="standard" />
+                            <ComboBoxItem Content="宽松" Tag="comfortable" />
+                        </ComboBox>
+                    </StackPanel>
+                    <CheckBox x:Name="HighContrastBox" IsCheckedChanged="OnHighContrastChanged" Margin="0,2,0,0">
+                        <TextBlock Text="高对比度模式" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
                 <!-- ===== 关于 ===== -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="关于" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"

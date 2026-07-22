@@ -88,14 +88,20 @@ public sealed class GuiShell
 
     /// <summary>v1.9.1: Silently checks GitHub for a new release.
     /// v2.2.0: Now supports direct download + auto-install (no browser needed).
-    /// Only shows a dialog if an update is available.</summary>
+    /// v2.3.2: Uses structured UpdateCheckResult — only shows dialog if an update
+    /// is actually available. Check failures are silently ignored during auto-check
+    /// (user can manually check from Settings for error details).</summary>
     private async System.Threading.Tasks.Task AutoCheckUpdateAsync()
     {
         try
         {
             await System.Threading.Tasks.Task.Delay(3000); // Wait 3s after startup
-            var info = await _container.UpdateChecker.CheckForUpdateAsync();
-            if (info == null) return; // No update — silent
+            var result = await _container.UpdateChecker.CheckForUpdateAsync();
+            // Silent on both "no update" and "check failed" — user can
+            // manually check from Settings to see the error message.
+            if (!result.HasUpdate || result.Info == null) return;
+
+            var info = result.Info;
 
             // Show update dialog on the UI thread
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>

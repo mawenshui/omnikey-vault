@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 
+#nullable enable
+
 namespace OmniKeyVault.Application;
 
 /// <summary>
@@ -48,8 +50,12 @@ public sealed class UpdateService
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
 
     /// <summary>Checks GitHub for the latest release.
-    /// Returns null if no update is available or if the check fails.</summary>
-    public async Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken ct = default)
+    /// v2.3.2: Returns a structured result that distinguishes between
+    /// "no update available", "update available", and "check failed".
+    /// Previously, all errors were silently swallowed and returned null,
+    /// which the UI interpreted as "already on latest version" — misleading
+    /// users when GitHub API rate limits or network issues occurred.</summary>
+    public async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken ct = default)
     {
         try
         {
@@ -58,20 +64,30 @@ public sealed class UpdateService
             req.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
             var resp = await _http.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                // GitHub API rate limit (403) or server error (5xx)
+                var reason = resp.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    ? "GitHub API 速率限制（每小时 60 次请求），请稍后再试"
+                    : $"GitHub API 返回 {(int)resp.StatusCode} {resp.StatusCode}";
+                return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, reason);
+            }
 
             var json = await resp.Content.ReadAsStringAsync(ct);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             var tagName = root.TryGetProperty("tag_name", out var tn) ? tn.GetString() : null;
-            if (string.IsNullOrEmpty(tagName)) return null;
+            if (string.IsNullOrEmpty(tagName))
+                return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, "GitHub API 返回的 release 数据缺少 tag_name 字段");
 
             // Parse version from tag (e.g. "v1.9.0" → 1.9.0)
             var versionStr = tagName.TrimStart('v', 'V');
-            if (!Version.TryParse(versionStr, out var latestVersion)) return null;
+            if (!Version.TryParse(versionStr, out var latestVersion))
+                return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, $"无法解析版本号: {tagName}");
 
-            if (latestVersion <= CurrentVersion) return null;
+            if (latestVersion <= CurrentVersion)
+                return new UpdateCheckResult(UpdateCheckStatus.NoUpdate, null, null);
 
             var releaseName = root.TryGetProperty("name", out var n) ? n.GetString() : tagName;
             var releaseUrl = root.TryGetProperty("html_url", out var u) ? u.GetString() : "";
@@ -92,7 +108,7 @@ public sealed class UpdateService
                 }
             }
 
-            return new UpdateInfo(
+            var info = new UpdateInfo(
                 TagName: tagName!,
                 Version: latestVersion,
                 Name: releaseName ?? tagName!,
@@ -101,10 +117,19 @@ public sealed class UpdateService
                 PublishedAt: publishedAt,
                 Assets: assets
             );
+            return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, info, null);
         }
-        catch
+        catch (TaskCanceledException)
         {
-            return null;
+            return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, "请求超时，请检查网络连接后重试");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, $"网络请求失败: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return new UpdateCheckResult(UpdateCheckStatus.CheckFailed, null, $"检查更新时发生错误: {ex.Message}");
         }
     }
 
@@ -222,6 +247,33 @@ public sealed class UpdateService
             System.Diagnostics.Process.Start(psi);
         }
     }
+}
+
+/// <summary>v2.3.2: Result of an update check, distinguishing between
+/// "no update", "update available", and "check failed".</summary>
+public enum UpdateCheckStatus
+{
+    /// <summary>Current version is the latest (or newer than GitHub latest).</summary>
+    NoUpdate,
+    /// <summary>A newer version is available on GitHub.</summary>
+    UpdateAvailable,
+    /// <summary>The check failed (network error, rate limit, parse error, etc.).</summary>
+    CheckFailed,
+}
+
+/// <summary>v2.3.2: Structured result returned by CheckForUpdateAsync.
+/// Replaces the old nullable UpdateInfo? return type, which conflated
+/// "no update" with "check failed".</summary>
+public sealed record UpdateCheckResult(
+    UpdateCheckStatus Status,
+    UpdateInfo? Info,
+    string? ErrorMessage
+)
+{
+    /// <summary>True if a newer version is available.</summary>
+    public bool HasUpdate => Status == UpdateCheckStatus.UpdateAvailable;
+    /// <summary>True if the check failed (not the same as "no update").</summary>
+    public bool Failed => Status == UpdateCheckStatus.CheckFailed;
 }
 
 /// <summary>Information about an available update.</summary>

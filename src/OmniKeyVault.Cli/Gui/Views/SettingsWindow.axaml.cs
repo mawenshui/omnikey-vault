@@ -693,18 +693,25 @@ public partial class SettingsWindow : Window
         UpdateStatusText.Foreground = Res.Brush("FgMutedBrush");
         try
         {
-            var info = await _container.UpdateChecker.CheckForUpdateAsync();
-            if (info == null)
+            var result = await _container.UpdateChecker.CheckForUpdateAsync();
+            if (result.Failed)
             {
-                UpdateStatusText.Text = $"✓ 已是最新版本 (v{OmniKeyVault.Application.UpdateService.CurrentVersion.ToString(3)})";
-                UpdateStatusText.Foreground = Res.Brush("SuccessBrush");
+                // v2.3.2: Distinguish "check failed" from "no update"
+                UpdateStatusText.Text = "✕ 检查失败: " + (result.ErrorMessage ?? "未知错误");
+                UpdateStatusText.Foreground = Res.Brush("DangerBrush");
             }
-            else
+            else if (result.HasUpdate && result.Info != null)
             {
+                var info = result.Info;
                 UpdateStatusText.Text = $"📦 发现新版本 {info.TagName}";
                 UpdateStatusText.Foreground = Res.Brush("AccentBrush");
                 // Show update details dialog
                 await ShowUpdateDialog(info);
+            }
+            else
+            {
+                UpdateStatusText.Text = $"✓ 已是最新版本 (v{OmniKeyVault.Application.UpdateService.CurrentVersion.ToString(3)})";
+                UpdateStatusText.Foreground = Res.Brush("SuccessBrush");
             }
         }
         catch (Exception ex)

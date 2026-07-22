@@ -6,6 +6,15 @@
     <ApplicationIcon>..\..\images\okv-icon.ico</ApplicationIcon>
     <!-- Avalonia 11.3 requires explicit Win32 support on .NET 8 for Skia / clipboard / dialog APIs -->
     <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.17763.0</SupportedOSPlatformVersion>
+    <!-- v2.2.2: Self-contained deployment — bundles the .NET runtime + Windows
+         Desktop runtime into the app directory so users never need to install
+         .NET separately. Eliminates the "you must install .NET" error that
+         occurred when only Microsoft.NETCore.App (not Microsoft.WindowsDesktop.App)
+         was present on the system. -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Allow running on any 8.x patch (e.g. app built on 8.0.0 can run on 8.0.8) -->
+    <RollForward>LatestMinor</RollForward>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" />

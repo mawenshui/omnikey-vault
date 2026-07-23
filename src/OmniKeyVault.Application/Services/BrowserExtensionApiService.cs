@@ -187,7 +187,12 @@ public sealed class BrowserExtensionApiService : IDisposable
     {
         try
         {
-            var entries = _entries.List(profile, query, null, null);
+            // v2.3.6: Fix parameter order — the query must go into the `search`
+            // parameter (4th), not the `tag` parameter (2nd). The previous call
+            // _entries.List(profile, query, null, null) passed the search text as
+            // a tag filter, which only matched entries with an exactly matching
+            // tag — so searches almost always returned zero results.
+            var entries = _entries.List(profile, null, null, query);
             var results = entries.Select(e => new
             {
                 id = e.Id,

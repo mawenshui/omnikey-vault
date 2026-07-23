@@ -57,12 +57,12 @@ async function checkStatus() {
 
 async function doSearch(query) {
   const results = document.getElementById('results');
-  if (!query) {
-    results.innerHTML = '<div class="empty">输入关键词搜索条目</div>';
-    return;
-  }
+  // v2.3.6: Empty query should fetch all entries, not show a placeholder.
+  // This way the user sees their entries immediately when the popup opens.
   try {
-    const data = await api('/api/search', { q: query, profile: 'prod' });
+    const params = { profile: 'prod' };
+    if (query) params.q = query;
+    const data = await api('/api/search', params);
     if (data.count === 0) {
       results.innerHTML = '<div class="empty">未找到匹配的条目</div>';
       return;

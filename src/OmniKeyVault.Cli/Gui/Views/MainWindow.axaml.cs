@@ -93,6 +93,10 @@ public partial class MainWindow : Window
         EnableDragDrop();
         StartPeriodicLeakCheck();
 
+        // v2.3.7: Register global hotkey (Ctrl+Shift+V by default) to bring
+        // the app to the foreground from any application.
+        RegisterGlobalHotkey();
+
         // v2.0: Initialize S3 sync from settings
         if (SettingsStore.S3Enabled)
         {
@@ -2464,9 +2468,12 @@ private void CopyToClipboard(string value)
         // §3.2: Unsubscribe sync error handler
         _container.Sync.SyncError -= OnSyncError;
 
-        // Stop and unsubscribe system events (StartSystemEventsIfEnabled)
-        _container.SystemEvents.Stop();
+// Stop and unsubscribe system events (StartSystemEventsIfEnabled)
+_container.SystemEvents.Stop();
 
-        base.OnClosed(e);
+// v2.3.7: Unregister global hotkey
+UnregisterGlobalHotkey();
+
+base.OnClosed(e);
     }
 }

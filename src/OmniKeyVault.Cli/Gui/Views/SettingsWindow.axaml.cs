@@ -77,6 +77,7 @@ public partial class SettingsWindow : Window
         MinimizeToTrayBox.IsChecked = SettingsStore.MinimizeToTrayOnClose;
         // v1.9: browser extension API
         BrowserApiEnabledBox.IsChecked = SettingsStore.BrowserApiEnabled;
+        BrowserApiPortBox.Text = SettingsStore.BrowserApiPort.ToString();
         // v2.0: S3 sync
         S3EndpointBox.Text = SettingsStore.S3Endpoint ?? "";
         S3BucketBox.Text = SettingsStore.S3Bucket ?? "";
@@ -977,6 +978,31 @@ public partial class SettingsWindow : Window
             _container.BrowserApi.Stop();
             UpdateBrowserApiTokenDisplay();
             ShowBrowserApiStatus("API 已停止", success: true);
+        }
+    }
+
+    /// <summary>v2.3.7: Save custom API port and restart the server if running.</summary>
+    private void OnBrowserApiPortChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        if (int.TryParse(BrowserApiPortBox.Text?.Trim(), out var port) && port > 0 && port < 65536)
+        {
+            var wasRunning = _container.BrowserApi.IsRunning;
+            if (wasRunning) _container.BrowserApi.Stop();
+            SettingsStore.BrowserApiPort = port;
+            SettingsStore.Save();
+            if (wasRunning)
+            {
+                try
+                {
+                    _container.BrowserApi.Start(port);
+                    ShowBrowserApiStatus($"✓ API 已重启 · 监听 127.0.0.1:{port}", success: true);
+                }
+                catch (Exception ex)
+                {
+                    ShowBrowserApiStatus("✕ 端口重启失败: " + ex.Message, success: false);
+                }
+            }
         }
     }
 

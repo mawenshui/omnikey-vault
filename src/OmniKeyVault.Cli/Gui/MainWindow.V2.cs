@@ -1889,4 +1889,113 @@ public partial class MainWindow
         dlg.Content = sp;
         await dlg.ShowDialog(this);
     }
+
+    // ---- v2.3.7: Global hotkey (Ctrl+Shift+V) ----
+
+    private nint _hotkeyHwnd = nint.Zero;
+
+    /// <summary>v2.3.7: Registers the global hotkey via HotkeyService.</summary>
+    private void RegisterGlobalHotkey()
+    {
+        if (!SettingsStore.HotkeyEnabled) return;
+
+        try
+        {
+            // Update config from settings
+            _container.Hotkey.UpdateConfig(new HotkeyConfig
+            {
+                Enabled = SettingsStore.HotkeyEnabled,
+                Modifiers = SettingsStore.HotkeyModifiers,
+                Key = SettingsStore.HotkeyKey,
+                WakeMethod = SettingsStore.HotkeyWakeMethod,
+            });
+
+            // Get the Win32 HWND for this window
+            var handle = TryGetPlatformHandle();
+            if (handle == null) return;
+
+            _hotkeyHwnd = handle.Handle;
+            if (_hotkeyHwnd == nint.Zero) return;
+
+            if (_container.Hotkey.TryRegister(_hotkeyHwnd))
+            {
+                _container.Hotkey.HotkeyPressed += (_, _) =>
+                {
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        // Bring window to foreground
+                        Show();
+                        Activate();
+                        WindowState = WindowState.Normal;
+                        Topmost = true;
+                        Topmost = false; // flash to bring above other topmost windows
+                    });
+                };
+
+                // Install a WndProc hook to intercept WM_HOTKEY (0x0312)
+                // Avalonia's default WndProc doesn't expose WM_HOTKEY to managed code,
+                // so we use SetWindowLong to subclass the window.
+                InstallWndProcHook(_hotkeyHwnd);
+            }
+        }
+        catch { /* best-effort: hotkey is non-critical */ }
+    }
+
+    /// <summary>Unregisters the global hotkey on window close.</summary>
+    private void UnregisterGlobalHotkey()
+    {
+        try
+        {
+            _container.Hotkey.Unregister();
+            if (_hotkeyHwnd != nint.Zero)
+            {
+                RemoveWndProcHook(_hotkeyHwnd);
+                _hotkeyHwnd = nint.Zero;
+            }
+        }
+        catch { }
+    }
+
+    // ---- Win32 WndProc subclassing for WM_HOTKEY ----
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern nint GetWindowLongPtr(nint hWnd, int nIndex);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern nint CallWindowProc(nint lpPrevWndFunc, nint hWnd, uint Msg, nint wParam, nint lParam);
+
+    private delegate nint WndProcDelegate(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    private const int GWLP_WNDPROC = -4;
+    private const int WM_HOTKEY = 0x0312;
+    private nint _originalWndProc = nint.Zero;
+    private WndProcDelegate? _hookDelegate;
+
+    private void InstallWndProcHook(nint hwnd)
+    {
+        _hookDelegate = HookedWndProc;
+        var newPtr = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_hookDelegate);
+        _originalWndProc = SetWindowLongPtr(hwnd, GWLP_WNDPROC, newPtr);
+    }
+
+    private void RemoveWndProcHook(nint hwnd)
+    {
+        if (_originalWndProc != nint.Zero)
+        {
+            SetWindowLongPtr(hwnd, GWLP_WNDPROC, _originalWndProc);
+            _originalWndProc = nint.Zero;
+        }
+    }
+
+    private nint HookedWndProc(nint hWnd, uint msg, nint wParam, nint lParam)
+    {
+        if (msg == WM_HOTKEY)
+        {
+            _container.Hotkey.ProcessMessage(hWnd, (int)msg, wParam, lParam);
+        }
+        return CallWindowProc(_originalWndProc, hWnd, msg, wParam, lParam);
+    }
 }

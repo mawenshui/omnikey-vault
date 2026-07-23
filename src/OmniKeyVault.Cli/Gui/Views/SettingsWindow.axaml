@@ -248,6 +248,11 @@
                     </CheckBox>
                     <StackPanel Spacing="6" IsVisible="{Binding #BrowserApiEnabledBox.IsChecked}">
                         <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Column="0" Text="API 端口" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Classes="field" x:Name="BrowserApiPortBox" Watermark="14725"
+                                     MinWidth="100" TextChanged="OnBrowserApiPortChanged" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
                             <TextBlock Grid.Column="0" Text="配对令牌" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" />
                             <Button Grid.Column="1" Classes="ghost" Padding="10,4" Click="OnCopyTokenClick">
                                 <TextBlock Text="📋 复制" FontSize="11" />

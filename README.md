@@ -10,7 +10,7 @@
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
 [![Tests](https://img.shields.io/badge/tests-791%2F791-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-2.3.6-blue)](docs/变更日志.md)
+[![Version](https://img.shields.io/badge/version-2.3.7-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 
@@ -82,7 +82,7 @@
 
 ### 安装
 
-1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-2.3.6.exe`（安装包）或 `OmniKeyVault-2.3.6-win-x64.zip`（便携版）
+1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-2.3.7.exe`（安装包）或 `OmniKeyVault-2.3.7-win-x64.zip`（便携版）
 2. 安装包：双击运行，按向导完成安装
 3. 便携版：解压后直接运行 `okv.exe`
 

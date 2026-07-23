@@ -26,6 +26,10 @@
     .error { padding: 16px; color: #e74c3c; text-align: center; }
     .settings-link { display: block; padding: 8px 16px; text-align: center; font-size: 11px; color: #533483; text-decoration: none; border-top: 1px solid #0f3460; }
     .settings-link:hover { text-decoration: underline; }
+    .profile-selector { display: none; padding: 4px 12px 8px; gap: 6px; flex-wrap: wrap; }
+    .profile-btn { padding: 3px 10px; border: 1px solid #0f3460; border-radius: 4px; background: transparent; color: #8899aa; cursor: pointer; font-size: 11px; }
+    .profile-btn:hover { border-color: #533483; }
+    .profile-btn.active { background: #533483; color: #fff; border-color: #533483; }
   </style>
 </head>
 <body>
@@ -36,6 +40,7 @@
   <div class="search-box">
     <input type="text" id="search" placeholder="搜索条目..." autocomplete="off" />
   </div>
+  <div class="profile-selector" id="profileSelector"></div>
   <div class="results" id="results"></div>
   <a href="#" class="settings-link" id="settingsLink">⚙ 配对设置</a>
   <script src="popup.js"></script>

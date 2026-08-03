@@ -999,15 +999,151 @@ public partial class MainWindow
                 var path = file.Path.LocalPath;
                 var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
 
-                if (ext == ".csv" || ext == ".json" || ext == ".xml" || ext == ".dev" || ext == ".env")
+                // v2.3.8: Auto-trigger the appropriate import handler based on file extension
+                switch (ext)
                 {
-                    ToastService.Show(ToastContainer, $"检测到文件: {System.IO.Path.GetFileName(path)} — 可使用「导入」功能导入", ToastType.Info);
+                    case ".dev":
+                        ToastService.Show(ToastContainer, $"📥 正在导入 Seed: {System.IO.Path.GetFileName(path)}", ToastType.Info);
+                        _ = TryImportSeedFile(path);
+                        break;
+                    case ".csv":
+                        ToastService.Show(ToastContainer, $"📥 正在导入 CSV: {System.IO.Path.GetFileName(path)}", ToastType.Info);
+                        _ = TryImportCsvFile(path);
+                        break;
+                    case ".json":
+                        ToastService.Show(ToastContainer, $"📥 正在导入 JSON: {System.IO.Path.GetFileName(path)}", ToastType.Info);
+                        _ = TryImportJsonFile(path);
+                        break;
+                    case ".xml":
+                        ToastService.Show(ToastContainer, $"📥 正在导入 KeePass XML: {System.IO.Path.GetFileName(path)}", ToastType.Info);
+                        _ = TryImportKeePassXmlFile(path);
+                        break;
+                    case ".env":
+                        ToastService.Show(ToastContainer, $"📥 正在导入 .env: {System.IO.Path.GetFileName(path)}", ToastType.Info);
+                        _ = TryImportEnvFile(path);
+                        break;
+                    default:
+                        ToastService.Show(ToastContainer, $"不支持的文件类型: {ext}", ToastType.Warning);
+                        break;
                 }
             }
         }
         catch { /* best-effort */ }
     }
 #pragma warning restore CS0618
+
+    /// <summary>v2.3.8: Auto-import a .dev seed file dropped onto the window.</summary>
+    private async System.Threading.Tasks.Task TryImportSeedFile(string path)
+    {
+        try
+        {
+            // SeedImport only allows dev/test profiles (per PRD §5.5.3)
+            var targetProfile = _activeProfile == "dev" || _activeProfile == "test" ? _activeProfile : "dev";
+            await _container.SeedImport.ImportAsync(path, targetProfile);
+            await _container.Vault.SaveAsync();
+            ToastService.Show(ToastContainer, $"✓ Seed 导入到 {targetProfile} 成功", ToastType.Success);
+            RefreshProfileAndEntries();
+        }
+        catch (Exception ex) { ToastService.Show(ToastContainer, "Seed 导入失败: " + ex.Message, ToastType.Error); }
+    }
+
+    /// <summary>v2.3.8: Auto-import a .csv file dropped onto the window.</summary>
+    private async System.Threading.Tasks.Task TryImportCsvFile(string path)
+    {
+        try
+        {
+            var lines = await System.IO.File.ReadAllLinesAsync(path);
+            var imported = 0;
+            foreach (var line in lines.Skip(1)) // skip header
+            {
+                var parts = line.Split(',');
+                if (parts.Length < 2) continue;
+                var entry = _container.Entries.CreateFromTemplate(_activeProfile, "encrypted_note", parts[0]);
+                entry = entry with { Fields = entry.Fields.Append(new Field { Key = "value", Value = FieldCodec.Encode(parts[1]), Kind = FieldKind.Text, Sensitive = false }).ToList() };
+                _container.Vault.PutEntry(_activeProfile, entry);
+                imported++;
+            }
+            if (imported > 0) await _container.Vault.SaveAsync();
+            ToastService.Show(ToastContainer, $"✓ CSV 导入 {imported} 条", ToastType.Success);
+            RefreshProfileAndEntries();
+        }
+        catch (Exception ex) { ToastService.Show(ToastContainer, "CSV 导入失败: " + ex.Message, ToastType.Error); }
+    }
+
+    /// <summary>v2.3.8: Auto-import a .json file dropped onto the window.</summary>
+    private async System.Threading.Tasks.Task TryImportJsonFile(string path)
+    {
+        try
+        {
+            var json = await System.IO.File.ReadAllTextAsync(path);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var imported = 0;
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                var name = item.TryGetProperty("name", out var n) ? n.GetString() ?? "imported" : "imported";
+                var entry = _container.Entries.CreateFromTemplate(_activeProfile, "encrypted_note", name);
+                if (item.TryGetProperty("fields", out var fields))
+                {
+                    var fieldList = new List<Field>();
+                    foreach (var f in fields.EnumerateArray())
+                    {
+                        var key = f.TryGetProperty("key", out var k) ? k.GetString() ?? "key" : "key";
+                        var val = f.TryGetProperty("value", out var v) ? v.GetString() ?? "" : "";
+                        var sensitive = f.TryGetProperty("sensitive", out var s) && s.GetBoolean();
+                        fieldList.Add(new Field { Key = key, Value = FieldCodec.Encode(val), Kind = sensitive ? FieldKind.Secret : FieldKind.Text, Sensitive = sensitive });
+                    }
+                    entry = entry with { Fields = fieldList };
+                }
+                _container.Vault.PutEntry(_activeProfile, entry);
+                imported++;
+            }
+            if (imported > 0) await _container.Vault.SaveAsync();
+            ToastService.Show(ToastContainer, $"✓ JSON 导入 {imported} 条", ToastType.Success);
+            RefreshProfileAndEntries();
+        }
+        catch (Exception ex) { ToastService.Show(ToastContainer, "JSON 导入失败: " + ex.Message, ToastType.Error); }
+    }
+
+    /// <summary>v2.3.8: Auto-import a KeePass XML file dropped onto the window.</summary>
+    private async System.Threading.Tasks.Task TryImportKeePassXmlFile(string path)
+    {
+        try
+        {
+            var result = await _container.KeePassXml.ImportAsync(_activeProfile, path);
+            await _container.Vault.SaveAsync();
+            ToastService.Show(ToastContainer, $"✓ KeePass XML 导入 {result.EntriesImported} 条" +
+                (result.EntriesSkipped > 0 ? $"（跳过 {result.EntriesSkipped} 条）" : ""), ToastType.Success);
+            RefreshProfileAndEntries();
+        }
+        catch (Exception ex) { ToastService.Show(ToastContainer, "KeePass XML 导入失败: " + ex.Message, ToastType.Error); }
+    }
+
+    /// <summary>v2.3.8: Auto-import a .env file dropped onto the window.</summary>
+    private async System.Threading.Tasks.Task TryImportEnvFile(string path)
+    {
+        try
+        {
+            var lines = await System.IO.File.ReadAllLinesAsync(path);
+            var entry = _container.Entries.CreateFromTemplate(_activeProfile, "encrypted_note", System.IO.Path.GetFileNameWithoutExtension(path));
+            var fields = new List<Field>();
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("#")) continue;
+                var eqIdx = trimmed.IndexOf('=');
+                if (eqIdx < 0) continue;
+                var key = trimmed[..eqIdx].Trim();
+                var val = trimmed[(eqIdx + 1)..].Trim().Trim('"');
+                fields.Add(new Field { Key = key, Value = FieldCodec.Encode(val), Kind = FieldKind.Secret, Sensitive = true });
+            }
+            entry = entry with { Fields = fields };
+            _container.Vault.PutEntry(_activeProfile, entry);
+            await _container.Vault.SaveAsync();
+            ToastService.Show(ToastContainer, $"✓ .env 导入 {fields.Count} 个字段", ToastType.Success);
+            RefreshProfileAndEntries();
+        }
+        catch (Exception ex) { ToastService.Show(ToastContainer, ".env 导入失败: " + ex.Message, ToastType.Error); }
+    }
 
     // ---- v2.0: Selective sync (profile exclusion) ----
 

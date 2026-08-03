@@ -496,21 +496,22 @@ public sealed class GuiShell
             // Seed a few demo entries if the vault is empty
             try
             {
-                var existing = _container.Entries.List("prod", null, null, null);
+                // v2.3.8: Seed into the dev profile so demo shows entries immediately
+                var existing = _container.Entries.List("dev", null, null, null);
                 if (existing.Count == 0)
                 {
                     var templates = _container.Templates.ListAll().ToList();
                     var openaiTpl = templates.FirstOrDefault(t => t.Id == "openai");
                     if (openaiTpl != null)
                     {
-                        var e1 = _container.Entries.CreateFromTemplate("prod", openaiTpl.Id, "OpenAI 生产环境");
-                        _container.Vault.PutEntry("prod", e1);
+                        var e1 = _container.Entries.CreateFromTemplate("dev", openaiTpl.Id, "OpenAI 测试环境");
+                        _container.Vault.PutEntry("dev", e1);
                     }
                     var githubTpl = templates.FirstOrDefault(t => t.Id == "github");
                     if (githubTpl != null)
                     {
-                        var e2 = _container.Entries.CreateFromTemplate("prod", githubTpl.Id, "GitHub PAT");
-                        _container.Vault.PutEntry("prod", e2);
+                        var e2 = _container.Entries.CreateFromTemplate("dev", githubTpl.Id, "GitHub PAT (demo)");
+                        _container.Vault.PutEntry("dev", e2);
                     }
                     await _container.Vault.SaveAsync();
                 }

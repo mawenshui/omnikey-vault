@@ -78,6 +78,10 @@ public partial class SettingsWindow : Window
         // v1.9: browser extension API
         BrowserApiEnabledBox.IsChecked = SettingsStore.BrowserApiEnabled;
         BrowserApiPortBox.Text = SettingsStore.BrowserApiPort.ToString();
+        // v2.3.8: global hotkey
+        HotkeyEnabledBox.IsChecked = SettingsStore.HotkeyEnabled;
+        HotkeyModifiersBox.Text = SettingsStore.HotkeyModifiers;
+        HotkeyKeyBox.Text = SettingsStore.HotkeyKey;
         // v2.0: S3 sync
         S3EndpointBox.Text = SettingsStore.S3Endpoint ?? "";
         S3BucketBox.Text = SettingsStore.S3Bucket ?? "";
@@ -1004,6 +1008,31 @@ public partial class SettingsWindow : Window
                 }
             }
         }
+    }
+
+    // ---- v2.3.8: Global hotkey settings ----
+
+    private void OnHotkeyEnabledChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressEvents) return;
+        SettingsStore.HotkeyEnabled = HotkeyEnabledBox.IsChecked == true;
+        SettingsStore.Save();
+        ShowStatus($"✓ 全局热键已{(SettingsStore.HotkeyEnabled ? "启用" : "停用")} · 需重启应用生效", success: true);
+    }
+
+    private void OnSaveHotkeyClick(object? sender, RoutedEventArgs e)
+    {
+        var modifiers = (HotkeyModifiersBox.Text ?? "").Trim();
+        var key = (HotkeyKeyBox.Text ?? "").Trim();
+        if (string.IsNullOrEmpty(modifiers) || string.IsNullOrEmpty(key))
+        {
+            ShowStatus("✕ 修饰键和按键不能为空", success: false);
+            return;
+        }
+        SettingsStore.HotkeyModifiers = modifiers;
+        SettingsStore.HotkeyKey = key;
+        SettingsStore.Save();
+        ShowStatus($"✓ 热键配置已保存 · {modifiers}+{key} · 需重启应用生效", success: true);
     }
 
     private void OnCopyTokenClick(object? sender, RoutedEventArgs e)

@@ -787,7 +787,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(entry.Fields.Select(f => new { f.Key, f.Value, f.Kind, f.Sensitive }));
+                var json = System.Text.Json.JsonSerializer.Serialize(entry.Fields.Select(f => new { f.Key, Value = FieldCodec.Decode(f.Value), f.Kind, f.Sensitive }));
                 Win32Clipboard.SetText(json);
                 ToastService.Show(ToastContainer, "已复制全部字段", ToastType.Success);
             }

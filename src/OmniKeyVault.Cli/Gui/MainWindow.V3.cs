@@ -532,14 +532,15 @@ public partial class MainWindow
             ("Ctrl + G", "密码生成器"),
             ("Ctrl + D", "复制选中条目"),
             ("Ctrl + A", "全选条目"),
+            ("Ctrl + Shift + V", "全局热键：唤起窗口（v2.3.7）"),
             ("Ctrl + Shift + C", "凭据泄露检测"),
             ("Ctrl + Shift + P", "命令面板"),
             ("Ctrl + Shift + F", "全局搜索面板"),
+            ("Ctrl + Shift + H", "安全健康报告"),
             ("F1  /  ?", "快捷键速查"),
             ("F2", "编辑选中条目"),
             ("F5", "刷新"),
-            ("↑  /  ↓", "浏览条目列表"),
-            ("Enter", "打开选中条目详情"),
+            ("\u2191  /  \u2193", "浏览条目列表"),
             ("Esc", "关闭对话框"),
             ("Delete", "删除选中条目"),
             ("/", "聚焦搜索框"),
@@ -894,7 +895,7 @@ public partial class MainWindow
                 catch { }
             }
 
-            var lastSync = SettingsStore.WebDavEnabled ? "已配置" : "未配置";
+            var lastSync = SettingsStore.WebDavEnabled || SettingsStore.S3Enabled ? "已配置" : "未配置";
 
             var items = new[]
             {

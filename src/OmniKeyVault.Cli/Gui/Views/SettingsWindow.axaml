@@ -348,6 +348,28 @@
 
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
 
+                <!-- ===== v2.3.8: 全局热键 ===== -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="全局热键" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"
+                               Foreground="{DynamicResource FgFaintBrush}" />
+                    <CheckBox x:Name="HotkeyEnabledBox" IsCheckedChanged="OnHotkeyEnabledChanged" Margin="0,4,0,0">
+                        <TextBlock Text="启用全局热键（从任何应用一键唤起 OmniKey Vault）" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" />
+                    </CheckBox>
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,4,0,0" IsVisible="{Binding #HotkeyEnabledBox.IsChecked}">
+                        <TextBlock Grid.Column="0" Text="快捷键" FontSize="12" Foreground="{DynamicResource FgMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Column="1" Classes="field" x:Name="HotkeyModifiersBox" Watermark="Ctrl+Shift" MinWidth="100" />
+                        <TextBlock Grid.Column="2" Text="+" FontSize="12" VerticalAlignment="Center" Margin="6,0" />
+                        <TextBox Grid.Column="3" Classes="field" x:Name="HotkeyKeyBox" Watermark="V" MinWidth="60" />
+                    </Grid>
+                    <TextBlock Text="修改后点击保存配置生效。默认：Ctrl+Shift+V" FontSize="10" Foreground="{DynamicResource FgDimBrush}" Margin="0,2,0,0"
+                               IsVisible="{Binding #HotkeyEnabledBox.IsChecked}" />
+                    <Button Classes="ghost" Padding="10,4" Click="OnSaveHotkeyClick" IsVisible="{Binding #HotkeyEnabledBox.IsChecked}">
+                        <TextBlock Text="💾 保存热键配置" FontSize="11" />
+                    </Button>
+                </StackPanel>
+
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" />
+
                 <!-- ===== v2.3: 辅助功能与显示 ===== -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="辅助功能与显示" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1.4"

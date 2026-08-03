@@ -9,8 +9,8 @@
 **即使源代码和金库文件同时泄露，没有主密码也无法解密。**
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-786%2F786-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-2.5.0-blue)](docs/变更日志.md)
+[![Tests](https://img.shields.io/badge/tests-797%2F797-brightgreen)](docs/测试报告.md)
+[![Version](https://img.shields.io/badge/version-2.6.0-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 

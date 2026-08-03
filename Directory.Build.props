@@ -12,10 +12,10 @@
     <Product>OmniKey Vault</Product>
     <Copyright>Copyright © 2026 OmniKey Vault</Copyright>
     <Description>本地优先 · 端到端加密 · 开源凭据管理工具。将分散在各 SaaS / 云厂商中的 API Key、Secret、Token、证书等信息收纳进一个加密保险库。</Description>
-    <!-- v2.5.0: WebAuthn/FIDO2 biometric unlock via Windows Hello + DPAPI -->
-    <Version>2.5.0</Version>
-    <AssemblyVersion>2.5.0.0</AssemblyVersion>
-    <FileVersion>2.5.0.0</FileVersion>
+    <!-- v2.6.0: Windows Credential Manager integration for system-level credential storage -->
+    <Version>2.6.0</Version>
+    <AssemblyVersion>2.6.0.0</AssemblyVersion>
+    <FileVersion>2.6.0.0</FileVersion>
     <RepositoryUrl>https://github.com/mawenshui/omnikey-vault</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/mawenshui/omnikey-vault</PackageProjectUrl>

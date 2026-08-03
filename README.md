@@ -9,8 +9,8 @@
 **即使源代码和金库文件同时泄露，没有主密码也无法解密。**
 
 [![.NET CI](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/tests-778%2F778-brightgreen)](docs/测试报告.md)
-[![Version](https://img.shields.io/badge/version-2.4.0-blue)](docs/变更日志.md)
+[![Tests](https://img.shields.io/badge/tests-786%2F786-brightgreen)](docs/测试报告.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue)](docs/变更日志.md)
 [![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](docs/编译打包指南.md)
 
@@ -82,7 +82,7 @@
 
 ### 安装
 
-1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-2.4.0.exe`（安装包）或 `OmniKeyVault-2.4.0-win-x64.zip`（便携版）
+1. 前往 [Releases](https://github.com/mawenshui/omnikey-vault/releases) 下载最新版 `OmniKeyVault-Setup-2.5.0.exe`（安装包）或 `OmniKeyVault-2.5.0-win-x64.zip`（便携版）
 2. 安装包：双击运行，按向导完成安装
 3. 便携版：解压后直接运行 `okv.exe`
 
@@ -103,7 +103,7 @@ dotnet build OmniKeyVault.sln -c Release
 dotnet run --project src/OmniKeyVault.Cli
 
 # 4. 运行测试
-dotnet test    # → 778/778 通过
+dotnet test    # → 806/806 通过
 
 # 5. 性能压测（1 万条目）
 dotnet run --project tools/OmniKeyVault.Benchmark
@@ -215,7 +215,7 @@ OmniKeyVault/
 | [编译打包指南](docs/编译打包指南.md) | 编译、运行、打包、跨 RID 发布、故障排查 |
 | [测试报告](docs/测试报告.md) | 测试结果、性能基准、已知偏差 |
 | [开发路线图](docs/开发路线图.md) | Sprint 任务分解、依赖、风险 |
-| [变更日志](docs/变更日志.md) | v0.1 → v2.4.0 全部用户可见变更 |
+| [变更日志](docs/变更日志.md) | v0.1 → v2.5.0 全部用户可见变更 |
 | [文档总览](docs/文档总览.md) | 文档索引、阅读路径、维护规则 |
 
 ---

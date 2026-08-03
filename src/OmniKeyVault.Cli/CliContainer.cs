@@ -106,9 +106,8 @@ public sealed class CliContainer : IDisposable
     public EncryptedContainerExporter ContainerExporter { get; private set; }
     /// <summary>v2.0: Password history tracking.</summary>
     public PasswordHistoryService PasswordHistory { get; private set; }
-    /// <summary>v2.0: WebAuthn/FIDO2 (Windows Hello) integration.</summary>
-    public WebAuthnService WebAuthn { get; } = new();
-    /// <summary>v2.0: Community template contribution mechanism.</summary>
+/// <summary>v2.0: WebAuthn/FIDO2 (Windows Hello) integration. v2.4.0: WebAuthnService is now static.</summary>
+/// <summary>v2.0: Community template contribution mechanism.</summary>
     public CommunityTemplateService CommunityTemplates { get; private set; }
     /// <summary>v2.1: 1Password .1pux native format importer.</summary>
     public OnePuxImporter OnePuxImportNative { get; private set; }

@@ -191,6 +191,19 @@
                     <TextBlock Text="解锁保险库" />
                 </Button>
 
+                <!-- v2.4.0: Windows Hello biometric unlock button -->
+                <Button x:Name="WebAuthnButton"
+                        Classes="ghost"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,4,0,0"
+                        Click="OnWebAuthnUnlockClick"
+                        IsVisible="False">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                        <TextBlock Text="🔑" FontSize="14" />
+                        <TextBlock Text="Windows Hello 解锁" FontSize="13" />
+                    </StackPanel>
+                </Button>
+
                 <Button x:Name="RecoveryButton"
                         Classes="ghost"
                         HorizontalAlignment="Stretch"

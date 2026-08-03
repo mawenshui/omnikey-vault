@@ -4,7 +4,7 @@
     <RootNamespace>OmniKeyVault.Cli</RootNamespace>
     <AssemblyName>okv</AssemblyName>
     <ApplicationIcon>..\..\images\okv-icon.ico</ApplicationIcon>
-    <!-- Avalonia 11.3 requires explicit Win32 support on .NET 8 for Skia / clipboard / dialog APIs -->
+    <!-- v2.4.0: Windows Hello support via P/Invoke (no WinRT dependency) -->
     <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.17763.0</SupportedOSPlatformVersion>
     <!-- v2.2.2: Self-contained deployment — bundles the .NET runtime + Windows
          Desktop runtime into the app directory so users never need to install

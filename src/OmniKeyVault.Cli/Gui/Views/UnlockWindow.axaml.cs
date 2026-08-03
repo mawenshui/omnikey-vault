@@ -32,7 +32,26 @@ public partial class UnlockWindow : Window
         // vault UUID + last access. Falls back to placeholder if file missing.
         // v1.8: fire-and-forget async to avoid blocking the UI thread on vault file I/O.
         _ = RefreshVaultMetaAsync();
+        _ = CheckWebAuthnAvailabilityAsync();
         PasswordBox.Focus();
+    }
+
+    /// <summary>v2.4.0: Checks if Windows Hello is available and if biometric
+    /// unlock is registered for this vault. Shows the WebAuthn button accordingly.</summary>
+    private async Task CheckWebAuthnAvailabilityAsync()
+    {
+        try
+        {
+            var available = await WebAuthnService.IsAvailableAsync();
+            if (!available) return;
+
+            var registered = WebAuthnService.IsRegistered(_vaultPath);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                WebAuthnButton.IsVisible = registered;
+            });
+        }
+        catch { /* non-fatal — biometric unlock just won't appear */ }
     }
 
     /// <summary>v1.8: Async version of RefreshVaultMeta — avoids
@@ -100,6 +119,59 @@ public partial class UnlockWindow : Window
         var sample = SampleRecoveryKey();
         var dlg = new RecoveryKeyWindow(sample) { Title = "恢复密钥 · 格式预览" };
         dlg.ShowDialog(this);
+    }
+
+    /// <summary>v2.4.0: Handles Windows Hello biometric unlock.
+    /// Retrieves the encrypted master password via Windows Hello consent,
+    /// then uses it to unlock the vault.</summary>
+    private async void OnWebAuthnUnlockClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_unlocking) return;
+        _unlocking = true;
+        ErrorText.IsVisible = false;
+        WebAuthnButton.IsEnabled = false;
+        UnlockButton.IsEnabled = false;
+
+        try
+        {
+            // Step 1: Get the master password via Windows Hello + DPAPI
+            var pwBytes = await WebAuthnService.UnlockAsync(_vaultPath);
+            if (pwBytes == null)
+            {
+                ShowError("生物识别解锁失败，请使用主密码");
+                return;
+            }
+
+            // Step 2: Unlock the vault
+            await Task.Run(async () =>
+            {
+                await _container.Vault.UnlockAsync(_vaultPath, pwBytes);
+            });
+
+            // Zero the password bytes ASAP
+            Array.Clear(pwBytes, 0, pwBytes.Length);
+
+            OmniKeyVault.Cli.Gui.GuiShell.SaveLastVaultPath(_vaultPath);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                UnlockSucceeded?.Invoke(this, _container);
+            });
+        }
+        catch (VaultLockedException)
+        {
+            ShowError("生物识别凭据无效，请使用主密码");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"解锁失败:{ex.Message}");
+        }
+        finally
+        {
+            _unlocking = false;
+            WebAuthnButton.IsEnabled = true;
+            UnlockButton.IsEnabled = true;
+        }
     }
 
     /// <summary>Emitted when the user wants to create a new vault. Host (GuiShell) opens the wizard.</summary>
@@ -212,6 +284,33 @@ public partial class UnlockWindow : Window
             // vault (even if the user just browsed to a non-default location).
             OmniKeyVault.Cli.Gui.GuiShell.SaveLastVaultPath(_vaultPath);
 
+            // v2.4.0: Offer to enable Windows Hello biometric unlock if available
+            // and not yet registered for this vault
+            try
+            {
+                var helloAvailable = await WebAuthnService.IsAvailableAsync();
+                if (helloAvailable && !WebAuthnService.IsRegistered(_vaultPath))
+                {
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        // Simple approach: use a MessageBox-like dialog
+                        var result = await ShowBiometricEnrollDialog();
+                        if (result)
+                        {
+                            var pwBytesForEnroll = Encoding.UTF8.GetBytes(pw);
+                            var enrolled = await WebAuthnService.RegisterAsync(_vaultPath, pwBytesForEnroll);
+                            if (enrolled)
+                            {
+                                SettingsStore.WebAuthnEnabled = true;
+                                SettingsStore.Save();
+                                WebAuthnButton.IsVisible = true;
+                            }
+                        }
+                    });
+                }
+            }
+            catch { /* non-fatal — biometric enrollment is optional */ }
+
             // Success — fire event on UI thread
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -244,5 +343,56 @@ public partial class UnlockWindow : Window
     {
         ErrorText.Text = msg;
         ErrorText.IsVisible = true;
+    }
+
+    /// <summary>v2.4.0: Shows a dialog asking if the user wants to enable
+    /// Windows Hello biometric unlock.</summary>
+    private async Task<bool> ShowBiometricEnrollDialog()
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        var dlg = new Window
+        {
+            Title = "启用 Windows Hello",
+            Width = 400,
+            Height = 200,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = this.Background,
+        };
+
+        var panel = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(24),
+            Spacing = 16,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "是否启用 Windows Hello 生物识别解锁？\n\n启用后可使用指纹、面部识别或 PIN 快速解锁金库，无需每次输入主密码。",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            FontSize = 13,
+        });
+
+        var btnPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Spacing = 12,
+        };
+
+        var yesBtn = new Button { Content = "启用", Classes = { "primary" }, Padding = new Avalonia.Thickness(20, 8) };
+        var noBtn = new Button { Content = "暂不", Classes = { "ghost" }, Padding = new Avalonia.Thickness(20, 8) };
+
+        yesBtn.Click += (_, _) => { tcs.TrySetResult(true); dlg.Close(); };
+        noBtn.Click += (_, _) => { tcs.TrySetResult(false); dlg.Close(); };
+
+        btnPanel.Children.Add(yesBtn);
+        btnPanel.Children.Add(noBtn);
+        panel.Children.Add(btnPanel);
+
+        dlg.Content = panel;
+        await dlg.ShowDialog(this);
+        return await tcs.Task;
     }
 }

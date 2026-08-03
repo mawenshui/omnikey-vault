@@ -1,7 +1,6 @@
 // OmniKey Vault Browser Extension — Popup Script
-// v1.9: Read-only bridge to the local OmniKey Vault desktop app.
-// Communicates with the HTTP API server at 127.0.0.1:14725.
-// v2.3.7: Fix custom port not working + add profile selector.
+// v2.4.0: Auto-fill, icon status indicator, recent entries quick access
+// Communicates with the HTTP API server at 127.0.0.1:14725 (configurable).
 
 const DEFAULT_PORT = 14725;
 
@@ -10,6 +9,7 @@ let authToken = '';
 let debounceTimer = null;
 let currentProfile = 'prod';
 let availableProfiles = [];
+let selectedAutofillEntry = null;
 
 // Load auth token and port from storage
 chrome.storage.local.get(['okv_auth_token', 'okv_api_port', 'okv_profile'], (result) => {
@@ -18,6 +18,7 @@ chrome.storage.local.get(['okv_auth_token', 'okv_api_port', 'okv_profile'], (res
   apiBase = `http://127.0.0.1:${port}`;
   currentProfile = result.okv_profile || 'prod';
   checkStatus();
+  renderRecentEntries();
 });
 
 async function api(path, params = {}) {
@@ -38,6 +39,7 @@ async function checkStatus() {
   const status = document.getElementById('status');
   const results = document.getElementById('results');
   const profileSelector = document.getElementById('profileSelector');
+  const autofillBar = document.getElementById('autofillBar');
   try {
     const data = await api('/api/status');
     if (data.locked) {
@@ -45,6 +47,7 @@ async function checkStatus() {
       status.style.color = '#e74c3c';
       results.innerHTML = '<div class="empty">请先解锁保险箱</div>';
       profileSelector.style.display = 'none';
+      autofillBar.style.display = 'none';
     } else {
       status.textContent = `✅ 已连接 · ${data.profiles.length} 个 Profile`;
       status.style.color = '#2ecc71';
@@ -57,6 +60,9 @@ async function checkStatus() {
       buildProfileSelector();
       profileSelector.style.display = availableProfiles.length > 1 ? 'flex' : 'none';
 
+      // Show auto-fill bar (will be activated when an entry is selected)
+      autofillBar.style.display = 'block';
+
       // Auto-search on load
       doSearch('');
     }
@@ -65,6 +71,7 @@ async function checkStatus() {
     status.style.color = '#e74c3c';
     results.innerHTML = '<div class="empty">无法连接到 OmniKey Vault<br><br>请确保桌面应用已启动且浏览器扩展 API 已启用</div>';
     profileSelector.style.display = 'none';
+    autofillBar.style.display = 'none';
   }
 }
 
@@ -78,7 +85,6 @@ function buildProfileSelector() {
     btn.addEventListener('click', () => {
       currentProfile = p;
       chrome.storage.local.set({ okv_profile: p });
-      // Update active styles
       container.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       doSearch(document.getElementById('search').value.trim());
@@ -89,18 +95,22 @@ function buildProfileSelector() {
 
 async function doSearch(query) {
   const results = document.getElementById('results');
-  // v2.3.6: Empty query should fetch all entries, not show a placeholder.
-  // v2.3.7: Use currentProfile instead of hardcoded 'prod'.
+  const recentSection = document.getElementById('recentSection');
   try {
     const params = { profile: currentProfile };
     if (query) params.q = query;
     const data = await api('/api/search', params);
     if (data.count === 0) {
       results.innerHTML = '<div class="empty">未找到匹配的条目</div>';
+      recentSection.style.display = 'none';
       return;
     }
+
+    // Show recent section only when not searching
+    recentSection.style.display = query ? 'none' : 'block';
+
     results.innerHTML = data.results.map(entry => `
-      <div class="entry">
+      <div class="entry" data-entry-id="${entry.id}">
         <div class="name">${escapeHtml(entry.name)}</div>
         <div class="meta">${escapeHtml(entry.platformId || '')} · ${entry.type}</div>
         <div class="fields">
@@ -108,9 +118,14 @@ async function doSearch(query) {
             <div class="field-row">
               <span class="key">${escapeHtml(f.key)}</span>
               <span class="value">${escapeHtml(f.masked)}</span>
-              <button class="copy-btn" data-entry-id="${entry.id}" data-field="${escapeHtml(f.key)}">复制</button>
+              <div class="btn-group">
+                <button class="copy-btn" data-entry-id="${entry.id}" data-field="${escapeHtml(f.key)}">复制</button>
+              </div>
             </div>
           `).join('')}
+        </div>
+        <div style="margin-top: 6px;">
+          <button class="fill-btn" data-entry-id="${entry.id}" data-entry-name="${escapeHtml(entry.name)}" style="padding: 4px 10px; border: 1px solid #533483; border-radius: 4px; background: transparent; color: #533483; cursor: pointer; font-size: 11px;">⚡ 自动填充当前页面</button>
         </div>
       </div>
     `).join('');
@@ -126,15 +141,162 @@ async function doSearch(query) {
           await api('/api/copy', { entryId, field, profile: currentProfile });
           btn.textContent = '✓';
           setTimeout(() => btn.textContent = '复制', 2000);
+          // Track as recent
+          trackRecentEntry(entryId, btn.closest('.entry'));
         } catch (err) {
           btn.textContent = '✗';
           setTimeout(() => btn.textContent = '复制', 2000);
         }
       });
     });
+
+    // Attach auto-fill handlers
+    document.querySelectorAll('.fill-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const entryId = btn.dataset.entryId;
+        btn.textContent = '...';
+        try {
+          // Fetch actual field values for auto-fill
+          const data = await api('/api/autofill', { entryId, profile: currentProfile });
+          if (data.success && data.fields) {
+            // Send to content script via background
+            chrome.runtime.sendMessage({
+              type: 'AUTOFILL_ENTRY',
+              entry: { id: entryId, name: btn.dataset.entryName },
+              fields: data.fields,
+            }, (response) => {
+              if (response && response.success) {
+                btn.textContent = `✓ 已填充 ${response.filled}/${response.total}`;
+                setTimeout(() => btn.textContent = '⚡ 自动填充当前页面', 3000);
+                trackRecentEntry(entryId, btn.closest('.entry'));
+              } else {
+                btn.textContent = '✗ 无可填充字段';
+                setTimeout(() => btn.textContent = '⚡ 自动填充当前页面', 2000);
+              }
+            });
+          } else {
+            btn.textContent = '✗ 获取数据失败';
+            setTimeout(() => btn.textContent = '⚡ 自动填充当前页面', 2000);
+          }
+        } catch (err) {
+          btn.textContent = '✗ ' + err.message;
+          setTimeout(() => btn.textContent = '⚡ 自动填充当前页面', 2000);
+        }
+      });
+    });
   } catch (err) {
     results.innerHTML = `<div class="error">搜索失败: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function trackRecentEntry(entryId, entryElement) {
+  // Get the entry name from the DOM
+  const nameEl = entryElement?.querySelector('.name');
+  const metaEl = entryElement?.querySelector('.meta');
+  const entry = {
+    id: entryId,
+    name: nameEl ? nameEl.textContent : '',
+    meta: metaEl ? metaEl.textContent : '',
+    time: Date.now(),
+  };
+  chrome.runtime.sendMessage({ type: 'TRACK_RECENT', entry: entry });
+}
+
+async function renderRecentEntries() {
+  chrome.storage.local.get(['okv_recent_entries'], (result) => {
+    const recent = result.okv_recent_entries || [];
+    const recentList = document.getElementById('recentList');
+    const recentSection = document.getElementById('recentSection');
+
+    if (recent.length === 0) {
+      recentSection.style.display = 'none';
+      return;
+    }
+
+    recentSection.style.display = 'block';
+    recentList.innerHTML = recent.map(entry => `
+      <div class="recent-entry" data-entry-id="${entry.id}">
+        <span class="icon">🔑</span>
+        <div class="info">
+          <div class="name">${escapeHtml(entry.name)}</div>
+          <div class="time">${formatTime(entry.time)}</div>
+        </div>
+        <div class="actions">
+          <button class="recent-copy" data-entry-id="${entry.id}">复制</button>
+          <button class="recent-fill" data-entry-id="${entry.id}" data-entry-name="${escapeHtml(entry.name)}">填充</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Attach handlers for recent entries
+    document.querySelectorAll('.recent-copy').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const entryId = btn.dataset.entryId;
+        btn.textContent = '...';
+        try {
+          // Search for the entry to get its fields
+          const data = await api('/api/search', { q: '', profile: currentProfile });
+          const entry = data.results.find(r => r.id === entryId);
+          if (entry && entry.fields.length > 0) {
+            await api('/api/copy', { entryId, field: entry.fields[0].key, profile: currentProfile });
+            btn.textContent = '✓';
+            setTimeout(() => btn.textContent = '复制', 2000);
+          } else {
+            btn.textContent = '✗';
+            setTimeout(() => btn.textContent = '复制', 2000);
+          }
+        } catch (err) {
+          btn.textContent = '✗';
+          setTimeout(() => btn.textContent = '复制', 2000);
+        }
+      });
+    });
+
+    document.querySelectorAll('.recent-fill').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const entryId = btn.dataset.entryId;
+        btn.textContent = '...';
+        try {
+          const data = await api('/api/autofill', { entryId, profile: currentProfile });
+          if (data.success && data.fields) {
+            chrome.runtime.sendMessage({
+              type: 'AUTOFILL_ENTRY',
+              entry: { id: entryId, name: btn.dataset.entryName },
+              fields: data.fields,
+            }, (response) => {
+              if (response && response.success) {
+                btn.textContent = `✓ ${response.filled}`;
+                setTimeout(() => btn.textContent = '填充', 2000);
+              } else {
+                btn.textContent = '✗';
+                setTimeout(() => btn.textContent = '填充', 2000);
+              }
+            });
+          } else {
+            btn.textContent = '✗';
+            setTimeout(() => btn.textContent = '填充', 2000);
+          }
+        } catch (err) {
+          btn.textContent = '✗';
+          setTimeout(() => btn.textContent = '填充', 2000);
+        }
+      });
+    });
+  });
+}
+
+function formatTime(timestamp) {
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return '刚刚';
+  if (mins < 60) return `${mins} 分钟前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  return `${days} 天前`;
 }
 
 function escapeHtml(str) {

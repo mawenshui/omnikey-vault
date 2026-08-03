@@ -149,7 +149,7 @@ public partial class MainWindow
     /// <summary>v2.3: Navigate entry list with arrow keys.</summary>
     private void NavigateEntryList(int direction)
     {
-        var entries = EntryListPanel.Children.OfType<Button>().ToList();
+        var entries = EntryListPanel.Items.OfType<Button>().ToList();
         if (entries.Count == 0) return;
 
         _selectedEntryIndex = System.Math.Clamp(

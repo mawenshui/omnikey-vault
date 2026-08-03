@@ -5,11 +5,14 @@ namespace OmniKeyVault.Application;
 
 /// <summary>
 /// v1.9: Read-only local HTTP API server for browser extensions.
+/// v2.4.0: Added /api/autofill endpoint for web form auto-fill.
 /// Listens on 127.0.0.1:14725 (configurable) and exposes a minimal
 /// JSON API that allows the browser extension to:
 /// - Check vault status (locked/unlocked)
 /// - Search entries by name (returns names + masked fields only)
 /// - Copy a field value to clipboard (no raw values over HTTP)
+/// - Auto-fill web forms (v2.4.0: returns actual field values for the
+///   explicitly requested entry only, on loopback with auth token)
 ///
 /// Security model:
 /// - Loopback only (127.0.0.1) — never reachable from the network
@@ -17,6 +20,10 @@ namespace OmniKeyVault.Application;
 /// - All responses are read-only — no mutation operations
 /// - Raw secret values are NEVER sent over HTTP; the extension
 ///   requests a "copy to clipboard" action instead
+/// - v2.4.0 exception: /api/autofill returns actual field values, but
+///   only for a user-explicitly-selected entry, on loopback, with auth.
+///   This is equivalent to the existing copy-to-clipboard flow (the value
+///   exists in browser memory either way), but enables direct form fill.
 /// - A per-session bearer token is required for authentication
 /// </summary>
 [OmniKeyVaultService(NoLockRequired = true)]
@@ -169,6 +176,37 @@ public sealed class BrowserExtensionApiService : IDisposable
                     _clipboard.CopySensitive(field.ValueString);
                     await Task.CompletedTask;
                     await WriteJson(ctx, 200, new { success = true, message = "copied_to_clipboard" });
+                    break;
+
+                case "api/autofill":
+                    // v2.4.0: Return actual field values for a specific entry,
+                    // so the browser extension content script can fill web forms.
+                    // Security: loopback only, auth token required, user-explicit action.
+                    if (!_vault.IsUnlocked)
+                    {
+                        await WriteJson(ctx, 403, new { error = "vault_locked" });
+                        break;
+                    }
+                    var autofillEntryIdStr = ctx.Request.QueryString["entryId"] ?? "";
+                    var autofillProfile = ctx.Request.QueryString["profile"] ?? "prod";
+                    if (!Guid.TryParse(autofillEntryIdStr, out var autofillEntryId))
+                    {
+                        await WriteJson(ctx, 400, new { error = "invalid_entry_id" });
+                        break;
+                    }
+                    var autofillEntry = _vault.GetEntry(autofillProfile, autofillEntryId);
+                    if (autofillEntry == null)
+                    {
+                        await WriteJson(ctx, 404, new { error = "entry_not_found" });
+                        break;
+                    }
+                    var autofillFields = autofillEntry.Fields.Select(f => new
+                    {
+                        key = f.Key,
+                        value = f.ValueString,
+                        sensitive = f.Sensitive,
+                    });
+                    await WriteJson(ctx, 200, new { success = true, fields = autofillFields });
                     break;
 
                 default:

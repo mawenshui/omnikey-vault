@@ -157,11 +157,11 @@ public partial class EditorWindow : Window
     /// (OKV_FORMAT §3.5).</summary>
     private void AddFieldRow(string key = "", string value = "", FieldKind kind = FieldKind.Secret, bool sensitive = true)
     {
-        var row = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("140,130,*,Auto,Auto,Auto"),
-            Margin = new Thickness(0, 0, 0, 6),
-        };
+var row = new Grid
+{
+ColumnDefinitions = new ColumnDefinitions("140,130,*,Auto,Auto,Auto,Auto,Auto"),
+Margin = new Thickness(0, 0, 0, 6),
+};
 
         var keyBox = new TextBox
         {
@@ -249,6 +249,49 @@ public partial class EditorWindow : Window
         removeBtn.Click += (_, _) => (row.Parent as Panel)?.Children.Remove(row);
         Grid.SetColumn(removeBtn, 5);
 
+        // v2.4.0: Field drag-sort — up/down buttons for reordering
+        var upBtn = new Button
+        {
+            Classes = { "ghost" },
+            Padding = new Thickness(6, 4),
+            Content = new TextBlock { Text = "↑", FontSize = 12, Foreground = Res.Brush("FgDimBrush") },
+        };
+        ToolTip.SetTip(upBtn, "上移");
+        upBtn.Click += (_, _) =>
+        {
+            if (row.Parent is Panel panel)
+            {
+                var idx = panel.Children.IndexOf(row);
+                if (idx > 0)
+                {
+                    panel.Children.RemoveAt(idx);
+                    panel.Children.Insert(idx - 1, row);
+                }
+            }
+        };
+        Grid.SetColumn(upBtn, 6);
+
+        var downBtn = new Button
+        {
+            Classes = { "ghost" },
+            Padding = new Thickness(6, 4),
+            Content = new TextBlock { Text = "↓", FontSize = 12, Foreground = Res.Brush("FgDimBrush") },
+        };
+        ToolTip.SetTip(downBtn, "下移");
+        downBtn.Click += (_, _) =>
+        {
+            if (row.Parent is Panel panel)
+            {
+                var idx = panel.Children.IndexOf(row);
+                if (idx >= 0 && idx < panel.Children.Count - 1)
+                {
+                    panel.Children.RemoveAt(idx);
+                    panel.Children.Insert(idx + 1, row);
+                }
+            }
+        };
+        Grid.SetColumn(downBtn, 7);
+
         // Show/hide pick button as the kind changes
         kindBox.SelectionChanged += (_, _) =>
         {
@@ -263,6 +306,8 @@ public partial class EditorWindow : Window
         row.Children.Add(genBtn);
         row.Children.Add(pickBtn);
         row.Children.Add(removeBtn);
+        row.Children.Add(upBtn);
+        row.Children.Add(downBtn);
 
         FieldsPanel.Children.Add(row);
     }

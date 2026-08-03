@@ -536,9 +536,20 @@
                     </StackPanel>
                 </Grid>
 
-                <ScrollViewer Grid.Row="1" Margin="20,0,20,0" VerticalScrollBarVisibility="Auto">
-                    <StackPanel x:Name="EntryListPanel" Spacing="2" />
-                </ScrollViewer>
+                <ItemsControl x:Name="EntryListPanel" Grid.Row="1" Margin="20,0,20,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.Template>
+                        <ControlTemplate>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsPresenter />
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ItemsControl.Template>
+                </ItemsControl>
 
                 <StackPanel x:Name="EmptyState"
                             Grid.Row="1"
@@ -568,8 +579,10 @@
                     Background="{DynamicResource BgElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1,0,0,0">
-                <ScrollViewer>
-                    <Grid>
+                <Grid RowDefinitions="Auto,*">
+                    <StackPanel x:Name="DetailTabStrip" Grid.Row="0" Orientation="Horizontal" Spacing="2" Margin="8,4" IsVisible="False" Background="{DynamicResource BgSunkenBrush}" />
+                    <ScrollViewer Grid.Row="1">
+                <Grid>
                         <StackPanel x:Name="DetailEmpty"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
@@ -680,6 +693,7 @@
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
+                </Grid>
             </Border>
 
             <!-- WATERMARK (dev / test only): huge semi-transparent italic text

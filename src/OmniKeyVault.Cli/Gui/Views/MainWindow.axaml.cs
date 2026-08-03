@@ -404,6 +404,8 @@ public partial class MainWindow : Window
         menu.Items.Add(new Avalonia.Controls.Separator());
         menu.Items.Add(deleteItem);
         btn.ContextMenu = menu;
+        // v2.4.0: Attach drop handler for drag-to-folder
+        AttachFolderDropHandler(btn, folder);
         return btn;
     }
 
@@ -593,7 +595,7 @@ public partial class MainWindow : Window
 
     private void RenderEntryList(IReadOnlyList<Entry> entries)
     {
-        EntryListPanel.Children.Clear();
+        EntryListPanel.Items.Clear();
 
         if (entries.Count == 0)
         {
@@ -619,7 +621,7 @@ public partial class MainWindow : Window
             EntryListPanel.IsVisible = true;
             EmptyState.IsVisible = false;
             foreach (var entry in entries)
-                EntryListPanel.Children.Add(BuildEntryRow(entry));
+                EntryListPanel.Items.Add(BuildEntryRow(entry));
         }
 
         ListCountText.Text = $"{entries.Count} 个条目";
@@ -822,6 +824,8 @@ public partial class MainWindow : Window
         delItem.Click += async (_, _) => await DeleteEntryAsync(entry);
         flyout.Items.Add(delItem);
         btn.ContextFlyout = flyout;
+        // v2.4.0: Attach drag-to-folder handlers
+        AttachEntryDragHandlers(btn, entry);
         return btn;
     }
 
@@ -941,6 +945,8 @@ public partial class MainWindow : Window
     {
         DetailEmpty.IsVisible = false;
         DetailContent.IsVisible = true;
+        // v2.4.0: Open in tab for multi-tab view
+        OpenEntryInTab(entry);
         DetailTitle.Text = entry.Name;
         // v2.3: Enhanced subtitle with type icon and expiry
         var expiryText = ExpiryLabel(entry);
@@ -1834,18 +1840,25 @@ public partial class MainWindow : Window
             {
                 case SyncConflictResolver.Resolution.KeepLocal:
                     // The initial merge already chose local-wins; nothing to do.
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 冲突解决: 保留本地 (local-wins)");
                     ToastService.Show(ToastContainer, "已保留本地版本(默认 local-wins)", ToastType.Info);
                     LastSyncText.Text = "刚刚 · 保留本地";
                     break;
+                case SyncConflictResolver.Resolution.AllLocal:
+                    // v2.4.0: Batch — all local.
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 批量冲突解决: 全部采用本地 (local-wins)");
+                    ToastService.Show(ToastContainer, "已全部保留本地版本", ToastType.Info);
+                    LastSyncText.Text = "刚刚 · 全部保留本地";
+                    break;
                 case SyncConflictResolver.Resolution.TakeRemote:
                     // Re-run TakeRemote: copy remote file over local + re-derive.
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 冲突解决: 采用远端");
                     var took = await System.Threading.Tasks.Task.Run(() =>
                         _container.Sync.TakeRemoteAsync(localPath, remotePath));
                     if (took.Outcome == OmniKeyVault.Application.SyncOutcome.TookRemote)
                     {
                         ToastService.Show(ToastContainer, "已采用远端版本(本地已备份)", ToastType.Success);
                         LastSyncText.Text = "刚刚 · 采用远端";
-                        // After TakeRemote we must re-unlock to read the new state.
                         ReUnlockFromDisk(localPath);
                     }
                     else
@@ -1853,10 +1866,28 @@ public partial class MainWindow : Window
                         ToastService.Show(ToastContainer, "采用远端失败:" + took.Message, ToastType.Error);
                     }
                     break;
+                case SyncConflictResolver.Resolution.AllRemote:
+                    // v2.4.0: Batch — all remote.
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 批量冲突解决: 全部采用远端");
+                    var tookAll = await System.Threading.Tasks.Task.Run(() =>
+                        _container.Sync.TakeRemoteAsync(localPath, remotePath));
+                    if (tookAll.Outcome == OmniKeyVault.Application.SyncOutcome.TookRemote)
+                    {
+                        ToastService.Show(ToastContainer, "已全部采用远端版本(本地已备份)", ToastType.Success);
+                        LastSyncText.Text = "刚刚 · 全部采用远端";
+                        ReUnlockFromDisk(localPath);
+                    }
+                    else
+                    {
+                        ToastService.Show(ToastContainer, "采用远端失败:" + tookAll.Message, ToastType.Error);
+                    }
+                    break;
                 case SyncConflictResolver.Resolution.Merge:
                     // Re-apply the local-wins merge. Idempotent on the disk state.
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 冲突解决: 自动合并");
                     var merged = await System.Threading.Tasks.Task.Run(() =>
                         _container.Sync.ApplyLocalWinsMergeAsync(localPath, remotePath));
+                    _syncLogEntries.Add($"[{DateTimeOffset.Now:HH:mm:ss}] 合并结果: {merged.EntriesMerged} 项合并, {merged.ConflictsDetected} 冲突");
                     ToastService.Show(ToastContainer, $"合并完成 · {merged.EntriesMerged} 项 · {merged.ConflictsDetected} 冲突 (local-wins)",
                         merged.ConflictsDetected == 0 ? ToastType.Success : ToastType.Warning);
                     LastSyncText.Text = $"刚刚 · 合并 {merged.EntriesMerged}";

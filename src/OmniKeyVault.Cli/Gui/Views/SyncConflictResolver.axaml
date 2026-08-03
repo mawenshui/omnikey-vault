@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="OmniKeyVault.Cli.Gui.Views.SyncConflictResolver"
         Title="同步冲突解决"
-        Width="520" Height="420"
-        CanResize="False"
+        Width="620" Height="520"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource BgElevatedBrush}">
     <Window.Styles>
@@ -23,6 +23,15 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="14,8" />
         </Style>
+        <Style Selector="Button.batch-sm">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
     </Window.Styles>
 
     <Border Padding="24">
@@ -40,6 +49,27 @@
                     <TextBlock x:Name="RemoteVectorText" FontFamily="{DynamicResource FontMono}" FontSize="11" Foreground="{DynamicResource FgBrush}" />
                 </StackPanel>
             </Border>
+
+            <!-- v2.4.0: Batch processing options -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="批量处理:" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="batch-sm" Click="OnAllLocal" ToolTip.Tip="所有冲突都采用本地版本">
+                        <TextBlock Text="💾 全部采用本地" FontSize="12" />
+                    </Button>
+                    <Button Classes="batch-sm" Click="OnAllRemote" ToolTip.Tip="所有冲突都采用远端版本">
+                        <TextBlock Text="📥 全部采用远端" FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- v2.4.0: Conflict details list -->
+            <StackPanel x:Name="ConflictDetailsSection" Spacing="6" IsVisible="False">
+                <TextBlock Text="冲突条目详情:" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" />
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ConflictDetailsPanel" Spacing="2" />
+                </ScrollViewer>
+            </StackPanel>
 
             <TextBlock Text="选择解决方式:" FontFamily="{DynamicResource FontMono}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource FgDimBrush}" Margin="0,8,0,0" />
             <StackPanel Spacing="8">

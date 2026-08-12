@@ -711,14 +711,63 @@ public partial class MainWindow : Window
         }
         Grid.SetColumn(main, 1);
 
-        var meta = new StackPanel { Spacing = 4, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
-        meta.Children.Add(new TextBlock
+        var meta = new StackPanel { Spacing = 2, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+        // v2.6.4: Dual time display — show both creation and update timestamps.
+        // "创建: yyyy-MM-dd" in faint color, "更新: yyyy-MM-dd" in slightly brighter color.
+        var timeGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto"),
+            ColumnSpacing = 6,
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            RowSpacing = 1,
+        };
+        // Row 0: Created
+        var createdLabel = new TextBlock
+        {
+            Text = "创建",
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 9,
+            Foreground = Res.Brush("FgFaintBrush"),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+        Grid.SetRow(createdLabel, 0);
+        Grid.SetColumn(createdLabel, 0);
+        timeGrid.Children.Add(createdLabel);
+        var createdValue = new TextBlock
+        {
+            Text = entry.CreatedAt.LocalDateTime.ToString("yyyy-MM-dd"),
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 10,
+            Foreground = Res.Brush("FgFaintBrush"),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+        Grid.SetRow(createdValue, 0);
+        Grid.SetColumn(createdValue, 1);
+        timeGrid.Children.Add(createdValue);
+        // Row 1: Updated
+        var updatedLabel = new TextBlock
+        {
+            Text = "更新",
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 9,
+            Foreground = Res.Brush("FgFaintBrush"),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+        Grid.SetRow(updatedLabel, 1);
+        Grid.SetColumn(updatedLabel, 0);
+        timeGrid.Children.Add(updatedLabel);
+        var updatedValue = new TextBlock
         {
             Text = entry.UpdatedAt.LocalDateTime.ToString("yyyy-MM-dd"),
             FontFamily = Res.Font("FontMono"),
             FontSize = 10,
-            Foreground = Res.Brush("FgFaintBrush"),
-        });
+            Foreground = Res.Brush("FgDimBrush"),
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+        Grid.SetRow(updatedValue, 1);
+        Grid.SetColumn(updatedValue, 1);
+        timeGrid.Children.Add(updatedValue);
+        meta.Children.Add(timeGrid);
         // v2.3: Expiry indicator badge
         var expiryLabel = ExpiryLabel(entry);
         if (!string.IsNullOrEmpty(expiryLabel))

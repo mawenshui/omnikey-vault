@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System.Security.Cryptography;
+﻿﻿﻿﻿﻿﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using OmniKeyVault.Contracts;
@@ -328,6 +328,19 @@ public sealed class SyncService
             {
                 await _manifests.WriteAsync(ManifestPathFor(vaultFilePath), BuildLocalManifest(remoteRecord), ct);
             }
+
+            // v2.6.2: Reload the in-memory state from the newly written file so the
+            // UI can refresh immediately without requiring a lock/unlock cycle.
+            try
+            {
+                await _vault.ReloadFromDiskAsync(ct);
+            }
+            catch
+            {
+                // Best-effort: if reload fails (e.g. different device key), the user
+                // can still lock + re-unlock manually. Don't fail the sync.
+            }
+
             return new SyncResult(SyncOutcome.TookRemote, await GetOrCreateLocalManifestAsync(vaultFilePath, ct),
                 remoteManifest, 0, 0, $"Took remote state from {remoteFilePath} (backup: {backup}).");
         }

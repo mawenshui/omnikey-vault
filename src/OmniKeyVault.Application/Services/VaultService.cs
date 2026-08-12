@@ -325,6 +325,98 @@ public sealed class VaultService : IDisposable
         return new UnlockResult(record.VaultUuid, _profiles.Keys.OrderBy(k => k).ToList(), record.VectorClock);
     }
 
+    /// <summary>v2.6.2: Re-reads the vault file from disk and updates the in-memory
+    /// state, using the existing KEK from the lock service (no master password
+    /// required). Used after sync operations (TakeRemote) that overwrite the
+    /// on-disk file — the in-memory profiles are stale and need to be refreshed
+    /// so the UI can update without a lock/unlock cycle.</summary>
+    public async Task ReloadFromDiskAsync(CancellationToken ct = default)
+    {
+        _lock.EnsureUnlocked();
+        if (string.IsNullOrEmpty(_vaultPath) || !File.Exists(_vaultPath))
+            throw new ValidationException("No vault file to reload.");
+
+        var record = await _format.ReadAsync(_vaultPath, ct);
+
+        // Verify Ed25519 signature (same check as UnlockAsync).
+        var signedRegion = record.SignedRegion ?? throw new CryptoException("Vault file is missing signed-region metadata.");
+        if (!_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
+            throw new CryptoException("Vault signature verification failed — file may have been tampered with.");
+
+        // Decrypt each profile using the existing KEK (already in lock service).
+        var kek = _lock.CurrentKek ?? throw new VaultLockedException("KEK not available.");
+        var newProfiles = new Dictionary<string, Profile>(StringComparer.Ordinal);
+        foreach (var pr in record.Profiles)
+        {
+            using var dek = _crypto.UnwrapKey(kek, pr.WrappedDek);
+            var payload = new EncryptedPayload(pr.PayloadNonce, pr.EncryptedPayload, pr.PayloadTag,
+                VaultCryptoHelpers.BuildProfileAad(record.VaultUuid, pr.Id));
+            var bodyBytes = _crypto.Decrypt(dek, in payload, VaultCryptoHelpers.BuildProfileAad(record.VaultUuid, pr.Id));
+            var (entries, folders, tags, templates) = _codec.Decode(bodyBytes);
+            CryptographicOperations.ZeroMemory(bodyBytes);
+
+            newProfiles[pr.Name] = new Profile
+            {
+                Id = pr.Id,
+                Name = pr.Name,
+                Color = pr.Color,
+                Settings = pr.Settings,
+                Entries = entries,
+                Folders = folders,
+                Templates = templates
+            };
+            _lock.CacheDek(pr.Name, DataEncryptionKey.From(dek.Span.ToArray()));
+        }
+
+        // Update in-memory state with the fresh data from disk.
+        _profiles = newProfiles;
+        _vectorClock = record.VectorClock;
+        _argon2Params = record.Argon2Params;
+        _salt = record.Salt;
+        _verifyTag = record.VerifyTag;
+        _headerVersion = record.HeaderVersion;
+
+        // Handle device key: check if local key matches the (possibly new) public key.
+        var devicePrivBytes = _keystore.Load(record.VaultUuid);
+        DevicePrivateKey? devicePriv = null;
+        if (devicePrivBytes != null && devicePrivBytes.Length > 0)
+        {
+            using var testKey = DevicePrivateKey.From(devicePrivBytes);
+            var testData = System.Text.Encoding.UTF8.GetBytes("okv-device-key-check");
+            var testSig = _crypto.Sign(testKey, testData);
+            var keyMatches = _crypto.Verify(record.DevicePublicKey, testData, testSig);
+            CryptographicOperations.ZeroMemory(testSig);
+            if (keyMatches)
+                devicePriv = DevicePrivateKey.From(devicePrivBytes);
+        }
+
+        if (devicePriv != null)
+        {
+            _lock.CacheDeviceKey(_deviceId, devicePriv);
+            _deviceKeys = new DeviceKeyPair(record.DevicePublicKey, devicePriv);
+        }
+        else
+        {
+            var newKp = _crypto.GenerateDeviceKeyPair();
+            _keystore.Save(record.VaultUuid, newKp.PrivateKey.Span.ToArray());
+            _lock.CacheDeviceKey(_deviceId, newKp.PrivateKey);
+            _deviceKeys = newKp;
+        }
+
+        _vault = new Vault
+        {
+            Metadata = new VaultMetadata
+            {
+                Uuid = record.VaultUuid,
+                Name = record.VaultUuid.ToString(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                SchemaVersion = 1
+            },
+            VectorClock = _vectorClock,
+            Profiles = new Dictionary<string, Profile>(_profiles, StringComparer.Ordinal)
+        };
+    }
+
     /// <summary>Locks the Vault: zeroes all in-memory keys AND sensitive
     /// field values (INV-03: Lock zeroes all sensitive data).
     /// After Lock returns, no sensitive byte[] remains in heap memory

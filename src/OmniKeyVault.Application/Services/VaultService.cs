@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using System.Security.Cryptography;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System.Security.Cryptography;
 using System.Text;
 using OmniKeyVault.Contracts;
 using OmniKeyVault.Domain;
@@ -260,18 +260,54 @@ public sealed class VaultService : IDisposable
         _headerVersion = record.HeaderVersion;
 
         // Load the device private key from the local keystore (created by CreateAsync in this
-        // device). If absent (e.g., the vault was first created on another device, or the
-        // keystore was deleted), we fall back to a keyless state — read-only operations work
-        // but writes are rejected with "Device private key not available." until the user
-        // imports/regenerates the key. For v0.1 MVP we do NOT auto-regenerate (that would
-        // change the public key in the .okv header, breaking sync).
+        // device or auto-generated on first unlock of a vault created elsewhere).
+        //
+        // Cross-device support (v2.6.1): When a vault is created on device A and opened on
+        // device B via WebDAV sync, device B's keystore won't have the private key. Similarly,
+        // if the vault was last saved by device B, device A's stored private key won't match
+        // the public key in the vault header.
+        //
+        // Solution: check whether the locally stored private key matches the vault header's
+        // public key. If it matches, use it. If not (or no key exists), generate a new device
+        // keypair, save the private key to the local keystore, and use the new keypair. The
+        // vault header will be updated with the new public key on the next SaveAsync.
+        // This allows each personal device to have its own signing key while maintaining
+        // vault integrity — the signature is always verified against the public key stored
+        // in the vault header at unlock time.
         var devicePrivBytes = _keystore.Load(record.VaultUuid);
-        var devicePriv = devicePrivBytes != null ? DevicePrivateKey.From(devicePrivBytes) : null;
+        DevicePrivateKey? devicePriv = null;
+        if (devicePrivBytes != null && devicePrivBytes.Length > 0)
+        {
+            // Verify the stored private key matches the vault header's public key by
+            // signing a test message and checking with the vault's stored public key.
+            using var testKey = DevicePrivateKey.From(devicePrivBytes);
+            var testData = System.Text.Encoding.UTF8.GetBytes("okv-device-key-check");
+            var testSig = _crypto.Sign(testKey, testData);
+            var keyMatches = _crypto.Verify(record.DevicePublicKey, testData, testSig);
+            CryptographicOperations.ZeroMemory(testSig);
+            if (keyMatches)
+            {
+                devicePriv = DevicePrivateKey.From(devicePrivBytes);
+            }
+        }
+
         if (devicePriv != null)
+        {
+            // Local key matches the vault header — use it.
             _lock.CacheDeviceKey(_deviceId, devicePriv);
-        _deviceKeys = new DeviceKeyPair(record.DevicePublicKey, devicePriv ?? DevicePrivateKey.From(Array.Empty<byte>()));
-        // Note: when devicePriv is empty, SaveAsync will throw "Device private key not available"
-        // (handled at SaveAsync). Read-only commands (list, get) work fine.
+            _deviceKeys = new DeviceKeyPair(record.DevicePublicKey, devicePriv);
+        }
+        else
+        {
+            // No matching key — this is a different device or the keystore was deleted.
+            // Generate a new device keypair for this device and persist it.
+            var newKp = _crypto.GenerateDeviceKeyPair();
+            _keystore.Save(record.VaultUuid, newKp.PrivateKey.Span.ToArray());
+            _lock.CacheDeviceKey(_deviceId, newKp.PrivateKey);
+            _deviceKeys = newKp;
+            // Note: _deviceKeys.PublicKey is the NEW public key, which will replace
+            // record.DevicePublicKey in the vault header on the next SaveAsync.
+        }
 
         _vault = new Vault
         {

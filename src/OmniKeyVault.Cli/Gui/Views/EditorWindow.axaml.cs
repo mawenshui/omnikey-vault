@@ -775,6 +775,8 @@ Margin = new Thickness(0, 0, 0, 6),
         e.Cancel = true;
         Closing -= OnEditorClosing; // Remove handler to avoid re-entry
 
+        var shouldDiscard = false;
+
         var dlg = new Window
         {
             Title = "未保存的更改",
@@ -807,15 +809,25 @@ Margin = new Thickness(0, 0, 0, 6),
             Foreground = Res.Brush("AccentFgBrush"),
             Padding = new Thickness(14, 6),
         };
-        discard.Click += (_, _) => { dlg.Close(); this.Close(); };
+        discard.Click += (_, _) => { shouldDiscard = true; dlg.Close(); };
         row.Children.Add(cancel);
         row.Children.Add(discard);
         sp.Children.Add(row);
         dlg.Content = sp;
         await dlg.ShowDialog(this);
 
-        // Re-add handler if user cancelled
-        Closing += OnEditorClosing;
+        if (shouldDiscard)
+        {
+            // User chose to discard — clear the dirty flag so Close() won't
+            // re-trigger the confirmation dialog, then close the window.
+            _isDirty = false;
+            Close();
+        }
+        else
+        {
+            // User cancelled — re-add handler for future close attempts.
+            Closing += OnEditorClosing;
+        }
     }
 
     /// <summary>v2.3: Update password strength indicator for a secret field.</summary>

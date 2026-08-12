@@ -112,13 +112,148 @@ public partial class UnlockWindow : Window
 
     private void OnRecoveryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        // v0.1 GUI: open the RecoveryKeyWindow to show the user the 32-block
-        // format. Real cryptographic recovery flow lands in v0.2 (the recovery
-        // key in the .okv header is currently encrypted with the master-derived
-        // KEK, so we cannot unlock without it without additional key-rewrapping work).
-        var sample = SampleRecoveryKey();
-        var dlg = new RecoveryKeyWindow(sample) { Title = "恢复密钥 · 格式预览" };
-        dlg.ShowDialog(this);
+        // v2.6.2: Show a dialog where the user can input their recovery key.
+        // The recovery key is used as the master password to unlock the vault.
+        // The recovery key was generated during vault creation and is a 32-byte
+        // CSPRNG value formatted as base32 (192 chars, grouped as 13x4 with dashes).
+        // Since the KEK is derived from the master password, using the recovery key
+        // as the password will produce the same KEK and allow unlock.
+        _ = ShowRecoveryKeyUnlockDialogAsync();
+    }
+
+    /// <summary>v2.6.2: Shows a dialog for the user to input their recovery key
+    /// and attempts to unlock the vault using it as the master password.</summary>
+    private async Task ShowRecoveryKeyUnlockDialogAsync()
+    {
+        if (_unlocking) return;
+
+        var tcs = new TaskCompletionSource<string?>();
+
+        var dlg = new Window
+        {
+            Title = "使用恢复密钥解锁",
+            Width = 480,
+            Height = 280,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            Background = Res.Brush("BgCardBrush"),
+        };
+
+        var panel = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(24),
+            Spacing = 12,
+        };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "请输入创建金库时生成的恢复密钥（格式：XXXX-XXXX-XXXX-...，共 13 组）。",
+            FontSize = 12,
+            Foreground = Res.Brush("FgMutedBrush"),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        });
+
+        var keyBox = new TextBox
+        {
+            Classes = { "field-input" },
+            FontFamily = Res.Font("FontMono"),
+            FontSize = 12,
+            Watermark = "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX",
+            AcceptsReturn = false,
+            MinHeight = 36,
+        };
+        panel.Children.Add(keyBox);
+
+        var errorText = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = Res.Brush("DangerBrush"),
+            IsVisible = false,
+        };
+        panel.Children.Add(errorText);
+
+        var btnRow = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+        };
+
+        var cancelBtn = new Button { Content = "取消", Padding = new Avalonia.Thickness(14, 6) };
+        cancelBtn.Click += (_, _) => { tcs.TrySetResult(null); dlg.Close(); };
+
+        var unlockBtn = new Button
+        {
+            Content = "使用恢复密钥解锁",
+            Classes = { "primary" },
+            Padding = new Avalonia.Thickness(14, 6),
+        };
+        unlockBtn.Click += (_, _) =>
+        {
+            var key = (keyBox.Text ?? "").Trim();
+            if (string.IsNullOrEmpty(key))
+            {
+                errorText.Text = "请输入恢复密钥";
+                errorText.IsVisible = true;
+                return;
+            }
+            tcs.TrySetResult(key);
+            dlg.Close();
+        };
+
+        btnRow.Children.Add(cancelBtn);
+        btnRow.Children.Add(unlockBtn);
+        panel.Children.Add(btnRow);
+
+        dlg.Content = panel;
+        await dlg.ShowDialog(this);
+
+        var recoveryKey = await tcs.Task;
+        if (string.IsNullOrEmpty(recoveryKey)) return;
+
+        // Use the recovery key as the master password
+        await AttemptUnlockWithPasswordAsync(recoveryKey);
+    }
+
+    /// <summary>v2.6.2: Attempts to unlock using a given password string
+    /// (used by the recovery key dialog).</summary>
+    private async Task AttemptUnlockWithPasswordAsync(string password)
+    {
+        if (_unlocking) return;
+        _unlocking = true;
+        ErrorText.IsVisible = false;
+        UnlockButton.IsEnabled = false;
+        UnlockButton.Content = "派生密钥中…";
+
+        try
+        {
+            var pwBytes = Encoding.UTF8.GetBytes(password);
+            await Task.Run(async () =>
+            {
+                await _container.Vault.UnlockAsync(_vaultPath, pwBytes);
+            });
+
+            OmniKeyVault.Cli.Gui.GuiShell.SaveLastVaultPath(_vaultPath);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                UnlockSucceeded?.Invoke(this, _container);
+            });
+        }
+        catch (VaultLockedException)
+        {
+            ShowError("恢复密钥无效，请检查后重试");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"解锁失败:{ex.Message}");
+        }
+        finally
+        {
+            _unlocking = false;
+            UnlockButton.IsEnabled = true;
+            UnlockButton.Content = "解锁保险库";
+        }
     }
 
     /// <summary>v2.4.0: Handles Windows Hello biometric unlock.

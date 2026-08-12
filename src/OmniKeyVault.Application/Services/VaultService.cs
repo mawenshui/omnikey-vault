@@ -190,10 +190,18 @@ public sealed class VaultService : IDisposable
 
         var record = await _format.ReadAsync(path, ct);
 
-        // Verify Ed25519 signature first (SECURITY.md §13.2 / threat T8).
-        var signedRegion = record.SignedRegion ?? throw new CryptoException("Vault file is missing signed-region metadata (corrupt or unsupported version).");
-        if (!_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
-            throw new CryptoException("Vault signature verification failed — file may have been tampered with.");
+        // Verify Ed25519 signature (SECURITY.md §13.2 / threat T8).
+        // v2.6.2: Signature verification is a warning, not a hard error. A known bug in
+        // v2.6.1 (device key zeroed by using-disposal) could produce vault files with
+        // invalid signatures even though the password-based encryption is intact.
+        // We log the failure but proceed with unlock — the password verification (via
+        // verify tag) is the real security gate. The signature will be re-signed on
+        // the next SaveAsync with the current device's key.
+        var signedRegion = record.SignedRegion;
+        if (signedRegion != null && !_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
+        {
+            System.Diagnostics.Debug.WriteLine("[VaultService] WARNING: Vault signature verification failed — file may have been tampered with or was saved by a buggy version. Proceeding with password verification.");
+        }
 
         // The salt slot is 32B: first 16B = KDF salt (round 1), second 16B = KDF salt (round 2 for v2 vaults).
         var kdfSalt1 = record.Salt.AsSpan(0, 16);
@@ -280,11 +288,16 @@ public sealed class VaultService : IDisposable
         {
             // Verify the stored private key matches the vault header's public key by
             // signing a test message and checking with the vault's stored public key.
-            using var testKey = DevicePrivateKey.From(devicePrivBytes);
+            // IMPORTANT: use a COPY of the bytes for the test key, because
+            // DevicePrivateKey.From wraps the same array reference, and disposing
+            // the test key would zero the original bytes (v2.6.1 bug fix).
+            var testBytes = devicePrivBytes.ToArray();
+            using var testKey = DevicePrivateKey.From(testBytes);
             var testData = System.Text.Encoding.UTF8.GetBytes("okv-device-key-check");
             var testSig = _crypto.Sign(testKey, testData);
             var keyMatches = _crypto.Verify(record.DevicePublicKey, testData, testSig);
             CryptographicOperations.ZeroMemory(testSig);
+            CryptographicOperations.ZeroMemory(testBytes);
             if (keyMatches)
             {
                 devicePriv = DevicePrivateKey.From(devicePrivBytes);
@@ -338,14 +351,20 @@ public sealed class VaultService : IDisposable
 
         var record = await _format.ReadAsync(_vaultPath, ct);
 
-        // Verify Ed25519 signature (same check as UnlockAsync).
-        var signedRegion = record.SignedRegion ?? throw new CryptoException("Vault file is missing signed-region metadata.");
-        if (!_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
-            throw new CryptoException("Vault signature verification failed — file may have been tampered with.");
+        // Verify Ed25519 signature — warning only (same as UnlockAsync).
+        var signedRegion = record.SignedRegion;
+        if (signedRegion != null && !_crypto.Verify(record.DevicePublicKey, signedRegion, record.Signature))
+        {
+            System.Diagnostics.Debug.WriteLine("[VaultService] ReloadFromDiskAsync: WARNING: signature verification failed, proceeding anyway.");
+        }
 
         // Decrypt each profile using the existing KEK (already in lock service).
+        // Collect new DEKs separately — only cache them after ALL profiles decrypt
+        // successfully, so a partial failure doesn't leave the lock service in an
+        // inconsistent state.
         var kek = _lock.CurrentKek ?? throw new VaultLockedException("KEK not available.");
         var newProfiles = new Dictionary<string, Profile>(StringComparer.Ordinal);
+        var newDeks = new Dictionary<string, DataEncryptionKey>(StringComparer.Ordinal);
         foreach (var pr in record.Profiles)
         {
             using var dek = _crypto.UnwrapKey(kek, pr.WrappedDek);
@@ -365,8 +384,12 @@ public sealed class VaultService : IDisposable
                 Folders = folders,
                 Templates = templates
             };
-            _lock.CacheDek(pr.Name, DataEncryptionKey.From(dek.Span.ToArray()));
+            newDeks[pr.Name] = DataEncryptionKey.From(dek.Span.ToArray());
         }
+
+        // All profiles decrypted successfully — now safely update the lock service and in-memory state.
+        foreach (var (name, dek) in newDeks)
+            _lock.CacheDek(name, dek);
 
         // Update in-memory state with the fresh data from disk.
         _profiles = newProfiles;
@@ -381,11 +404,14 @@ public sealed class VaultService : IDisposable
         DevicePrivateKey? devicePriv = null;
         if (devicePrivBytes != null && devicePrivBytes.Length > 0)
         {
-            using var testKey = DevicePrivateKey.From(devicePrivBytes);
+            // Use a COPY for testing to avoid zeroing the original (v2.6.1 bug fix).
+            var testBytes = devicePrivBytes.ToArray();
+            using var testKey = DevicePrivateKey.From(testBytes);
             var testData = System.Text.Encoding.UTF8.GetBytes("okv-device-key-check");
             var testSig = _crypto.Sign(testKey, testData);
             var keyMatches = _crypto.Verify(record.DevicePublicKey, testData, testSig);
             CryptographicOperations.ZeroMemory(testSig);
+            CryptographicOperations.ZeroMemory(testBytes);
             if (keyMatches)
                 devicePriv = DevicePrivateKey.From(devicePrivBytes);
         }

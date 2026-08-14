@@ -51,7 +51,10 @@ public sealed class BrowserExtensionApiService : IDisposable
         _authToken = GenerateToken();
     }
 
-    /// <summary>Starts the HTTP listener on 127.0.0.1:port.</summary>
+    /// <summary>Starts the HTTP listener on 127.0.0.1:port.
+    /// v2.6.5: Added localhost prefix in addition to 127.0.0.1 — some Chrome
+    /// extension fetch implementations resolve to localhost instead of 127.0.0.1.
+    /// Also gracefully handles port-in-use errors.</summary>
     public void Start(int port = DefaultPort)
     {
         if (_running) return;
@@ -59,6 +62,9 @@ public sealed class BrowserExtensionApiService : IDisposable
         _cts = new CancellationTokenSource();
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        // v2.6.5: Also listen on localhost — Chrome may resolve to either.
+        try { _listener.Prefixes.Add($"http://localhost:{port}/"); }
+        catch { /* some OS versions reject duplicate — best-effort */ }
         _listener.Start();
         _running = true;
         _ = ListenLoop(_cts.Token);
@@ -98,10 +104,12 @@ public sealed class BrowserExtensionApiService : IDisposable
         try
         {
             // CORS headers for browser extension
+            // v2.6.5: Also accept requests from localhost origin and null origin
+            // (some Chrome extension pages send Origin: null)
             var origin = ctx.Request.Headers["Origin"] ?? "";
-            if (origin.StartsWith("chrome-extension://") || origin.StartsWith("moz-extension://"))
+            if (origin.StartsWith("chrome-extension://") || origin.StartsWith("moz-extension://") || origin == "null")
             {
-                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin == "null" ? "*" : origin;
             }
             ctx.Response.Headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
             ctx.Response.Headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type";
@@ -173,8 +181,26 @@ public sealed class BrowserExtensionApiService : IDisposable
                         break;
                     }
                     // Copy to clipboard — never send the value over HTTP
-                    _clipboard.CopySensitive(field.ValueString);
-                    await Task.CompletedTask;
+                    // v2.6.5: Use Win32Clipboard directly instead of going through
+                    // ClipboardService → ClipboardProvider → OsCopyAction chain.
+                    // The OsCopyAction callback is set by MainWindow's constructor,
+                    // but if the API receives a copy request before MainWindow is
+                    // fully constructed (or on a non-UI thread), OsCopyAction may
+                    // be null, resulting in the value being stored only in the
+                    // in-memory ClipboardProvider and never reaching the real OS
+                    // clipboard. Win32Clipboard.SetText works from any thread
+                    // without COM initialization.
+                    try
+                    {
+                        OmniKeyVault.Infrastructure.Win32Clipboard.SetText(field.ValueString);
+                        // Also fire the clipboard service for auto-clear tracking
+                        try { _clipboard.CopySensitive(field.ValueString); } catch { /* best-effort */ }
+                    }
+                    catch (Exception ex)
+                    {
+                        await WriteJson(ctx, 500, new { error = "clipboard_failed", message = ex.Message });
+                        break;
+                    }
                     await WriteJson(ctx, 200, new { success = true, message = "copied_to_clipboard" });
                     break;
 

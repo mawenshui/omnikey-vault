@@ -6,5 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\OmniKeyVault.Domain\OmniKeyVault.Domain.csproj" />
     <ProjectReference Include="..\OmniKeyVault.Contracts\OmniKeyVault.Contracts.csproj" />
+    <!-- v2.6.5: Added to enable Win32Clipboard access from BrowserExtensionApiService -->
+    <ProjectReference Include="..\OmniKeyVault.Infrastructure\OmniKeyVault.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

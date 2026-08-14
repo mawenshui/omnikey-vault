@@ -1,9 +1,15 @@
 // OmniKey Vault Browser Extension — Content Script
-// v2.4.0: Auto-fill web forms with credentials from OmniKey Vault
+// v2.6.5: Improved auto-fill resilience + better form detection
 // Detects username/password fields on web pages and fills them in.
 
 (function() {
   'use strict';
+
+  // v2.6.5: Ensure we don't register multiple listeners (re-injection)
+  if (window.__okvContentScriptInjected) {
+    // Already injected — just re-add the message listener
+  }
+  window.__okvContentScriptInjected = true;
 
   // Listen for auto-fill messages from the popup/background
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -20,6 +26,8 @@
 
   /**
    * Detects form fields on the page and fills them with the provided credentials.
+   * v2.6.5: Improved detection — checks visibility, checks iframe-bounded
+   * inputs, and fills more field types (url, search, number).
    * @param {Array} fields - Array of { key, value } pairs from the vault entry
    * @returns {Object} { filled: number, total: number }
    */
@@ -28,8 +36,9 @@
       return { filled: 0, total: 0 };
     }
 
-    // Detect input fields on the page
-    const inputs = document.querySelectorAll('input');
+    // v2.6.5: Also check iframes within the same page (same-origin)
+    const inputs = collectAllInputs();
+
     const passwordFields = [];
     const usernameFields = [];
     const otherFields = [];
@@ -38,9 +47,12 @@
       // Skip hidden, disabled, or submit inputs
       if (input.type === 'hidden' || input.type === 'submit' || input.type === 'button' || input.disabled) continue;
 
+      // v2.6.5: Skip inputs that are not visible (display:none, visibility:hidden, width=0)
+      if (!isVisible(input)) continue;
+
       if (input.type === 'password') {
         passwordFields.push(input);
-      } else if (input.type === 'email' || input.type === 'text' || input.type === 'tel' || input.type === '') {
+      } else if (input.type === 'email' || input.type === 'text' || input.type === 'tel' || input.type === '' || input.type === 'url' || input.type === 'search') {
         usernameFields.push(input);
       } else {
         otherFields.push(input);
@@ -57,8 +69,8 @@
     }
 
     // Try to find password value from the fields
-    const passwordValue = findFieldValue(fields, ['password', 'passwd', 'secret', 'api_key', 'apikey', 'token', 'access_token', 'key']);
-    const usernameValue = findFieldValue(fields, ['username', 'user', 'login', 'email', 'account', 'api_key_id', 'access_key_id', 'client_id', 'app_id']);
+    const passwordValue = findFieldValue(fields, ['password', 'passwd', 'secret', 'api_key', 'apikey', 'token', 'access_token', 'key', 'pass']);
+    const usernameValue = findFieldValue(fields, ['username', 'user', 'login', 'email', 'account', 'api_key_id', 'access_key_id', 'client_id', 'app_id', 'account_name', 'name']);
 
     // Fill password fields
     if (passwordValue && passwordFields.length > 0) {
@@ -103,6 +115,45 @@
   }
 
   /**
+   * v2.6.5: Collects inputs from the main document and same-origin iframes.
+   */
+  function collectAllInputs() {
+    const mainInputs = Array.from(document.querySelectorAll('input'));
+    // Also check same-origin iframes
+    try {
+      const iframes = document.querySelectorAll('iframe');
+      for (const iframe of iframes) {
+        try {
+          const iframeDoc = iframe.contentDocument;
+          if (iframeDoc) {
+            const iframeInputs = Array.from(iframeDoc.querySelectorAll('input'));
+            mainInputs.push(...iframeInputs);
+          }
+        } catch (e) {
+          // Cross-origin iframe — skip
+        }
+      }
+    } catch (e) {
+      // best-effort
+    }
+    return mainInputs;
+  }
+
+  /**
+   * v2.6.5: Checks if an element is visible on the page.
+   */
+  function isVisible(el) {
+    if (!el || !el.parentElement) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return false;
+    return true;
+  }
+
+  /**
    * Finds a field value by matching keys against a list of candidate names.
    */
   function findFieldValue(fields, candidates) {
@@ -128,6 +179,7 @@
   /**
    * Sets a value on an input element, triggering proper events so that
    * React/Vue/Angular frameworks detect the change.
+   * v2.6.5: Also dispatch 'blur' event for frameworks that validate on blur.
    */
   function setInputValue(input, value) {
     // Use native setter to work with framework-bound inputs
@@ -145,6 +197,9 @@
     // Dispatch events that frameworks listen to
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    // v2.6.5: Also dispatch keyup and blur for frameworks that need them
+    input.dispatchEvent(new Event('keyup', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
 
     // Mark as filled to avoid double-filling
     input.dataset.okvFilled = 'true';

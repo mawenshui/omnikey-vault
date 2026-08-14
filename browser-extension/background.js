@@ -1,5 +1,5 @@
 // OmniKey Vault Browser Extension — Background Service Worker
-// v2.4.0: Icon status indicator + auto-fill message relay
+// v2.6.5: Fixed auto-fill message relay + connection resilience
 // Periodically checks vault status and updates the extension icon badge.
 
 const DEFAULT_PORT = 14725;
@@ -73,18 +73,42 @@ function updateIcon(state) {
 // Periodic status check
 setInterval(checkVaultStatus, STATUS_CHECK_INTERVAL_MS);
 
-// Handle messages from popup/content scripts
+// v2.6.5: Unified message listener — all message types handled in one listener
+// to avoid race conditions with multiple listeners.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'AUTOFILL_ENTRY') {
     // Relay auto-fill request to the active tab's content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
+        // v2.6.5: Use chrome.tabs.sendMessage with error handling.
+        // In MV3, if the content script isn't injected (e.g. on chrome:// pages),
+        // the callback receives undefined and chrome.runtime.lastError is set.
         chrome.tabs.sendMessage(tabs[0].id, {
           type: 'AUTOFILL',
           entry: message.entry,
           fields: message.fields,
         }, (response) => {
-          sendResponse(response);
+          // v2.6.5: Check for lastError — content script may not be injected
+          if (chrome.runtime.lastError) {
+            // Content script not injected — try programmatic injection
+            chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              files: ['content.js']
+            }).then(() => {
+              // Retry sending the message after injection
+              chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'AUTOFILL',
+                entry: message.entry,
+                fields: message.fields,
+              }, (retryResponse) => {
+                sendResponse(retryResponse || { success: false, error: 'No response from content script' });
+              });
+            }).catch(() => {
+              sendResponse({ success: false, error: 'Cannot inject content script on this page' });
+            });
+            return;
+          }
+          sendResponse(response || { success: false, error: 'No response from content script' });
         });
       } else {
         sendResponse({ success: false, error: 'No active tab' });
@@ -102,6 +126,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+  if (message.type === 'TRACK_RECENT') {
+    trackRecentEntry(message.entry);
+    sendResponse({ success: true });
+    return true;
+  }
 });
 
 async function fetchAutofillData(entryId, profile) {
@@ -114,14 +144,6 @@ async function fetchAutofillData(entryId, profile) {
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   return response.json();
 }
-
-// Track recent entries — called from popup when an entry is copied
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'TRACK_RECENT') {
-    trackRecentEntry(message.entry);
-    sendResponse({ success: true });
-  }
-});
 
 function trackRecentEntry(entry) {
   chrome.storage.local.get(['okv_recent_entries'], (result) => {
